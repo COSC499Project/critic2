@@ -41,8 +41,17 @@ contains
 
     character (kind=c_char, len=1), dimension (*), intent (in) :: filename
 
-    integer :: lp
-    lp = LEN(filename)
+    if (cr%isinit) call clean_structure()
+    ! read the crystal environment
+    call struct_crystal_input(cr,filename,.false.,.true.,.true.)
+    if (cr%isinit) then
+       ! initialize the radial densities
+       call grda_init(.true.,.true.,.true.)
+       ! set the promolecular density as reference
+       call set_reference(0)
+    else
+       call cr%init()
+    end if
 
   end subroutine call_crystal
 end module interface
