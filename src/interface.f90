@@ -34,23 +34,15 @@ module interface
 contains
   !xx! top-level routines
 
-  subroutine call_crystal(filename) bind ( C, name="call_crystal" )
+  subroutine call_crystal(filename) bind ( C )
 
     use iso_c_binding, only: C_CHAR, c_null_char
     implicit none
 
-    character (kind=c_char, len=1), dimension (40), intent (in) :: filename
+    character (kind=c_char, len=1), dimension (*), intent (in) :: filename
 
-    if (cr%isinit) call clean_structure()
-    ! read the crystal environment
-    call struct_crystal_input(cr,filename,.false.,.true.,.true.)
-    if (cr%isinit) then
-       ! initialize the radial densities
-       call grda_init(.true.,.true.,.true.)
-       ! set the promolecular density as reference
-       call set_reference(0)
-    else
-       call cr%init()
-    end if
+    integer :: lp
+    lp = LEN(filename)
 
   end subroutine call_crystal
+end module interface

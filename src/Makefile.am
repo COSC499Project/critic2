@@ -1,7 +1,7 @@
 SUBDIRS = oldlibs ciftbx cubpack qhull
 
-# critic2 
-dist_bin_SCRIPTS = 
+# critic2
+dist_bin_SCRIPTS =
 bin_PROGRAMS = critic2
 critic2_SOURCES = \
 	critic2.F90 \
@@ -19,6 +19,7 @@ critic2_SOURCES = \
 	hirshfeld.f90 \
 	bisect.f90 \
 	integration.f90 \
+	interface.f90  \
 	surface.f90 \
 	flux.f90 \
 	autocp.f90 \
@@ -58,7 +59,7 @@ critic2_SOURCES = \
 	quadpack.f90 \
 	cfftnd.f90 \
 	config.F90 \
-	doqhull.c 
+	doqhull.c
 
 critic2_LDADD=oldlibs/libmisc.a ciftbx/libciftbx.a cubpack/libcubpack.a $(LIBADD)
 critic2_DEPENDENCIES=$(critic2_LDADD)

@@ -9,15 +9,15 @@
 	#include <freeglut.h>
 #endif
 
-extern int call_crystal_(char[40]);
+extern int call_crystal_(char *, int);
 
 static void
 print_hello (GtkWidget *widget,
              gpointer   data)
 {
-  char filename [40] = "../data/thymine_rho.cube";
+  char *filename = "../data/thymine_rho.cube";
   gchar *display;
-  int num = call_crystal_(filename);
+  int num = call_crystal(filename, strlen(filename));
   display = g_strdup_printf("%d", num);
   g_print (display);
 }
