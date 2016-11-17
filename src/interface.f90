@@ -1,5 +1,4 @@
 module interface
-  use tricks
   use stm
   use xdm
   use ewald
