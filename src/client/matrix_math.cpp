@@ -1,7 +1,11 @@
 #include "matrix_math.h"
+#include <sstream>
+#include <string>
+#include <fstream>
+#include <iostream>
 
 void divideTriangle(GLfloat * a, GLfloat * b, GLfloat * c, GLfloat * result);
-void DivideTriangles(GLfloat *, unsigned int *, int, int, GLfloat *, unsigned int *);
+void DivideTriangles(GLfloat *, unsigned int *, int, int, GLfloat *, unsigned int *, int);
 
 struct mesh{
   GLfloat * vertices;
@@ -9,6 +13,53 @@ struct mesh{
   unsigned int nvertices;
   unsigned int nindices;
 };
+
+
+void readSphereMesh(GLfloat *v, unsigned int* i){
+  FILE * fpv = NULL;
+  FILE * fpi = NULL;
+  char * line = NULL;
+  size_t len = 0;
+  ssize_t read;
+
+  fpv = fopen("./ico-v.dat", "r");
+  if (fpv == NULL)
+    exit(EXIT_FAILURE);
+  
+
+  fpi = fopen("./ico-i.dat", "r");
+  if (fpv == NULL) 
+    exit(EXIT_FAILURE);
+  
+  int v_i = 0;
+  int i_i = 0;
+  GLfloat x, y, z;
+  unsigned int a, b, c;
+  while ((read = getline(&line, &len, fpv)) != -1) {
+    sscanf(line, "%f %f %f\n", &x, &y, &z);
+    v[v_i] = x;
+    v_i += 1;
+    v[v_i] = y;
+    v_i += 1;
+    v[v_i] = z;
+    v_i += 1;
+  }
+
+  while ((read = getline(&line, &len, fpi)) != -1) {
+    sscanf(line, "%d %d %d\n", &a, &b, &c);
+    i[i_i] = a;
+    i_i += 1;
+    i[i_i] = b;
+    i_i += 1;
+    i[i_i] = c;
+    i_i += 1;
+  }
+
+  fclose(fpv);
+  fclose(fpi);
+  if(line) free(line);
+}
+
 
 void normalize(GLfloat v[3]){
   GLfloat d = sqrt(pow(v[0], 2.f) + pow(v[1], 2.f) + pow(v[2], 2.f));
@@ -26,11 +77,11 @@ void GenerateOctohedral(GLfloat * v, unsigned int * i){
   unsigned int ir[8][3] = {{5,2,1}, {1,2,4}, {4,2,0}, {0,2,5},
     {1,4,3}, {5,1,3}, {0,5,3}, {4,0,3}};
   memcpy(i, ir, sizeof(unsigned int)*24);
-  DivideTriangles((GLfloat *)vr, (unsigned int *)ir, 18, 24, v, i);
+  DivideTriangles((GLfloat *)vr, (unsigned int *)ir, 18, 24, v, i, 1);
 }
 
 void DivideTriangles(GLfloat *v, unsigned int *i, int nv, int ni,
-                     GLfloat *vr, unsigned int *ir){
+                     GLfloat *vr, unsigned int *ir, int num_divisions){
   for (int j=0; j<ni; j+=3){
   /*
     printf("%d, %d, %d    ", i[j], i[j+1], i[j+2]);

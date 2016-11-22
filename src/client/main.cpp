@@ -128,16 +128,16 @@ int main(int, char**)
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    unsigned int NumVertices = 18;
-    unsigned int NumIndices = 24;
+    unsigned int NumVertices = 3078;
+    unsigned int NumIndices = 6144;
 //    static GLfloat * sphere_vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
 //    GenerateSphere(sphere_vertices);
 
     static GLfloat * octo_vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
     static unsigned int * octo_indices = (unsigned int *) malloc(sizeof(unsigned int)*NumIndices);
-    GenerateOctohedral(octo_vertices, octo_indices);
 
-    
+    readSphereMesh(octo_vertices, octo_indices);
+//    GenerateOctohedral(octo_vertices, octo_indices);
 
 
 
@@ -189,7 +189,7 @@ int main(int, char**)
 
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
         
-        if (show_test_window)
+        if (!show_test_window)
         {
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
             ImGui::ShowTestWindow(&show_test_window);
