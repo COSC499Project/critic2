@@ -130,20 +130,25 @@ int main(int, char**)
     glDepthFunc(GL_LESS);
 
     // Load sphere mesh
-    GLuint IndexBuffer;
-    GLuint VertexBuffer;
-    GLuint IB2;
-    GLuint VB2;
-    unsigned int NumVertices = 3078;
-    unsigned int NumIndices = 6144;
-    static GLfloat * vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
-    static unsigned int * indices = (unsigned int *) malloc(sizeof(unsigned int)*NumIndices);
-    ReadMesh(vertices, indices, "./sphere.v", "./sphere.i");
-    CreateAndFillBuffers(&VertexBuffer, &IndexBuffer, vertices, indices, 
-                         NumVertices, NumIndices);
+    GLuint SphereIB;
+    GLuint SphereVB;
+    unsigned int SphereNumV = 3078;
+    unsigned int SphereNumI = 6144;
+    static GLfloat * SphereV = (GLfloat *) malloc(sizeof(GLfloat)*SphereNumV);
+    static unsigned int * SphereI = (unsigned int *) malloc(sizeof(unsigned int)*SphereNumI);
+    ReadMesh(SphereV, SphereI, "./sphere.v", "./sphere.i");
+    CreateAndFillBuffers(&SphereVB, &SphereIB, SphereV, SphereI, 
+                         SphereNumV, SphereNumI);
 
-    CreateAndFillBuffers(&VB2, &IB2, vertices, indices, 
-                         NumVertices, NumIndices);
+
+    GLuint CylIB;
+    GLuint CylVB;
+    int CylNumV = 240;
+    int CylNumI = 240;
+    static GLfloat * CylV = (GLfloat *) malloc(sizeof(GLfloat)*CylNumV);
+    static unsigned int * CylI = (unsigned int *) malloc(sizeof(unsigned int)*CylNumI);
+    ReadMesh(CylV, CylI, "./cylinder.v", "./cylinder.i");
+    CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
 
     bool show_test_window = true;
     // Main loop
@@ -156,8 +161,8 @@ int main(int, char**)
         static float sx=1.f, sy=1.f, sz=1.f;
         static float sf = 0.5f;
         static bool lockScale = true;
-        static float rx = -20.f, ry = 20.f, rz = 0.f;
-        static float tx = 0.f, ty = 0.f, tz = 0.f;
+        static float rx = 0.f, ry = 0.f, rz = 0.f;
+        static float tx = 1.f, ty = 0.f, tz = 0.f;
         {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Checkbox("Lock Scale Ratio", &lockScale);
@@ -196,21 +201,24 @@ int main(int, char**)
        // p.SetPerspectiveProj(60.f, display_w, display_h, 1.f, 1000.f);
 
         p.Scale(sx*sf, sy*sf, sz*sf);
-        p.Translate(tx, ty, tz); 
+        p.Translate(tx*-.5f, ty, tz); 
         p.Rotate(rx, ry, rz);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
         glEnableVertexAttribArray(0);
 
-        glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
+        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-        glDrawElements(GL_TRIANGLES, NumIndices, GL_UNSIGNED_INT, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+        glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
 
-        p.Scale(0.25f, 0.25f, 0.25f);
-        p.Translate(0.5f, 0.f, .0f);
+        p.Translate(tx*.5f, ty, tz); 
+
+        glBindBuffer(GL_ARRAY_BUFFER, CylVB);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-        glDrawElements(GL_TRIANGLES, NumIndices, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
 
         glDisableVertexAttribArray(0);
         

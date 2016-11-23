@@ -1,5 +1,4 @@
-# global lookup table, initialize to zero before calling a function that uses it
-lookup = {}
+from math import pi, sin, cos
 
 def gen_octohedral():
   v_data = [(1.0, 0.0, 0.0),
@@ -79,11 +78,41 @@ def get_midpoint(end1, end2, v):
   except:
     i = len(v)
     return ["new", ab, i]
-  
 
-def write_mesh_data(v_data, i_data):
-  fpv = open("ico-v.dat", "w")
-  fpi = open("ico-i.dat", "w")
+def gen_cylinder(n):
+  interval = (2*pi)/n
+  angle = 0
+
+  vertices = []
+  indices = []
+
+  x = cos(angle)
+  y = sin(angle)
+  vertices.append((x, y, 1))
+  vertices.append((x, y, -1))
+  angle += interval
+
+  for i in range(1,n):
+    x = cos(angle)
+    y = sin(angle)
+    vertices.append((x, y, 1))
+    vertices.append((x, y, -1))
+
+    j = len(vertices)
+    indices.append((j-1, j-4, j-2))
+    indices.append((j-4, j-1, j-3))
+    angle += interval
+
+  j = len(vertices)
+  indices.append((j-1, j-2, 1))
+  indices.append((1, 0, j-2))
+
+  return vertices, indices
+    
+
+def write_mesh_data(v_data, i_data, filename):
+  fpv = open(filename+".v", "w")
+  fpi = open(filename+".i", "w")
 
   v_string = ""
   i_string = ""
@@ -106,4 +135,7 @@ def write_mesh_data(v_data, i_data):
 
 
 v, i = gen_sphere(0, 0, 3)
-write_mesh_data(v, i)
+write_mesh_data(v, i, "sphere")
+
+v, i = gen_cylinder(40)
+write_mesh_data(v, i, "cylinder")
