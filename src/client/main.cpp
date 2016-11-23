@@ -11,9 +11,6 @@
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
 
-struct globalData{
-
-};
 
 static void error_callback(int error, const char* description)
 {
@@ -61,7 +58,7 @@ static GLuint CompileShaders()
       out vec4 Color; \n \
       void main() { \n \
       gl_Position = gWorld * vec4(Position, 1.0); \n \
-      Color = vec4(clamp(Position, 0.0, 1.0), 1.0);}";
+      Color = vec4(1.0, 0.0, 0.0, 1.0);}";
 
   const char * fs = "#version 330 \n \
       in vec4 Color; \n \
@@ -107,17 +104,6 @@ int main(int, char**)
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
 
-    // Load Fonts
-    // (there is a default font, this is only if you want to change it. see extra_fonts/README.txt for more details)
-    //ImGuiIO& io = ImGui::GetIO();
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyClean.ttf", 13.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyTiny.ttf", 10.0f);
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-
-    ImVec4 clear_color = ImColor(114, 144, 154);
     
     GLuint trishader = CompileShaders();
     GLuint gWorldLocation;
@@ -130,28 +116,14 @@ int main(int, char**)
 
     unsigned int NumVertices = 3078;
     unsigned int NumIndices = 6144;
-//    static GLfloat * sphere_vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
-//    GenerateSphere(sphere_vertices);
+    static GLfloat * vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
+    static unsigned int * indices = (unsigned int *) malloc(sizeof(unsigned int)*NumIndices);
 
-    static GLfloat * octo_vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
-    static unsigned int * octo_indices = (unsigned int *) malloc(sizeof(unsigned int)*NumIndices);
-
-    readSphereMesh(octo_vertices, octo_indices);
-//    GenerateOctohedral(octo_vertices, octo_indices);
+    GLfloat pos[3] = {0.f, 0.f, 0.f};
+    GenerateSphere(pos, vertices, indices);
 
 
 
-//    float a = 1.f/sqrt(2.f);
-  /*  
-    GLfloat sphere[] = {
-      1.f, 0.f, -a,  -1.f, 0.f,-a,  0.f, 1.f, a,
-      1.f, 0.f, -a,   0.f, -1.f, a, -1.f, 0.f, -a,
-      0.f, 1.f, a,   -1.f, 0.f, -a,  0.f, -1.f, a,
-      1.f, 0.f, -a,  0.f, 1.f, a,   0.f, -1.f, a};
-    
-    GLfloat * sphere_vertices = (GLfloat *) malloc(sizeof(GLfloat)*3*3*4);
-    memcpy(sphere_vertices, sphere, sizeof(GLfloat)*36);
-    */
     bool show_test_window = true;
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -159,8 +131,6 @@ int main(int, char**)
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
-        // 1. Show a simple window
-        // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
 
         static float sx=1.f, sy=1.f, sz=1.f;
         static float sf = 0.5f;
@@ -187,8 +157,7 @@ int main(int, char**)
         }
 
 
-        // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
-        
+        // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
         {
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
@@ -199,7 +168,7 @@ int main(int, char**)
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(0.1f, 0.1f, 0.1f, clear_color.w);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
 
@@ -208,25 +177,19 @@ int main(int, char**)
         GLuint VertexArrayID;
         glGenVertexArrays(1, &VertexArrayID);
         glBindVertexArray(VertexArrayID);
-/*
-        GLfloat vertices[] = {-1.f, -1.f, 0.f, 0.f, -1.f, 1.f, 1.f, -1.f, 0.f,
-          0.f, 1.f, 0.f};
-
-        unsigned int indices[] = {0,3,1,1,3,2,2,3,0,0,1,2};
-*/
 
         // create vertex buffer
         GLuint vertexbuffer;
         glGenBuffers(1, &vertexbuffer);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glBufferData(GL_ARRAY_BUFFER, NumVertices*sizeof(GLfloat), octo_vertices,
+        glBufferData(GL_ARRAY_BUFFER, NumVertices*sizeof(GLfloat), vertices,
                      GL_STATIC_DRAW);
 
         //create index buffer
         
         glGenBuffers(1, &IBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, NumIndices*sizeof(unsigned int), octo_indices, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, NumIndices*sizeof(unsigned int), indices, GL_STATIC_DRAW);
         
 
         p.Scale(0.5f*sx*sf, sy*sf, 0.5*sz*sf);

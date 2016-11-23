@@ -5,7 +5,6 @@
 *.swp
 
 src/client/examples
-
 # binaries
 src/critic2
 src/critic2.exe
@@ -69,3 +68,8 @@ COPYING
 
 # emacs tags
 src/TAGS
+
+
+
+
+!src/client/Makefile

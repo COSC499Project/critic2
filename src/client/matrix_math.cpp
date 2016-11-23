@@ -4,30 +4,21 @@
 #include <fstream>
 #include <iostream>
 
-void divideTriangle(GLfloat * a, GLfloat * b, GLfloat * c, GLfloat * result);
-void DivideTriangles(GLfloat *, unsigned int *, int, int, GLfloat *, unsigned int *, int);
-
-struct mesh{
-  GLfloat * vertices;
-  unsigned int * indices;
-  unsigned int nvertices;
-  unsigned int nindices;
-};
 
 
-void readSphereMesh(GLfloat *v, unsigned int* i){
+void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file){
   FILE * fpv = NULL;
   FILE * fpi = NULL;
   char * line = NULL;
   size_t len = 0;
   ssize_t read;
 
-  fpv = fopen("./ico-v.dat", "r");
+  fpv = fopen(v_file, "r");
   if (fpv == NULL)
     exit(EXIT_FAILURE);
   
 
-  fpi = fopen("./ico-i.dat", "r");
+  fpi = fopen(i_file, "r");
   if (fpv == NULL) 
     exit(EXIT_FAILURE);
   
@@ -61,119 +52,14 @@ void readSphereMesh(GLfloat *v, unsigned int* i){
 }
 
 
-void normalize(GLfloat v[3]){
-  GLfloat d = sqrt(pow(v[0], 2.f) + pow(v[1], 2.f) + pow(v[2], 2.f));
-  v[0] /= d;
-  v[1] /= d;
-  v[2] /= d;
+
+
+void GenerateSphere(GLfloat pos[3], GLfloat * v, unsigned int * i){
+  int nfloats = 3078;
+  int nindices = 6144;
+  ReadMesh(v, i, "./sphere.v", "./sphere.i");
 }
 
-void GenerateOctohedral(GLfloat * v, unsigned int * i){
-  GLfloat vr[6][3] = {{1.f, 0.f, 0.f}, {-1.f, 0.f, 0.f},
-    {0.f, 1.f, 0.f}, {0.f, -1.f, 0.f},
-    {0.f, 0.f, 1.f}, {0.f, 0.f, -1.f}};
-  memcpy(&v[0], vr, sizeof(GLfloat)*18);
-
-  unsigned int ir[8][3] = {{5,2,1}, {1,2,4}, {4,2,0}, {0,2,5},
-    {1,4,3}, {5,1,3}, {0,5,3}, {4,0,3}};
-  memcpy(i, ir, sizeof(unsigned int)*24);
-  DivideTriangles((GLfloat *)vr, (unsigned int *)ir, 18, 24, v, i, 1);
-}
-
-void DivideTriangles(GLfloat *v, unsigned int *i, int nv, int ni,
-                     GLfloat *vr, unsigned int *ir, int num_divisions){
-  for (int j=0; j<ni; j+=3){
-  /*
-    printf("%d, %d, %d    ", i[j], i[j+1], i[j+2]);
-    printf("(%.1f, %.1f, %.1f), ", v[i[j]*3], v[i[j]*3+1], v[i[j]*3+2]);
-    printf("(%.1f, %.1f, %.1f), ", v[i[j+1]*3], v[i[j+1]*3+1], v[i[j+1]*3+2]);
-    printf("(%.1f, %.1f, %.1f)\n", v[i[j+2]*3], v[i[j+2]*3+1], v[i[j+2]*3+2]);
-*/
-    int a = i[j], b=i[j+1], c=i[j+2];
-    float ax = v[i[j]*3],   ay = v[i[j]*3+1],   az = v[i[j]*3+2];
-    float bx = v[i[j+1]*3], by = v[i[j+1]*3+1], bz = v[i[j+1]*3+2];
-    float cx = v[i[j+2]*3], cy = v[i[j+2]*3+1], cz = v[i[j+2]*3+2];
-
-    float abx = (ax + bx)/2.f;
-    float aby = (ay + by)/2.f;
-    float abz = (az + bz)/2.f;
-    
-    float acx = (ax + cx)/2.f;
-    float acy = (ay + cy)/2.f;
-    float acz = (az + cz)/2.f;
-
-    float bcx = (bx + cx)/2.f;
-    float bcy = (by + cy)/2.f;
-    float bcz = (bz + cz)/2.f;
-  }
-
-
-}
-
-
-void GenerateSphere(GLfloat * v){
-  //pass in mesh with enough space allocated for
-  GLfloat a[] = {1.f, 0.f, -1.f/sqrt(2.f)};
-  GLfloat b[] = {-1.f, 0.f, -1.f/sqrt(2.f)};
-  GLfloat c[] = {0.f, 1.f, 1.f/sqrt(2.f)};
-  GLfloat d[] = {0.f, -1.f, 1.f/sqrt(2.f)};
-
-  divideTriangle(a, b, c, &v[0]);
-  divideTriangle(a, d, b, &v[36]);
-  divideTriangle(c, b, d, &v[72]);
-  divideTriangle(a, c, d, &v[108]);
-
-  for(int i=0; i< 144; i+=3){
-    normalize(&v[i]);
-  }
-/*
-  
-  memcpy(&v[0], a, sizeof(GLfloat)*3);
-  memcpy(&v[3], b, sizeof(GLfloat)*3);
-  memcpy(&v[6], c, sizeof(GLfloat)*3);
-
-  memcpy(&v[9], a, sizeof(GLfloat)*3);
-  memcpy(&v[12], d, sizeof(GLfloat)*3);
-  memcpy(&v[15], b, sizeof(GLfloat)*3);
-
-  memcpy(&v[18], c, sizeof(GLfloat)*3);
-  memcpy(&v[21], b, sizeof(GLfloat)*3);
-  memcpy(&v[24], d, sizeof(GLfloat)*3);
-  
-  memcpy(&v[27], a, sizeof(GLfloat)*3);
-  memcpy(&v[30], c, sizeof(GLfloat)*3);
-  memcpy(&v[33], d, sizeof(GLfloat)*3);
-  */
-//  return v;
-}
-
-void divideTriangle(GLfloat * a, GLfloat * c, GLfloat * b, GLfloat * result){
-  // takes 3 arrays of 3 floats = 9 floats
-  // outputs 36 floats
-  GLfloat ab[3], ac[3], bc[3];
-  for (int i=0; i<3; i++){
-    ab[i] = (a[i] + b[i])/2.f;
-    ac[i] = (a[i] + c[i])/2.f;
-    bc[i] = (b[i] + c[i])/2.f;
-  }
-
-  memcpy(&result[0], a, sizeof(GLfloat)*3);
-  memcpy(&result[3], ab, sizeof(GLfloat)*3);
-  memcpy(&result[6], ac, sizeof(GLfloat)*3);
-
-  memcpy(&result[9], ab, sizeof(GLfloat)*3);
-  memcpy(&result[12], ac, sizeof(GLfloat)*3);
-  memcpy(&result[15], bc, sizeof(GLfloat)*3);
-
-  memcpy(&result[18], ac, sizeof(GLfloat)*3);
-  memcpy(&result[21], c, sizeof(GLfloat)*3);
-  memcpy(&result[24], bc, sizeof(GLfloat)*3);
-  
-  memcpy(&result[27], ab, sizeof(GLfloat)*3);
-  memcpy(&result[30], b, sizeof(GLfloat)*3);
-  memcpy(&result[33], bc, sizeof(GLfloat)*3); 
-  
-}
 
 
 Matrix4f MultMatrices(Matrix4f Left, Matrix4f Right)
