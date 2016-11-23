@@ -83,7 +83,19 @@ static GLuint CompileShaders()
   return ShaderProgram;
 }
 
+void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer, 
+                          GLfloat * Vertices, unsigned int * Indices,
+                          unsigned int NumVertices, unsigned int NumIndices)
+{
+  glGenBuffers(1, VertexBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, *VertexBuffer);
+  glBufferData(GL_ARRAY_BUFFER, NumVertices*sizeof(GLfloat), Vertices, GL_STATIC_DRAW);
 
+  glGenBuffers(1, IndexBuffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *IndexBuffer);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, NumIndices*sizeof(unsigned int), Indices, GL_STATIC_DRAW);
+
+}
 
 int main(int, char**)
 {
@@ -103,26 +115,35 @@ int main(int, char**)
 
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
-
     
+    //Setup up OpenGL stuff
+    GLuint VertexArray;
+    glGenVertexArrays(1, &VertexArray);
+    glBindVertexArray(VertexArray);
+
     GLuint trishader = CompileShaders();
     GLuint gWorldLocation;
-    GLuint IBO;
     gWorldLocation = glGetUniformLocation(trishader, "gWorld");
     
     Pipeline p;
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
+    // Load sphere mesh
+    GLuint IndexBuffer;
+    GLuint VertexBuffer;
+    GLuint IB2;
+    GLuint VB2;
     unsigned int NumVertices = 3078;
     unsigned int NumIndices = 6144;
     static GLfloat * vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
     static unsigned int * indices = (unsigned int *) malloc(sizeof(unsigned int)*NumIndices);
+    ReadMesh(vertices, indices, "./sphere.v", "./sphere.i");
+    CreateAndFillBuffers(&VertexBuffer, &IndexBuffer, vertices, indices, 
+                         NumVertices, NumIndices);
 
-    GLfloat pos[3] = {0.f, 0.f, 0.f};
-    GenerateSphere(pos, vertices, indices);
-
-
+    CreateAndFillBuffers(&VB2, &IB2, vertices, indices, 
+                         NumVertices, NumIndices);
 
     bool show_test_window = true;
     // Main loop
@@ -172,42 +193,27 @@ int main(int, char**)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
 
-        p.SetPerspectiveProj(60.f, display_w, display_h, 1.f, 1000.f);
+       // p.SetPerspectiveProj(60.f, display_w, display_h, 1.f, 1000.f);
 
-        GLuint VertexArrayID;
-        glGenVertexArrays(1, &VertexArrayID);
-        glBindVertexArray(VertexArrayID);
-
-        // create vertex buffer
-        GLuint vertexbuffer;
-        glGenBuffers(1, &vertexbuffer);
-        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glBufferData(GL_ARRAY_BUFFER, NumVertices*sizeof(GLfloat), vertices,
-                     GL_STATIC_DRAW);
-
-        //create index buffer
-        
-        glGenBuffers(1, &IBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, NumIndices*sizeof(unsigned int), indices, GL_STATIC_DRAW);
-        
-
-        p.Scale(0.5f*sx*sf, sy*sf, 0.5*sz*sf);
+        p.Scale(sx*sf, sy*sf, sz*sf);
         p.Translate(tx, ty, tz); 
         p.Rotate(rx, ry, rz);
-
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
         glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-   //     glDrawArrays(GL_TRIANGLES, 0, NumVertices);
+        glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
         glDrawElements(GL_TRIANGLES, NumIndices, GL_UNSIGNED_INT, 0);
+
+        p.Scale(0.25f, 0.25f, 0.25f);
+        p.Translate(0.5f, 0.f, .0f);
+        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
+        glDrawElements(GL_TRIANGLES, NumIndices, GL_UNSIGNED_INT, 0);
+
         glDisableVertexAttribArray(0);
         
-//        CompileShaders();
         glUseProgram(trishader);
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

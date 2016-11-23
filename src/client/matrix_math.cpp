@@ -1,10 +1,54 @@
-#include "matrix_math.h"
+#include <math.h>
 #include <sstream>
 #include <string>
 #include <fstream>
 #include <iostream>
 
+#define ToRadian(x) ((x) * M_PI / 180.0f)
+#define ToDegree(x) ((x) * 180.0f / M_PI)
 
+struct Matrix4f {
+  float m[4][4];
+};
+
+struct ProjInfo {
+  float FOV;
+  float Width;
+  float Height;
+  float zNear;
+  float zFar;
+};
+
+class Pipeline
+{
+public:
+  Pipeline(){
+    m_scale[0] = 1.f; m_scale[1] = 1.f, m_scale[2] = 1.f;
+    m_pos[0] = 0.f; m_pos[1] = 0.f, m_pos[2] = 0.f;
+    m_rotate[0] = 0.f; m_rotate[1] = 0.f, m_rotate[2] = 0.f;
+  }
+
+  void Scale(float x, float y, float z){
+    m_scale[0] = x*0.5f; m_scale[1] = y; m_scale[2] = z;
+  }
+
+  void Translate(float x, float y, float z){
+    m_pos[0] = x; m_pos[1] = y; m_pos[2] = z;
+  }
+
+  void Rotate(float x, float y, float z){
+    m_rotate[0] = x; m_rotate[1] = y; m_rotate[2] = z;
+  }
+
+  const Matrix4f * GetTrans();
+
+private:
+  float m_scale[3];
+  float m_pos[3];
+  float m_rotate[3];
+  Matrix4f m_transform;
+  ProjInfo m_projInfo;
+};
 
 void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file){
   FILE * fpv = NULL;
@@ -52,16 +96,6 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
 }
 
 
-
-
-void GenerateSphere(GLfloat pos[3], GLfloat * v, unsigned int * i){
-  int nfloats = 3078;
-  int nindices = 6144;
-  ReadMesh(v, i, "./sphere.v", "./sphere.i");
-}
-
-
-
 Matrix4f MultMatrices(Matrix4f Left, Matrix4f Right)
 {
   Matrix4f Ret;
@@ -76,22 +110,17 @@ Matrix4f MultMatrices(Matrix4f Left, Matrix4f Right)
   return Ret;
 }
 
-void Pipeline::Rotate(float x, float y, float z){
-  m_rotateInfo.x = x;
-  m_rotateInfo.y = y;
-  m_rotateInfo.z = z;
-}
 
 const Matrix4f * Pipeline::GetTrans(){
   Matrix4f st, rx, ry, rz, tt;
-  st.m[0][0] = m_scale.x; st.m[0][1] = 0.f; st.m[0][2] = 0.f; st.m[0][3] = 0.f;
-  st.m[1][0] = 0.f; st.m[1][1] = m_scale.y; st.m[1][2] = 0.f; st.m[1][3] = 0.f;
-  st.m[2][0] = 0.f; st.m[2][1] = 0.f; st.m[2][2] = m_scale.z; st.m[2][3] = 0.f;
+  st.m[0][0] = m_scale[0]; st.m[0][1] = 0.f; st.m[0][2] = 0.f; st.m[0][3] = 0.f;
+  st.m[1][0] = 0.f; st.m[1][1] = m_scale[1]; st.m[1][2] = 0.f; st.m[1][3] = 0.f;
+  st.m[2][0] = 0.f; st.m[2][1] = 0.f; st.m[2][2] = m_scale[2]; st.m[2][3] = 0.f;
   st.m[3][0] = 0.f; st.m[3][1] = 0.f; st.m[3][2] = 0.f; st.m[3][3] = 1.f;
 
-  const float x = ToRadian(m_rotateInfo.x);
-  const float y = ToRadian(m_rotateInfo.y);
-  const float z = ToRadian(m_rotateInfo.z);
+  const float x = ToRadian(m_rotate[0]);
+  const float y = ToRadian(m_rotate[1]);
+  const float z = ToRadian(m_rotate[2]);
   rx.m[0][0] = 1.f; rx.m[0][1] = 0.f;     rx.m[0][2] = 0.f;      rx.m[0][3] = 0.f;
   rx.m[1][0] = 0.f; rx.m[1][1] = cosf(x); rx.m[1][2] = -sinf(x); rx.m[1][3] = 0.f;
   rx.m[2][0] = 0.f; rx.m[2][1] = sinf(x); rx.m[2][2] = cosf(x);  rx.m[2][3] = 0.f;
@@ -107,15 +136,16 @@ const Matrix4f * Pipeline::GetTrans(){
   rz.m[2][0] = 0.f;     rz.m[2][1] = 0.f;      rz.m[2][2] = 1.f; rz.m[2][3] = 0.f;
   rz.m[3][0] = 0.f;     rz.m[3][1] = 0.f;      rz.m[3][2] = 0.f; rz.m[3][3] = 1.f;
  
-  tt.m[0][0] = 1.f; tt.m[0][1] = 0.f; tt.m[0][2] = 0.f; tt.m[0][3] = m_worldPos.x;
-  tt.m[1][0] = 0.f; tt.m[1][1] = 1.f; tt.m[1][2] = 0.f; tt.m[1][3] = m_worldPos.y;
-  tt.m[2][0] = 0.f; tt.m[2][1] = 0.f; tt.m[2][2] = 1.f; tt.m[2][3] = m_worldPos.z;
+  tt.m[0][0] = 1.f; tt.m[0][1] = 0.f; tt.m[0][2] = 0.f; tt.m[0][3] = m_pos[0];
+  tt.m[1][0] = 0.f; tt.m[1][1] = 1.f; tt.m[1][2] = 0.f; tt.m[1][3] = m_pos[1];
+  tt.m[2][0] = 0.f; tt.m[2][1] = 0.f; tt.m[2][2] = 1.f; tt.m[2][3] = m_pos[2];
   tt.m[3][0] = 0.f; tt.m[3][1] = 0.f; tt.m[3][2] = 0.f; tt.m[3][3] = 1.f;
- 
-  m_transformation = MultMatrices(MultMatrices(MultMatrices(MultMatrices(tt, rx), ry), rz), st);
-  return &m_transformation;
+  
+  Matrix4f rotate = MultMatrices(MultMatrices(rx, ry), rz);
+  m_transform = MultMatrices(MultMatrices(tt, st), rotate);
+  return &m_transform;
 }
-
+/*
 
 void Pipeline::InitPerspectiveProj(Matrix4f * m){
   const float ar = m_persProjInfo.Width / m_persProjInfo.Height;
@@ -146,13 +176,7 @@ const Matrix4f * Pipeline::GetPTrans(){
   return &m_transformation;
 }
 
-
-
-
-
-
-
-
+*/
 
 
 
