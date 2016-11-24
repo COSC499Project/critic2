@@ -11,6 +11,12 @@ struct Matrix4f {
   float m[4][4];
 };
 
+struct CameraInfo{
+  float Pos[3];
+  float Target[3];
+  float Up[3];
+};
+
 struct ProjInfo {
   float FOV;
   float Width;
@@ -40,7 +46,14 @@ public:
     m_rotate[0] = x; m_rotate[1] = y; m_rotate[2] = z;
   }
 
+  void SetCamera(float Pos[3], float Target[3], float Up[3]){
+    memcpy(&m_camera.Pos, Pos, sizeof(float)*3);
+    memcpy(&m_camera.Target, Target, sizeof(float)*3);
+    memcpy(&m_camera.Up, Up, sizeof(float)*3);
+  }
+
   const Matrix4f * GetTrans();
+  const Matrix4f * GetCTrans();
 
 private:
   float m_scale[3];
@@ -48,6 +61,7 @@ private:
   float m_rotate[3];
   Matrix4f m_transform;
   ProjInfo m_projInfo;
+  CameraInfo m_camera;
 };
 
 void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file){
@@ -95,6 +109,20 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   if(line) free(line);
 }
 
+void Cross(const float left[3], const float right[3], float * result)
+{
+ result[0] = left[1]*right[2] - left[2]*right[1];
+ result[1] = left[2]*right[0] - left[0]*right[2];
+ result[2] = left[0]*right[1] - left[1]*right[0];
+}
+
+void Normalize(float * v)
+{
+  float d = sqrt(pow(v[0], 2) + pow(v[1], 2) + pow(v[2], 2));
+  v[0] = v[0]/d;
+  v[1] = v[1]/d;
+  v[2] = v[2]/d;
+}
 
 Matrix4f MultMatrices(Matrix4f Left, Matrix4f Right)
 {
@@ -145,8 +173,40 @@ const Matrix4f * Pipeline::GetTrans(){
   m_transform = MultMatrices(MultMatrices(tt, st), rotate);
   return &m_transform;
 }
-/*
 
+const Matrix4f * Pipeline::GetCTrans()
+{
+
+  Normalize((float *)m_camera.Target);
+  float * N = (float *)m_camera.Target;
+  Normalize((float *)m_camera.Up);
+  float * U = (float *)m_camera.Up;
+  float V[3];
+  
+  Cross(N, U, V);
+
+  Matrix4f WorldTransform = *(GetTrans());
+
+  Matrix4f cr; // Camera rotate
+  cr.m[0][0] = U[0]; cr.m[0][1] = U[1]; cr.m[0][2] = U[2]; cr.m[0][3] = 0.0f;
+  cr.m[1][0] = V[0]; cr.m[1][1] = V[1]; cr.m[1][2] = V[2]; cr.m[1][3] = 0.0f;
+  cr.m[2][0] = N[0]; cr.m[2][1] = N[1]; cr.m[2][2] = N[2]; cr.m[2][3] = 0.0f;
+  cr.m[3][0] = 0.0f; cr.m[3][1] = 0.0f; cr.m[3][2] = 0.0f; cr.m[3][3] = 1.0f;
+
+  Matrix4f cp; // Camera position
+  cp.m[0][0] = 1.f; cp.m[0][1] = 0.f; cp.m[0][2] = 0.f; cp.m[0][3] = -m_camera.Pos[0];
+  cp.m[1][0] = 0.f; cp.m[1][1] = 1.f; cp.m[1][2] = 0.f; cp.m[1][3] = -m_camera.Pos[1];
+  cp.m[2][0] = 0.f; cp.m[2][1] = 0.f; cp.m[2][2] = 1.f; cp.m[2][3] = -m_camera.Pos[2];
+  cp.m[3][0] = 0.f; cp.m[3][1] = 0.f; cp.m[3][2] = 0.f; cp.m[3][3] = 1.f;
+
+
+  m_transform = MultMatrices(MultMatrices(cr, cp), WorldTransform); 
+  return &m_transform;
+
+}
+
+
+/*
 void Pipeline::InitPerspectiveProj(Matrix4f * m){
   const float ar = m_persProjInfo.Width / m_persProjInfo.Height;
   const float zNear = m_persProjInfo.zNear;

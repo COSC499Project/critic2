@@ -34,7 +34,7 @@ ifeq ($(UNAME_S), Darwin) #APPLE
 	LIBS += -L/usr/local/lib -lglfw3
 	#LIBS += -L/usr/local/lib -lglfw
 
-	CXXFLAGS = -I../../ -I../libs/gl3w -I/usr/local/include
+	CXXFLAGS = -I./ -Ilibs/gl3w -I/usr/local/include
 	CXXFLAGS += -Wall -Wformat
 #	CXXFLAGS += -D__APPLE__
 	CFLAGS = $(CXXFLAGS)
@@ -44,7 +44,7 @@ ifeq ($(UNAME_S), MINGW64_NT-6.3)
    ECHO_MESSAGE = "Windows"
    LIBS = -lglfw3 -lgdi32 -lopengl32 -limm32
 
-   CXXFLAGS = -I../../ -I../libs/gl3w `pkg-config --cflags glfw3`
+   CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
    CXXFLAGS += -Wall -Wformat
    CFLAGS = $(CXXFLAGS)
 endif
