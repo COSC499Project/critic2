@@ -1,7 +1,4 @@
 module interface
-  use struct
-  use struct_basic
-  
   private
 
   public :: call_crystal
@@ -10,8 +7,8 @@ contains
   !xx! top-level routines
 
   subroutine call_crystal(filename0, nc) bind ( C )
-    !use struct
-    !use struct_basic
+    use struct
+    use struct_basic
 
     USE, INTRINSIC :: ISO_C_BINDING
     implicit none
