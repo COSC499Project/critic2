@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <string.h>
 #if defined(__APPLE__)
 	#include <OpenGL/gl.h>
 	#include <OpenGL/glu.h>
@@ -9,7 +10,7 @@
 	#include <freeglut.h>
 #endif
 
-extern int call_crystal_(char *, int);
+extern int call_crystal(char *, int *);
 
 static void
 print_hello (GtkWidget *widget,
@@ -17,7 +18,9 @@ print_hello (GtkWidget *widget,
 {
   char *filename = "../data/thymine_rho.cube";
   gchar *display;
-  int num = call_crystal(filename, strlen(filename));
+	int len = strlen(filename);
+
+  int num = call_crystal(filename, &len);
   display = g_strdup_printf("%d", num);
   g_print (display);
 }
