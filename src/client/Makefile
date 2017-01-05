@@ -19,8 +19,8 @@ OBJS += libs/gl3w/GL/gl3w.o
 UNAME_S := $(uname -s)
 
 ifeq ($(UNAME_S), Linux) #LINUX
-	ECHO_MESSAGE = "Linux"
 	LIBS = -lGL `pkg-config --static --libs glfw3`
+	ECHO_MESSAGE = "Linux"
 
 	CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
 	CXXFLAGS += -Wall -Wformat
@@ -41,13 +41,12 @@ endif
 
 #ifeq ($(UNAME_S), CYGWIN_NT-10.0) #windows cygwin
    ECHO_MESSAGE = "Windows"
-   LIBS = -lgdi32 -lopengl32 -limm32
-   PKG_CONFIG_PATH=./GLFW
-   CXXFLAGS = -I./GLFW -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
-   CXXFLAGS += -Wall -Wformat
-   CFLAGS = $(CXXFLAGS)
-#endif
+   LIBS = -lgdi32 -lopengl32 -lGL `pkg-config --static --libs glfw3`
 
+   CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
+   CXXFLAGS += -Wall -Wformat
+   CFLAGS = $(CXXFLAGS) 
+#endif
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
