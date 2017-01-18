@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <GL/gl3w.h>
+#include <GL/gl3w.c> //this must be included to prevent linking errors
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
 

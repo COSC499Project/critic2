@@ -1,8 +1,15 @@
+//requried to use M_PI
+#define _USE_MATH_DEFINES
+#include <cmath>
+
+
 #include <math.h>
 #include <sstream>
 #include <string>
 #include <fstream>
 #include <iostream>
+
+using namespace std;
 
 #define ToRadian(x) ((x) * M_PI / 180.0f)
 #define ToDegree(x) ((x) * 180.0f / M_PI)
@@ -64,45 +71,125 @@ private:
   CameraInfo m_camera;
 };
 
+//new line reader from http://stackoverflow.com/questions/6089231/getting-std-ifstream-to-handle-lf-cr-and-crlf
+std::istream& safeGetline(std::istream& is, std::string& t)
+{
+	t.clear();
+
+	// The characters in the stream are read one-by-one using a std::streambuf.
+	// That is faster than reading them one-by-one using the std::istream.
+	// Code that uses streambuf this way must be guarded by a sentry object.
+	// The sentry object performs various tasks,
+	// such as thread synchronization and updating the stream state.
+
+	std::istream::sentry se(is, true);
+	std::streambuf* sb = is.rdbuf();
+
+	for (;;) {
+		int c = sb->sbumpc();
+		switch (c) {
+		case '\n':
+			return is;
+		case '\r':
+			if (sb->sgetc() == '\n')
+				sb->sbumpc();
+			return is;
+		case EOF:
+			// Also handle the case when the last line has no line ending
+			if (t.empty())
+				is.setstate(std::ios::eofbit);
+			return is;
+		default:
+			t += (char)c;
+		}
+	}
+}
+
+
 void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file){
   FILE * fpv = NULL;
   FILE * fpi = NULL;
   char * line = NULL;
   size_t len = 0;
-  ssize_t read;
+  size_t read;
 
-  fpv = fopen(v_file, "r");
-  if (fpv == NULL)
-    exit(EXIT_FAILURE);
+  //fpv = fopen(v_file, "r");
+  //if (fpv == NULL)
+  //  exit(EXIT_FAILURE);
   
 
-  fpi = fopen(i_file, "r");
-  if (fpv == NULL) 
-    exit(EXIT_FAILURE);
+  //fpi = fopen(i_file, "r");
+  //if (fpv == NULL) 
+  //  exit(EXIT_FAILURE);
   
   int v_i = 0;
   int i_i = 0;
   GLfloat x, y, z;
   unsigned int a, b, c;
-  while ((read = getline(&line, &len, fpv)) != -1) {
-    sscanf(line, "%f %f %f\n", &x, &y, &z);
-    v[v_i] = x;
-    v_i += 1;
-    v[v_i] = y;
-    v_i += 1;
-    v[v_i] = z;
-    v_i += 1;
+  //new code
+
+  std::string path = v_file; // path to file (v first)
+
+  std::ifstream ifs(path.c_str());
+  if (!ifs) {
+	  std::cout << "Failed to open the file." << std::endl;
+	  return;
   }
 
-  while ((read = getline(&line, &len, fpi)) != -1) {
-    sscanf(line, "%d %d %d\n", &a, &b, &c);
-    i[i_i] = a;
-    i_i += 1;
-    i[i_i] = b;
-    i_i += 1;
-    i[i_i] = c;
-    i_i += 1;
+  int n = 0;
+  std::string t;
+  while (!safeGetline(ifs, t).eof()) { // read the .v file
+	  sscanf_s(t.c_str(), "%f %f %f\n", &x, &y, &z); //string is converted to constant char
+	  v[v_i] = x;
+	  v_i += 1;
+	  v[v_i] = y;
+	  v_i += 1;
+	  v[v_i] = z;
+	  v_i += 1;
   }
+
+  path = i_file; // path to file .i file
+
+  std::ifstream ifs2(path.c_str());
+  if (!ifs2) {
+	  std::cout << "Failed to open the file." << std::endl;
+	  return;
+  }
+
+  n = 0;
+  t;
+  while (!safeGetline(ifs2, t).eof()) { // read the .v file
+	  sscanf_s(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
+	  i[i_i] = a;
+	  i_i += 1;
+	  i[i_i] = b;
+	  i_i += 1;
+	  i[i_i] = c;
+	  i_i += 1;
+  }
+
+  //new code end
+
+  // requires unix platform to pars file
+  //while ((read = getline(&line, &len, fpv)) != -1) {
+  //  sscanf(line, "%f %f %f\n", &x, &y, &z);
+  //  v[v_i] = x;
+  //  v_i += 1;
+  //  v[v_i] = y;
+  //  v_i += 1;
+  //  v[v_i] = z;
+  //  v_i += 1;
+  //}
+
+  //while ((read = getline(&line, &len, fpi)) != -1) {
+  //  sscanf(line, "%d %d %d\n", &a, &b, &c);
+  //  i[i_i] = a;
+  //  i_i += 1;
+  //  i[i_i] = b;
+  //  i_i += 1;
+  //  i[i_i] = c;
+  //  i_i += 1;
+  //}
 
   fclose(fpv);
   fclose(fpi);

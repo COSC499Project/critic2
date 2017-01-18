@@ -1,0 +1,15 @@
+﻿  main.cpp
+c:\499drive\critic2\src\client\matrix_math.cpp(113): warning C4189: 'len': local variable is initialized but not referenced
+c:\499drive\critic2\src\client\matrix_math.cpp(114): warning C4101: 'read': unreferenced local variable
+c:\499drive\critic2\src\client\matrix_math.cpp(236): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(236): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(237): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(237): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(238): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(238): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+glfw3.lib(init.obj) : warning LNK4217: locally defined symbol _vsnprintf imported in function __glfwInputError
+MSVCRTD.lib(vsnprintf.obj) : warning LNK4049: locally defined symbol _vsnprintf imported
+glfw3.lib(context.obj) : warning LNK4217: locally defined symbol _sscanf imported in function _parseVersionString
+MSVCRTD.lib(vsnprintf.obj) : warning LNK4049: locally defined symbol __vsnprintf imported
+  WindowsCompiler.vcxproj -> C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.exe
+  WindowsCompiler.vcxproj -> C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.pdb (Full PDB)
