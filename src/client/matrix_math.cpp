@@ -129,11 +129,10 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   //new code
 
   std::string path = v_file; // path to file (v first)
-
+  path = path.erase(0, 2);
   std::ifstream ifs(path.c_str());
   if (!ifs) {
-	  std::cout << "Failed to open the file." << std::endl;
-	  return;
+	  std::cout << ("Failed to open the file.  " + path) << std::endl;
   }
 
   int n = 0;
@@ -149,11 +148,10 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   }
 
   path = i_file; // path to file .i file
-
+  path = path.erase(0, 2);
   std::ifstream ifs2(path.c_str());
   if (!ifs2) {
 	  std::cout << "Failed to open the file." << std::endl;
-	  return;
   }
 
   n = 0;
