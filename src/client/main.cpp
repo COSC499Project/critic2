@@ -184,10 +184,10 @@ int main(int, char**)
         static float sf = 0.5f;
         static bool lockScale = true;
         static float rx = 0.f, ry = 0.f, rz = 0.f;
-        static float tx = 1.f, ty = 0.f, tz = 0.f;
+        static float tx = 0.5f, ty = 0.f, tz = 0.f;
 
-        static float camPos[3] = {0.f, 0.f, 1.f};
-        static float camTarget[3] = {0.f, 0.f, 0.f};
+        static float camPos[3] = {1.f, 1.f, -1.f};
+        static float camTarget[3] = {0.45f, 0.f, 1.f};
         static float camUp[3] = {0.f, 1.f, 0.f};
         {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -219,12 +219,7 @@ int main(int, char**)
             ImGui::DragFloat("CamUpY", &camUp[1], 0.005f);
             ImGui::DragFloat("CamUpZ", &camUp[2], 0.005f);
 
-
-
-
-
         }
-
 
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
@@ -232,6 +227,7 @@ int main(int, char**)
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
             ImGui::ShowTestWindow(&show_test_window);
         }
+
 
         // Rendering
         int display_w, display_h;
@@ -241,9 +237,8 @@ int main(int, char**)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
 
-        // p.SetPerspectiveProj(60.f, display_w, display_h, 1.f, 1000.f);
+        p.SetPersProjInfo(60.f, display_w, display_h, 1.f, 1000.f);
         p.SetCamera(camPos, camTarget, camUp);
-
         p.Scale(sx*sf, sy*sf, sz*sf);
         p.Translate(tx*-.5f, ty, tz); 
         p.Rotate(rx, ry, rz);
