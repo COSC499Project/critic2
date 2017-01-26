@@ -1,11 +1,11 @@
 ﻿  main.cpp
-c:\499drive\critic2\src\client\matrix_math.cpp(113): warning C4189: 'len': local variable is initialized but not referenced
-c:\499drive\critic2\src\client\matrix_math.cpp(114): warning C4101: 'read': unreferenced local variable
-c:\499drive\critic2\src\client\matrix_math.cpp(234): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(234): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(235): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(235): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(236): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(236): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(123): warning C4189: 'len': local variable is initialized but not referenced
+c:\499drive\critic2\src\client\matrix_math.cpp(124): warning C4101: 'read': unreferenced local variable
+c:\499drive\critic2\src\client\matrix_math.cpp(270): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(270): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(271): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(271): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(272): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(272): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
   WindowsCompiler.vcxproj -> C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.exe
   WindowsCompiler.vcxproj -> C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.pdb (Full PDB)

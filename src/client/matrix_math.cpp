@@ -1,8 +1,9 @@
 //requried to use M_PI
 #define _USE_MATH_DEFINES
+#define _G
 #include <cmath>
 
-
+#include <locale>
 #include <math.h>
 #include <sstream>
 #include <string>
@@ -87,6 +88,7 @@ std::istream& safeGetline(std::istream& is, std::string& t)
 
 	for (;;) {
 		int c = sb->sbumpc();
+		//cout << c << endl; //Debug code to see what is being parsed
 		switch (c) {
 		case '\n':
 			return is;
@@ -105,6 +107,14 @@ std::istream& safeGetline(std::istream& is, std::string& t)
 	}
 }
 
+//gets the location of the file path in windows
+//string ExePath() {
+//	char buffer[MAX_PATH];
+//	GetModuleFileName(NULL, buffer, MAX_PATH);
+//	string::size_type pos = string(buffer).find_last_of("\\/");
+//	return string(buffer).substr(0, pos);
+//}
+
 
 void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file){
   FILE * fpv = NULL;
@@ -113,11 +123,7 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   size_t len = 0;
   size_t read;
 
-  //fpv = fopen(v_file, "r");
-  //if (fpv == NULL)
-  //  exit(EXIT_FAILURE);
-  
-
+ 
   //fpi = fopen(i_file, "r");
   //if (fpv == NULL) 
   //  exit(EXIT_FAILURE);
@@ -128,35 +134,59 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   unsigned int a, b, c;
   //new code
 
+
   std::string path = v_file; // path to file (v first)
-  path = path.erase(0, 2);
-  std::ifstream ifs(path.c_str());
-  if (!ifs) {
-	  std::cout << ("Failed to open the file.  " + path) << std::endl;
+  path = path.erase(0, 2); // remove unix ./ file path
+  //file opening code
+  //FILE *vFile;
+  //errno_t err;
+  //err = fopen_s(&vFile, "crt_fopen_s.c", "r");
+  
+  
+  //ifstream testFile;
+  //testFile.open("C:\test.txt");
+  //string testb;
+  //safeGetline(testFile, testb);
+
+  //cout << testb << endl;
+ 
+  /*FILE* vfile = fopen(path.c_str(), "r");
+  if (vfile == NULL)
+	  exit(EXIT_FAILURE);
+  */ 
+
+  ifstream vfile(path.c_str());
+
+  //making sure the file stream is open
+  if (!vfile.is_open()) { //is_open reaturns true if working
+	std::cout << ("Failed to open the file.  " + path) << std::endl;
+	return;
   }
 
   int n = 0;
-  std::string t;
-  while (!safeGetline(ifs, t).eof()) { // read the .v file
+  string t;
+
+  while (!safeGetline(vfile,t).eof()){ // read the .v file
 	  sscanf_s(t.c_str(), "%f %f %f\n", &x, &y, &z); //string is converted to constant char
-	  v[v_i] = x;
+	  v[v_i] = x; 
 	  v_i += 1;
 	  v[v_i] = y;
 	  v_i += 1;
 	  v[v_i] = z;
 	  v_i += 1;
   }
+  //this will print garbage data if v[0 to 2] is not set
+  std::cout << "printing x,y,z " << v[0] << "," << v[1] << "," << v[2] << "," << std::endl;
 
   path = i_file; // path to file .i file
   path = path.erase(0, 2);
-  std::ifstream ifs2(path.c_str());
-  if (!ifs2) {
-	  std::cout << "Failed to open the file." << std::endl;
+  ifstream iFile(i_file);
+  if (!iFile.is_open()) {
+	 std::cout << "Failed to open the file." << std::endl;
   }
 
   n = 0;
-  t;
-  while (!safeGetline(ifs2, t).eof()) { // read the .v file
+  while (!safeGetline(vfile, t).eof()) { // read the .v file
 	  sscanf_s(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
 	  i[i_i] = a;
 	  i_i += 1;
@@ -188,9 +218,15 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   //  i[i_i] = c;
   //  i_i += 1;
   //}
+	//these can't be called if there perameters are null
+  if(fpv != NULL)
+	fclose(fpv);
+  if(fpi != NULL)
+	fclose(fpi);
+  
+  vfile.close();
+ 
 
-  fclose(fpv);
-  fclose(fpi);
   if(line) free(line);
 }
 
