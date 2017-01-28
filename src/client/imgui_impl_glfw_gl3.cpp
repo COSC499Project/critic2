@@ -10,13 +10,16 @@
 #include "imgui_impl_glfw_gl3.h"
 
 // GL3W/GLFW
-#include <GL/gl3w.h>
-#include <GLFW/glfw3.h>
-#ifdef _WIN32
+#ifdef FORCEWIN //Normal def don't seem to be working
+#include <GL_WIN/gl3w.h>
+#include <GLFW_WIN/glfw3.h>
 #undef APIENTRY
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
-#include <GLFW/glfw3native.h>
+#include <GLFW_WIN/glfw3native.h>
+#else // FORCEWIN
+#include <GL/gl3w.h>
+#include <GLFW/glfw3.h>
 #endif
 
 // Data
