@@ -139,4 +139,11 @@ contains
 
   end subroutine get_positions
 
+  subroutine get_atomic_name(name, i, j) bind (c, name="get_atomic_name")
+    character (kind=c_char, len=1), dimension (*), intent (out) :: name
+    integer (kind=c_int), value :: i
+    integer (kind=c_int), value :: j
+
+  end subroutine get_atomic_name
+
 end module interface
