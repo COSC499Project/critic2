@@ -293,15 +293,20 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   //this will print garbage data if v[0 to 2] is not set
   std::cout << "printing x,y,z " << v[0] << "," << v[1] << "," << v[2] << "," << std::endl;
 
-  path = i_file; // path to file .i file
-  path = path.erase(0, 2);
-  ifstream iFile(i_file);
-  if (!iFile.is_open()) {
-	 std::cout << "Failed to open the file." << std::endl;
+  path = i_file; // path to file (v first)
+  path = path.erase(0, 2); 
+
+  ifstream ifile(path.c_str());
+
+  //making sure the file stream is open
+  if (!ifile.is_open()) { //is_open reaturns true if working
+	  std::cout << ("Failed to open the file.  " + path) << std::endl;
+	  return;
   }
 
+
   n = 0;
-  while (!safeGetline(vfile, t).eof()) { // read the .v file
+  while (!safeGetline(ifile, t).eof()) { // read the .v file
 	  sscanf_s(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
 	  i[i_i] = a;
 	  i_i += 1;
@@ -310,6 +315,7 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
 	  i[i_i] = c;
 	  i_i += 1;
   }
+  std::cout << "printing x,y,z " << i[0] << "," << i[1] << "," << i[2] << "," << std::endl;
 
   //new code end
 

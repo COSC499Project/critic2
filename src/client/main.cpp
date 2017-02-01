@@ -1,5 +1,6 @@
 // ImGui - standalone example application for Glfw + OpenGL 3, using programmable pipeline
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
+
 #include <stdio.h>
 
 #include <string.h>
@@ -11,6 +12,71 @@
 
 #include <imgui.h>
 #include "imgui_impl_glfw_gl3.h"
+
+//Display triangle test code from http://antongerdelan.net/opengl/hellotriangle.html
+//this does work on winows.
+void displayTri(GLFWwindow* window) {
+	float points[] = {
+		0.0f,  0.5f,  0.0f,
+		0.5f, -0.5f,  0.0f,
+		-0.5f, -0.5f,  0.0f
+	};
+	
+	//this part is done in CreateAndFillBuffers
+	GLuint vbo = 0;
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(float), points, GL_STATIC_DRAW);
+	//end
+
+	//done in main
+	GLuint vao = 0;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	//done in CompileShaders
+	const char* vertex_shader =
+		"#version 400\n"
+		"in vec3 vp;"
+		"void main() {"
+		"  gl_Position = vec4(vp, 1.0);"
+		"}";
+
+	const char* fragment_shader =
+		"#version 400\n"
+		"out vec4 frag_colour;"
+		"void main() {"
+		"  frag_colour = vec4(0.5, 0.0, 0.5, 1.0);"
+		"}";
+
+	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vs, 1, &vertex_shader, NULL);
+	glCompileShader(vs);
+	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fs, 1, &fragment_shader, NULL);
+	glCompileShader(fs);
+
+	GLuint shader_programme = glCreateProgram();
+	glAttachShader(shader_programme, fs);
+	glAttachShader(shader_programme, vs);
+	glLinkProgram(shader_programme);
+
+	while (!glfwWindowShouldClose(window)) {
+		// wipe the drawing surface clear
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glUseProgram(shader_programme);
+		glBindVertexArray(vao);
+		// draw points 0-3 from the currently bound VAO with current in-use shader
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+		// update other events like input handling 
+		glfwPollEvents();
+		// put the stuff we've been drawing onto the display
+		glfwSwapBuffers(window);
+	}
+}
 
 
 static void error_callback(int error, const char* description)
@@ -126,14 +192,16 @@ int main(int, char**)
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Critic2", NULL, NULL);
     glfwMakeContextCurrent(window);
     gl3wInit();
-	    
+	 // test to see if anything can be displayed
+	//printf("OpenGL %s, GLSL %s\n", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION)); // widnows test code
 		// Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
-    
+	
     //Setup up OpenGL stuff
     GLuint VertexArray;
     glGenVertexArrays(1, &VertexArray);
     glBindVertexArray(VertexArray);
+
 
     GLuint trishader = CompileShaders();
     GLuint gWorldLocation;
@@ -162,6 +230,28 @@ int main(int, char**)
     CreateAndFillBuffers(&SphereVB, &SphereIB, SphereV, SphereI, 
                          SphereNumV, SphereNumI);
 
+
+	GLfloat points[] = {
+		-1.0f,  -1.f,  0.0f,
+		0.f, -1.f,  0.0f,
+		1.f, -1.f,  0.0f,
+		0.f, 1.f, 0.f
+	};
+
+	unsigned int indices[] = { 0, 3, 1, 1, 3, 2, 2, 3, 0, 0 ,1, 2 };
+
+	static GLfloat *  triV = (GLfloat *)malloc(sizeof(GLfloat)*12);
+
+	static unsigned int *triI = (unsigned int *)malloc(sizeof(unsigned int)*12);
+	memcpy(triV, &points, sizeof(GLfloat) * 12);
+	memcpy(triI, &indices, sizeof(unsigned int) * 12);
+
+
+	GLuint triIB;
+	GLuint triVB;
+	CreateAndFillBuffers(&triVB, &triIB, triV, triI, 12, 12);
+
+	
     // Load cylinder mesh
     GLuint CylIB;
     GLuint CylVB;
@@ -228,12 +318,15 @@ int main(int, char**)
             ImGui::ShowTestWindow(&show_test_window);
         }
 
+#pragma region old render code
+
+#pragma endregion
 
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glViewport(0, 0, display_w, display_h); // dif
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
 
@@ -263,7 +356,7 @@ int main(int, char**)
 
         glDisableVertexAttribArray(0);
         
-        glUseProgram(trishader);
+        glUseProgram(trishader); //dif
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
@@ -277,3 +370,4 @@ int main(int, char**)
 
     return 0;
 }
+
