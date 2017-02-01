@@ -2,9 +2,9 @@
 *.o
 *.mod
 *.a
+*.swp
 
 src/client/examples
-
 # binaries
 src/critic2
 src/critic2.exe
@@ -69,3 +69,8 @@ COPYING
 
 # emacs tags
 src/TAGS
+
+
+
+imgui.ini
+!src/client/Makefile

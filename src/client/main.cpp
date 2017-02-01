@@ -11,9 +11,6 @@
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
 
-struct globalData{
-
-};
 
 static void error_callback(int error, const char* description)
 {
@@ -57,17 +54,30 @@ static GLuint CompileShaders()
   
   const char * vs = "#version 330 \n \
       layout (location = 0) in vec3 Position; \n \
+      layout (location = 1) in vec3 Normal; \n \
       uniform mat4 gWorld; \n \
+      uniform vec4 mColor; \n \
       out vec4 Color; \n \
+      out vec3 Normal0; \n \
       void main() { \n \
-      gl_Position = gWorld * vec4(Position, 1.0); \n \
-      Color = vec4(clamp(Position, 0.0, 1.0), 1.0);}";
+        gl_Position = gWorld * vec4(Position, 1.0); \n \
+        Normal0 = (gWorld * vec4(Normal, 0.0)).xyz; \n \
+        Color = mColor;}";
 
   const char * fs = "#version 330 \n \
       in vec4 Color; \n \
+      in vec3 Normal0; \n \
+      vec3 Direction = vec3(0.0, 0.0, 1.0);\n \
+      float DiffuseFactor = dot(normalize(Normal0), Direction); \n \
       out vec4 FragColor; \n \
+      vec4 DiffuseColor; \n \
+      float DiffuseIntensity = 1.0; \n \
       void main() { \n \
-      FragColor = Color; }";
+        if (DiffuseFactor > 0) { \n \
+          DiffuseColor = vec4(Color * DiffuseFactor * DiffuseIntensity); \n \
+        } else { \n \
+          DiffuseColor = vec4(0, 0, 0, 0);} \n \
+        FragColor = Color; }";
 
 
   AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
@@ -86,7 +96,19 @@ static GLuint CompileShaders()
   return ShaderProgram;
 }
 
+void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer, 
+                          GLfloat * Vertices, unsigned int * Indices,
+                          unsigned int NumVertices, unsigned int NumIndices)
+{
+  glGenBuffers(1, VertexBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, *VertexBuffer);
+  glBufferData(GL_ARRAY_BUFFER, NumVertices*sizeof(GLfloat), Vertices, GL_STATIC_DRAW);
 
+  glGenBuffers(1, IndexBuffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *IndexBuffer);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, NumIndices*sizeof(unsigned int), Indices, GL_STATIC_DRAW);
+
+}
 
 int main(int, char**)
 {
@@ -106,52 +128,49 @@ int main(int, char**)
 
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
-
-    // Load Fonts
-    // (there is a default font, this is only if you want to change it. see extra_fonts/README.txt for more details)
-    //ImGuiIO& io = ImGui::GetIO();
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyClean.ttf", 13.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyTiny.ttf", 10.0f);
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-
-    ImVec4 clear_color = ImColor(114, 144, 154);
     
+    //Setup up OpenGL stuff
+    GLuint VertexArray;
+    glGenVertexArrays(1, &VertexArray);
+    glBindVertexArray(VertexArray);
+
     GLuint trishader = CompileShaders();
     GLuint gWorldLocation;
-    GLuint IBO;
     gWorldLocation = glGetUniformLocation(trishader, "gWorld");
+    GLuint mColorLocation = glGetUniformLocation(trishader, "mColor");
     
     Pipeline p;
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    unsigned int NumVertices = 18;
-    unsigned int NumIndices = 24;
-//    static GLfloat * sphere_vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
-//    GenerateSphere(sphere_vertices);
+    //define some colors
+    const GLfloat red[4] = {1.f, 0.f, 0.f, 1.f};
+    const GLfloat green[4] = {0.f, 1.f, 0.f, 1.f};
+    const GLfloat blue[4] = {0.f, 0.f, 1.f, 1.f};
+    const GLfloat black[4] = {0.f, 0.f, 0.f, 1.f};
+    const GLfloat white[4] = {1.f, 1.f, 1.f, 1.f};
 
-    static GLfloat * octo_vertices = (GLfloat *) malloc(sizeof(GLfloat)*NumVertices);
-    static unsigned int * octo_indices = (unsigned int *) malloc(sizeof(unsigned int)*NumIndices);
-    GenerateOctohedral(octo_vertices, octo_indices);
+    // Load sphere mesh
+    GLuint SphereIB;
+    GLuint SphereVB;
+    unsigned int SphereNumV = 3078;
+    unsigned int SphereNumI = 6144;
+    static GLfloat * SphereV = (GLfloat *) malloc(sizeof(GLfloat)*SphereNumV);
+    static unsigned int * SphereI = (unsigned int *) malloc(sizeof(unsigned int)*SphereNumI);
+    ReadMesh(SphereV, SphereI, "./sphere.v", "./sphere.i");
+    CreateAndFillBuffers(&SphereVB, &SphereIB, SphereV, SphereI, 
+                         SphereNumV, SphereNumI);
 
-    
+    // Load cylinder mesh
+    GLuint CylIB;
+    GLuint CylVB;
+    int CylNumV = 240;
+    int CylNumI = 240;
+    static GLfloat * CylV = (GLfloat *) malloc(sizeof(GLfloat)*CylNumV);
+    static unsigned int * CylI = (unsigned int *) malloc(sizeof(unsigned int)*CylNumI);
+    ReadMesh(CylV, CylI, "./cylinder.v", "./cylinder.i");
+    CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
 
-
-
-//    float a = 1.f/sqrt(2.f);
-  /*  
-    GLfloat sphere[] = {
-      1.f, 0.f, -a,  -1.f, 0.f,-a,  0.f, 1.f, a,
-      1.f, 0.f, -a,   0.f, -1.f, a, -1.f, 0.f, -a,
-      0.f, 1.f, a,   -1.f, 0.f, -a,  0.f, -1.f, a,
-      1.f, 0.f, -a,  0.f, 1.f, a,   0.f, -1.f, a};
-    
-    GLfloat * sphere_vertices = (GLfloat *) malloc(sizeof(GLfloat)*3*3*4);
-    memcpy(sphere_vertices, sphere, sizeof(GLfloat)*36);
-    */
     bool show_test_window = true;
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -159,14 +178,16 @@ int main(int, char**)
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
-        // 1. Show a simple window
-        // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
 
         static float sx=1.f, sy=1.f, sz=1.f;
         static float sf = 0.5f;
         static bool lockScale = true;
-        static float rx = -20.f, ry = 20.f, rz = 0.f;
-        static float tx = 0.f, ty = 0.f, tz = 0.f;
+        static float rx = 0.f, ry = 0.f, rz = 0.f;
+        static float tx = 0.5f, ty = 0.f, tz = 0.f;
+
+        static float camPos[3] = {1.f, 1.f, -1.f};
+        static float camTarget[3] = {0.45f, 0.f, 1.f};
+        static float camUp[3] = {0.f, 1.f, 0.f};
         {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Checkbox("Lock Scale Ratio", &lockScale);
@@ -184,67 +205,63 @@ int main(int, char**)
             ImGui::DragFloat("Translate X", &tx, 0.005f);
             ImGui::DragFloat("Translate Y", &ty, 0.005f);
             ImGui::DragFloat("Translate Z", &tz, 0.005f);
+
+            ImGui::DragFloat("Translate CamX", &camPos[0], 0.005f);
+            ImGui::DragFloat("Translate CamY", &camPos[1], 0.005f);
+            ImGui::DragFloat("Translate CamZ", &camPos[2], 0.005f);
+  
+            ImGui::DragFloat("CamTargetX", &camTarget[0], 0.005f);
+            ImGui::DragFloat("CamTargetY", &camTarget[1], 0.005f);
+            ImGui::DragFloat("CamTargetZ", &camTarget[2], 0.005f);
+
+            ImGui::DragFloat("CamUpX", &camUp[0], 0.005f);
+            ImGui::DragFloat("CamUpY", &camUp[1], 0.005f);
+            ImGui::DragFloat("CamUpZ", &camUp[2], 0.005f);
+
         }
 
-
-        // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
-        
-        if (show_test_window)
+        // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
+        if (!show_test_window)
         {
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
             ImGui::ShowTestWindow(&show_test_window);
         }
 
+
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(0.1f, 0.1f, 0.1f, clear_color.w);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
 
-        p.SetPerspectiveProj(60.f, display_w, display_h, 1.f, 1000.f);
-
-        GLuint VertexArrayID;
-        glGenVertexArrays(1, &VertexArrayID);
-        glBindVertexArray(VertexArrayID);
-/*
-        GLfloat vertices[] = {-1.f, -1.f, 0.f, 0.f, -1.f, 1.f, 1.f, -1.f, 0.f,
-          0.f, 1.f, 0.f};
-
-        unsigned int indices[] = {0,3,1,1,3,2,2,3,0,0,1,2};
-*/
-
-        // create vertex buffer
-        GLuint vertexbuffer;
-        glGenBuffers(1, &vertexbuffer);
-        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glBufferData(GL_ARRAY_BUFFER, NumVertices*sizeof(GLfloat), octo_vertices,
-                     GL_STATIC_DRAW);
-
-        //create index buffer
-        
-        glGenBuffers(1, &IBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, NumIndices*sizeof(unsigned int), octo_indices, GL_STATIC_DRAW);
-        
-
-        p.Scale(0.5f*sx*sf, sy*sf, 0.5*sz*sf);
-        p.Translate(tx, ty, tz); 
+        p.SetPersProjInfo(60.f, display_w, display_h, 1.f, 1000.f);
+        p.SetCamera(camPos, camTarget, camUp);
+        p.Scale(sx*sf, sy*sf, sz*sf);
+        p.Translate(tx*-.5f, ty, tz); 
         p.Rotate(rx, ry, rz);
-
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
         glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-   //     glDrawArrays(GL_TRIANGLES, 0, NumVertices);
-        glDrawElements(GL_TRIANGLES, NumIndices, GL_UNSIGNED_INT, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+        glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
+        glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
+
+        p.Translate(tx*.5f, ty, tz); 
+
+        glBindBuffer(GL_ARRAY_BUFFER, CylVB);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
+        glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
+        glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
+
         glDisableVertexAttribArray(0);
         
-//        CompileShaders();
         glUseProgram(trishader);
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
