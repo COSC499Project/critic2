@@ -3,9 +3,13 @@
 *.mod
 *.a
 
+src/client/examples
+
 # binaries
 src/critic2
 src/critic2.exe
+src/client/critic2
+src/client/critic2.exe
 tools/basin2off/basin2off
 tools/off2off/off2off
 
