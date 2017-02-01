@@ -262,9 +262,9 @@ public:
   Camera();
   Camera(const float Pos[3], const float Target[3], const float Up[3]);
   bool OnKeyboard(int key);
-  const float GetPos();
-  const float GetTarget();
-  const float GetUp();
+  const float * GetPos();
+  const float * GetTarget();
+  const float * GetUp();
 
 private:
   float m_pos[3];

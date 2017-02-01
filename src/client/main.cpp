@@ -11,6 +11,15 @@
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
 
+struct {
+  bool LeftMouseButton = 0;
+  bool RightMouseButton = 0;
+  bool MiddleMouseButton = 0;
+  double ScrollYOffset = 0.f;
+  bool ShiftKey = 0;
+  bool CtrlKey = 0;
+  bool AltKey = 0;
+} input;
 
 static void error_callback(int error, const char* description)
 {
@@ -110,6 +119,18 @@ void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
 
 }
 
+void MouseButtonCallback(GLFWwindow * window, int button, int action, int mods)
+{
+}
+
+void KeyCallback(GLFWwindow * window, int key, int scancode, int action, int mods)
+{
+}
+
+void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
+{
+}
+
 int main(int, char**)
 {
     // Setup window
@@ -128,6 +149,11 @@ int main(int, char**)
 
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
+
+    // Event callbacks
+    glfwSetMouseButtonCallback(window, MouseButtonCallback);
+    glfwSetKeyCallback(window, KeyCallback);
+    glfwSetScrollCallback(window, ScrollCallback);
     
     //Setup up OpenGL stuff
     GLuint VertexArray;
@@ -144,6 +170,7 @@ int main(int, char**)
     glDepthFunc(GL_LESS);
 
     //define some colors
+    GLfloat color[4] = {0.f, 0.f, 0.f, 1.f};
     const GLfloat red[4] = {1.f, 0.f, 0.f, 1.f};
     const GLfloat green[4] = {0.f, 1.f, 0.f, 1.f};
     const GLfloat blue[4] = {0.f, 0.f, 1.f, 1.f};
@@ -177,8 +204,16 @@ int main(int, char**)
     {
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
+        ImGuiIO& io = ImGui::GetIO();
 
-
+        if (io.WantCaptureMouse) {
+          color[1] = 1.f;
+          color[2] = 0.f;
+        } else {
+          color[1] = 0.f;
+          color[2] = 1.f;
+        }
+        
         static float sx=1.f, sy=1.f, sz=1.f;
         static float sf = 0.5f;
         static bool lockScale = true;
@@ -257,7 +292,7 @@ int main(int, char**)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
+        glUniform4fv(mColorLocation, 1, (const GLfloat *)&color);
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
 
         glDisableVertexAttribArray(0);
