@@ -284,7 +284,7 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   string t;
 
   while (!safeGetline(vfile,t).eof()){ // read the .v file
-	  sscanf_s(t.c_str(), "%f %f %f\n", &x, &y, &z); //string is converted to constant char
+	  sscanf(t.c_str(), "%f %f %f\n", &x, &y, &z); //string is converted to constant char
 	  v[v_i] = x; 
 	  v_i += 1;
 	  v[v_i] = y;
@@ -311,7 +311,7 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
 
   n = 0;
   while (!safeGetline(ifile, t).eof()) { // read the .v file
-	  sscanf_s(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
+	  sscanf(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
 	  i[i_i] = a;
 	  i_i += 1;
 	  i[i_i] = b;
