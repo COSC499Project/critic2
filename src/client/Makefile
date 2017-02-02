@@ -16,11 +16,12 @@ OBJS = main.o imgui_impl_glfw_gl3.o
 OBJS += imgui.o imgui_demo.o imgui_draw.o
 OBJS += libs/gl3w/GL/gl3w.o
 
-UNAME_S := $(uname -s)
+UNAME_S := $(shell uname -s)
+
 
 ifeq ($(UNAME_S), Linux) #LINUX
-	LIBS = -lGL `pkg-config --static --libs glfw3`
 	ECHO_MESSAGE = "Linux"
+	LIBS = -lGL `pkg-config --static --libs glfw3`
 
 	CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
 	CXXFLAGS += -Wall -Wformat
@@ -39,14 +40,15 @@ ifeq ($(UNAME_S), Darwin) #APPLE
 	CFLAGS = $(CXXFLAGS)
 endif
 
-ifeq ($(UNAME_S), CYGWIN_NT-10.0) #windows cygwin
+ifeq ($(UNAME_S), MINGW64_NT-6.3)
    ECHO_MESSAGE = "Windows"
-   LIBS = -lgdi32 -lopengl32 -lGL `pkg-config --static --libs glfw3`
+   LIBS = -lglfw3 -lgdi32 -lopengl32 -limm32
 
    CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
    CXXFLAGS += -Wall -Wformat
-   CFLAGS = $(CXXFLAGS) 
+   CFLAGS = $(CXXFLAGS)
 endif
+
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
