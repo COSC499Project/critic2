@@ -11,6 +11,8 @@
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
 
+extern "C" void call_crystal(const char *filename, int size);
+extern "C" void initialize();
 
 static void error_callback(int error, const char* description)
 {
@@ -51,7 +53,7 @@ static GLuint CompileShaders()
     exit(1);
   }
 
-  
+
   const char * vs = "#version 330 \n \
       layout (location = 0) in vec3 Position; \n \
       layout (location = 1) in vec3 Normal; \n \
@@ -84,7 +86,7 @@ static GLuint CompileShaders()
   AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
 
   GLint success = 0;
-  
+
   glLinkProgram(ShaderProgram);
   glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
   if (success == 0) exit(1);
@@ -96,7 +98,7 @@ static GLuint CompileShaders()
   return ShaderProgram;
 }
 
-void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer, 
+void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
                           GLfloat * Vertices, unsigned int * Indices,
                           unsigned int NumVertices, unsigned int NumIndices)
 {
@@ -128,7 +130,7 @@ int main(int, char**)
 
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
-    
+
     //Setup up OpenGL stuff
     GLuint VertexArray;
     glGenVertexArrays(1, &VertexArray);
@@ -138,10 +140,11 @@ int main(int, char**)
     GLuint gWorldLocation;
     gWorldLocation = glGetUniformLocation(trishader, "gWorld");
     GLuint mColorLocation = glGetUniformLocation(trishader, "mColor");
-    
+
     Pipeline p;
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
+
 
     //define some colors
     const GLfloat red[4] = {1.f, 0.f, 0.f, 1.f};
@@ -158,7 +161,7 @@ int main(int, char**)
     static GLfloat * SphereV = (GLfloat *) malloc(sizeof(GLfloat)*SphereNumV);
     static unsigned int * SphereI = (unsigned int *) malloc(sizeof(unsigned int)*SphereNumI);
     ReadMesh(SphereV, SphereI, "./sphere.v", "./sphere.i");
-    CreateAndFillBuffers(&SphereVB, &SphereIB, SphereV, SphereI, 
+    CreateAndFillBuffers(&SphereVB, &SphereIB, SphereV, SphereI,
                          SphereNumV, SphereNumI);
 
     // Load cylinder mesh
@@ -172,12 +175,12 @@ int main(int, char**)
     CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
 
     bool show_test_window = true;
+    bool show_render = false;
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
-
 
         static float sx=1.f, sy=1.f, sz=1.f;
         static float sf = 0.5f;
@@ -188,6 +191,7 @@ int main(int, char**)
         static float camPos[3] = {1.f, 1.f, -1.f};
         static float camTarget[3] = {0.45f, 0.f, 1.f};
         static float camUp[3] = {0.f, 1.f, 0.f};
+        if (show_render)
         {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Checkbox("Lock Scale Ratio", &lockScale);
@@ -209,7 +213,7 @@ int main(int, char**)
             ImGui::DragFloat("Translate CamX", &camPos[0], 0.005f);
             ImGui::DragFloat("Translate CamY", &camPos[1], 0.005f);
             ImGui::DragFloat("Translate CamZ", &camPos[2], 0.005f);
-  
+
             ImGui::DragFloat("CamTargetX", &camTarget[0], 0.005f);
             ImGui::DragFloat("CamTargetY", &camTarget[1], 0.005f);
             ImGui::DragFloat("CamTargetZ", &camTarget[2], 0.005f);
@@ -219,6 +223,25 @@ int main(int, char**)
             ImGui::DragFloat("CamUpZ", &camUp[2], 0.005f);
 
         }
+
+        if (ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                ImGui::MenuItem("File Menu", NULL, false, false);
+                if (ImGui::MenuItem("Crystal", "Ctrl+O"))
+                {
+                    initialize();
+                    char const *filename = "../../examples/data/thymine_rho.cube";
+                    call_crystal(filename, (int) strlen(filename));
+                }
+                ImGui::MenuItem("Window", NULL, &show_render);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
+
+
 
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
@@ -234,12 +257,12 @@ int main(int, char**)
         glViewport(0, 0, display_w, display_h);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+
 
         p.SetPersProjInfo(60.f, display_w, display_h, 1.f, 1000.f);
         p.SetCamera(camPos, camTarget, camUp);
         p.Scale(sx*sf, sy*sf, sz*sf);
-        p.Translate(tx*-.5f, ty, tz); 
+        p.Translate(tx*-.5f, ty, tz);
         p.Rotate(rx, ry, rz);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
@@ -251,7 +274,7 @@ int main(int, char**)
         glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
         glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
 
-        p.Translate(tx*.5f, ty, tz); 
+        p.Translate(tx*.5f, ty, tz);
 
         glBindBuffer(GL_ARRAY_BUFFER, CylVB);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
@@ -261,9 +284,9 @@ int main(int, char**)
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
 
         glDisableVertexAttribArray(0);
-        
+
         glUseProgram(trishader);
-        
+
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

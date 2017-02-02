@@ -11,7 +11,7 @@ extern "C" void get_positions(int *n,int **z,double **x);
 
 int main(int argc, char ** argv)
 {
-  char const *filename = "thymine_rho.cube";
+  char const *filename = "../../examples/data/thymine_rho.cube";
   int *z; // atomic numbers
   double *x; // atomic positions
   int n; // number of atoms
