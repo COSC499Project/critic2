@@ -141,10 +141,6 @@ void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
   float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
   float grey[3] = {.5, .5, .5};
 
-  
-  Normalize((float *)p1);
-  float U[3];
-  Cross(p2
 
   p->Scale(0.1f, 0.1f, d);
   p->Translate(mid[0], mid[1], mid[2]); 
