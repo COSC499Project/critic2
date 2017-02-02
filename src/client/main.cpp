@@ -156,6 +156,11 @@ void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
 
 int main(int, char**)
 {
+    #ifdef WIN32
+      printf("win32\n");
+    #else
+      printf("linux\n");
+    #endif
     // Setup window
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())

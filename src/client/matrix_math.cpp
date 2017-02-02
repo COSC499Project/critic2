@@ -1,8 +1,15 @@
+#define _USE_MATH_DEFINES
+#define _G
+#include <cmath>
+#include <locale>
+
 #include <math.h>
 #include <sstream>
 #include <string>
 #include <fstream>
 #include <iostream>
+
+using namespace std;
 
 #define ToRadian(x) ((x) * M_PI / 180.0f)
 #define ToDegree(x) ((x) * 180.0f / M_PI)
