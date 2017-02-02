@@ -251,7 +251,9 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
 
 
   std::string path = v_file; // path to file (v first)
+#ifdef WIN32
   path = path.erase(0, 2); // remove unix ./ file path
+#endif
   //file opening code
   //FILE *vFile;
   //errno_t err;
@@ -294,8 +296,10 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
   std::cout << "printing x,y,z " << v[0] << "," << v[1] << "," << v[2] << "," << std::endl;
 
   path = i_file; // path to file (v first)
-  path = path.erase(0, 2); 
-
+#ifdef WIN32
+  path = path.erase(0, 2); // remove unix ./ file path
+#endif
+ 
   ifstream ifile(path.c_str());
 
   //making sure the file stream is open
