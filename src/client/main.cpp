@@ -11,24 +11,6 @@
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
 
-struct {
-  bool LeftMouseButton = 0;
-  bool RightMouseButton = 0;
-  bool MiddleMouseButton = 0;
-  double ScrollYOffset = 0.f;
-  double MPosX = 0.f;
-  double MPosY = 0.f;
-  double lastX = 0.f;
-  double lastY = 0.f;
-  double diffX = 0.f;
-  double diffY = 0.f;
-  bool ShiftKey = 0;
-  bool CtrlKey = 0;
-  bool AltKey = 0;
-} input;
-
-static CameraInfo cam;
-
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
@@ -127,32 +109,20 @@ void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
 
 }
 
-void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
-{
-  cam.Pos[2] += yoffset * 0.5f;
+//global vareables
+GLuint atomVerteces;
+GLuint atomIndeces;
+//
+
+void drawAtom(int atomicNumber,float posVector[3],GLuint verteces, GLuint indeces, GLuint numOfIndeces, GLfloat color[4], GLuint mColorLocation) {
+	glBindBuffer(GL_ARRAY_BUFFER, verteces);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indeces);
+	glUniform4fv(mColorLocation, 1, (const GLfloat *)&color);
+	glDrawElements(GL_TRIANGLES, numOfIndeces, GL_UNSIGNED_INT, 0);
+	
 }
 
-void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p, 
-              GLuint CylVB, GLuint CylIB,
-              const float p1[3], const float p2[3])
-{
-  float df[3] = {p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]};
-  float d = sqrt(df[0]*df[0] + df[1]*df[1] + df[2]*df[2]);
-  float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
-  float grey[3] = {.5, .5, .5};
-
-
-  p->Scale(0.1f, 0.1f, d);
-  p->Translate(mid[0], mid[1], mid[2]); 
-  p->Rotate(0.f, 0.f, 0.f);
-
-  glUniformMatrix4fv(WorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetTrans());
-  glBindBuffer(GL_ARRAY_BUFFER, CylVB);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glUniform4fv(ColorLocation, 1, (const GLfloat *)&grey);
-  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
-}
 
 int main(int, char**)
 {
@@ -169,38 +139,32 @@ int main(int, char**)
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Critic2", NULL, NULL);
     glfwMakeContextCurrent(window);
     gl3wInit();
-
-    // Setup ImGui binding
+	 // test to see if anything can be displayed
+	//printf("OpenGL %s, GLSL %s\n", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION)); // widnows test code
+		// Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
-
-    // Event callbacks
-    glfwSetScrollCallback(window, ScrollCallback);
-    
-    
+	
     //Setup up OpenGL stuff
     GLuint VertexArray;
     glGenVertexArrays(1, &VertexArray);
     glBindVertexArray(VertexArray);
+
 
     GLuint trishader = CompileShaders();
     GLuint gWorldLocation;
     gWorldLocation = glGetUniformLocation(trishader, "gWorld");
     GLuint mColorLocation = glGetUniformLocation(trishader, "mColor");
     
+    Pipeline p;
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    // initialize pipeline
-    Pipeline p;
-
     //define some colors
-    GLfloat color[4] = {0.f, 0.f, 0.f, 1.f};
     const GLfloat red[4] = {1.f, 0.f, 0.f, 1.f};
     const GLfloat green[4] = {0.f, 1.f, 0.f, 1.f};
     const GLfloat blue[4] = {0.f, 0.f, 1.f, 1.f};
     const GLfloat black[4] = {0.f, 0.f, 0.f, 1.f};
     const GLfloat white[4] = {1.f, 1.f, 1.f, 1.f};
-    const GLfloat grey[4] = {.5f, .5f, .5f, 1.f};
 
     // Load sphere mesh
     GLuint SphereIB;
@@ -213,6 +177,28 @@ int main(int, char**)
     CreateAndFillBuffers(&SphereVB, &SphereIB, SphereV, SphereI, 
                          SphereNumV, SphereNumI);
 
+
+	GLfloat points[] = {
+		-1.0f,  -1.f,  0.0f,
+		0.f, -1.f,  0.0f,
+		1.f, -1.f,  0.0f,
+		0.f, 1.f, 0.f
+	};
+
+	unsigned int indices[] = { 0, 3, 1, 1, 3, 2, 2, 3, 0, 0 ,1, 2 };
+
+	static GLfloat *  triV = (GLfloat *)malloc(sizeof(GLfloat)*12);
+
+	static unsigned int *triI = (unsigned int *)malloc(sizeof(unsigned int)*12);
+	memcpy(triV, &points, sizeof(GLfloat) * 12);
+	memcpy(triI, &indices, sizeof(unsigned int) * 12);
+
+
+	GLuint triIB;
+	GLuint triVB;
+	CreateAndFillBuffers(&triVB, &triIB, triV, triI, 12, 12);
+
+	
     // Load cylinder mesh
     GLuint CylIB;
     GLuint CylVB;
@@ -223,55 +209,23 @@ int main(int, char**)
     ReadMesh(CylV, CylI, "./cylinder.v", "./cylinder.i");
     CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
 
-    // input variables;
-    // c means for current loop, l means last loop
-    static int cLMB;
-    static int cRMB;
-    static int lLMB;
-    static int lRMB;
-    static double cMPosX;
-    static double cMPosY;
-    static double lMPosX;
-    static double lMPosY;
-    static double scrollY;
-
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -3.f;
-    cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
-    cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
-
     bool show_test_window = true;
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
-        ImGuiIO& io = ImGui::GetIO();
-
-        // get input
-        lLMB = cLMB;
-        lRMB = cRMB;
-        cLMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-        cRMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
-        lMPosX = cMPosX;
-        lMPosY = cMPosY;
-        glfwGetCursorPos(window, &cMPosX, &cMPosY);
 
 
-        float camPanFactor = 0.008f;
-        float camZoomFactor = 1.f;
-        if (!io.WantCaptureMouse) {
-          if (cLMB == GLFW_PRESS){
-            cam.Pos[0] += camPanFactor * (cMPosX - lMPosX);
-            cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
-          }
-        }
-
-        /*
         static float sx=1.f, sy=1.f, sz=1.f;
         static float sf = 0.5f;
         static bool lockScale = true;
         static float rx = 0.f, ry = 0.f, rz = 0.f;
         static float tx = 0.5f, ty = 0.f, tz = 0.f;
+
+        static float camPos[3] = {1.f, 1.f, -1.f};
+        static float camTarget[3] = {0.45f, 0.f, 1.f};
+        static float camUp[3] = {0.f, 1.f, 0.f};
         {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Checkbox("Lock Scale Ratio", &lockScale);
@@ -303,7 +257,6 @@ int main(int, char**)
             ImGui::DragFloat("CamUpZ", &camUp[2], 0.005f);
 
         }
-*/
 
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
@@ -312,91 +265,42 @@ int main(int, char**)
             ImGui::ShowTestWindow(&show_test_window);
         }
 
-
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glViewport(0, 0, display_w, display_h); // dif
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
 
-        p.SetPersProjInfo(45, 500, 500, 1.f, 1000.f);
-        p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
-        p.SetCamera(cam);
+        p.SetPersProjInfo(60.f, display_w, display_h, 1.f, 1000.f);
+        p.SetCamera(camPos, camTarget, camUp);
+        p.Scale(sx*sf, sy*sf, sz*sf);
+        p.Translate(tx*-.5f, ty, tz); 
+        p.Rotate(rx, ry, rz);
+        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
-    
         glEnableVertexAttribArray(0);
-
-        p.Scale(0.25f, 0.25f, 0.25f);
-        p.Translate(0.f, -1.f, 0.f); 
-        p.Rotate(0.f, 0.f, 0.f);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
-        glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
-
-        p.Scale(0.25f, 0.25f, 0.25f);
-        p.Translate(-1.29, 1.16, 0.f); 
-        p.Rotate(0.f, 0.f, 0.f);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
-        glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
-
-
-        p.Scale(0.5f, 0.5f, 0.5f);
-        p.Translate(0.f, .715, 0.f); 
-        p.Rotate(0.f, 0.f, 0.f);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
         glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
         glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
         glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
+		
 
-
-        p.Scale(0.1f, 0.1f, .5f);
-        p.Translate(0.f, -.275, 0.f); 
-        p.Rotate(-90.f, 0.f, 0.f);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
+        p.Translate(tx*.5f, ty, tz); 
 
         glBindBuffer(GL_ARRAY_BUFFER, CylVB);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&grey);
-        glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
-
-
-        p.Scale(0.1f, 0.1f, .5f);
-        p.Translate(-.7, 1, 0); 
-        p.Rotate(90, 0, 75);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-        glBindBuffer(GL_ARRAY_BUFFER, CylVB);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&grey);
+        glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
-
-
-        const float p1[3] = {-1, 2, 0};
-        const float p2[3] = {1, 2, 0};
-//        DrawBond(gWorldLocation, mColorLocation, &p, 
-  //               CylVB, CylIB, p1, p2);
-
-
 
         glDisableVertexAttribArray(0);
         
-        glUseProgram(trishader);
+        glUseProgram(trishader); //dif
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
@@ -410,3 +314,4 @@ int main(int, char**)
 
     return 0;
 }
+
