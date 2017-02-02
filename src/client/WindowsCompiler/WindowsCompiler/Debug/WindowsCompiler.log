@@ -8,6 +8,6 @@ c:\499drive\critic2\src\client\matrix_math.cpp(84): warning C4244: 'initializing
 c:\499drive\critic2\src\client\matrix_math.cpp(132): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
 c:\499drive\critic2\src\client\matrix_math.cpp(238): warning C4189: 'len': local variable is initialized but not referenced
 c:\499drive\critic2\src\client\matrix_math.cpp(239): warning C4101: 'read': unreferenced local variable
-c:\499drive\critic2\src\client\main.cpp(265): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(261): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
   WindowsCompiler.vcxproj -> C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.exe
   WindowsCompiler.vcxproj -> C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.pdb (Full PDB)

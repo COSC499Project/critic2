@@ -109,6 +109,21 @@ void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
 
 }
 
+//global vareables
+GLuint atomVerteces;
+GLuint atomIndeces;
+//
+
+void drawAtom(int atomicNumber,float posVector[3],GLuint verteces, GLuint indeces, GLuint numOfIndeces, GLfloat color[4], GLuint mColorLocation) {
+	glBindBuffer(GL_ARRAY_BUFFER, verteces);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indeces);
+	glUniform4fv(mColorLocation, 1, (const GLfloat *)&color);
+	glDrawElements(GL_TRIANGLES, numOfIndeces, GL_UNSIGNED_INT, 0);
+	
+}
+
+
 int main(int, char**)
 {
     // Setup window
@@ -250,10 +265,6 @@ int main(int, char**)
             ImGui::ShowTestWindow(&show_test_window);
         }
 
-#pragma region old render code
-
-#pragma endregion
-
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -276,6 +287,7 @@ int main(int, char**)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
         glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
         glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
+		
 
         p.Translate(tx*.5f, ty, tz); 
 
