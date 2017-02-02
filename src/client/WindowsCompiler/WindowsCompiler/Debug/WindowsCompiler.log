@@ -6,8 +6,19 @@ c:\499drive\critic2\src\client\matrix_math.cpp(83): warning C4244: 'initializing
 c:\499drive\critic2\src\client\matrix_math.cpp(84): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
 c:\499drive\critic2\src\client\matrix_math.cpp(84): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
 c:\499drive\critic2\src\client\matrix_math.cpp(132): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(287): warning C4996: 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(2254): note: see declaration of 'sscanf'
+c:\499drive\critic2\src\client\matrix_math.cpp(314): warning C4996: 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(2254): note: see declaration of 'sscanf'
 c:\499drive\critic2\src\client\matrix_math.cpp(238): warning C4189: 'len': local variable is initialized but not referenced
 c:\499drive\critic2\src\client\matrix_math.cpp(239): warning C4101: 'read': unreferenced local variable
-c:\499drive\critic2\src\client\main.cpp(261): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(117): warning C4100: 'posVector': unreferenced formal parameter
+c:\499drive\critic2\src\client\main.cpp(117): warning C4100: 'atomicNumber': unreferenced formal parameter
+c:\499drive\critic2\src\client\main.cpp(276): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+  LINK : C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.exe not found or not built by the last incremental link; performing full link
+glfw3.lib(init.obj) : warning LNK4217: locally defined symbol _vsnprintf imported in function __glfwInputError
+MSVCRTD.lib(vsnprintf.obj) : warning LNK4049: locally defined symbol _vsnprintf imported
+glfw3.lib(context.obj) : warning LNK4217: locally defined symbol _sscanf imported in function _parseVersionString
+MSVCRTD.lib(vsnprintf.obj) : warning LNK4049: locally defined symbol __vsnprintf imported
   WindowsCompiler.vcxproj -> C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.exe
   WindowsCompiler.vcxproj -> C:\499Drive\critic2\src\client\WindowsCompiler\Debug\WindowsCompiler.pdb (Full PDB)
