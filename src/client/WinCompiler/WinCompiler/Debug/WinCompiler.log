@@ -1,13 +1,32 @@
 ﻿  matrix_math.cpp
-c:\499drive\critic2\src\client\matrix_math.cpp(89): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(89): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(90): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(90): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
 c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
 c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(138): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2065: 'GLfloat': undeclared identifier
-c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2065: 'v': undeclared identifier
-c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2062: type 'unsigned int' unexpected
-c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2143: syntax error: missing ';' before '{'
-c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2447: '{': missing function header (old-style formal list?)
+c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(140): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(269): error C2065: 'GLfloat': undeclared identifier
+c:\499drive\critic2\src\client\matrix_math.cpp(269): error C2065: 'v': undeclared identifier
+c:\499drive\critic2\src\client\matrix_math.cpp(269): error C2062: type 'unsigned int' unexpected
+c:\499drive\critic2\src\client\matrix_math.cpp(269): error C2143: syntax error: missing ';' before '{'
+c:\499drive\critic2\src\client\matrix_math.cpp(269): error C2447: '{': missing function header (old-style formal list?)
+  main.cpp
+c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(140): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(132): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(130): warning C4100: 'xoffset': unreferenced formal parameter
+c:\499drive\critic2\src\client\main.cpp(130): warning C4100: 'window': unreferenced formal parameter
+c:\499drive\critic2\src\client\main.cpp(264): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(265): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(343): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\499drive\critic2\src\client\main.cpp(355): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\499drive\critic2\src\client\main.cpp(367): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\499drive\critic2\src\client\main.cpp(379): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\499drive\critic2\src\client\main.cpp(261): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
+  Generating Code...

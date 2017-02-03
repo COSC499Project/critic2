@@ -1,6 +1,7 @@
 #ifdef WIN32
 #define _USE_MATH_DEFINES
-using namespace std;
+
+
 #endif // WIN32
 
 #include <math.h>
@@ -8,6 +9,8 @@ using namespace std;
 #include <string>
 #include <fstream>
 #include <iostream>
+
+using namespace std;
 
 #define ToRadian(x) ((x) * M_PI / 180.0f)
 #define ToDegree(x) ((x) * 180.0f / M_PI)
@@ -232,8 +235,7 @@ private:
 };
 
 #ifdef WIN32
-std::istream& safeGetline(std::istream& is, std::string& t)
-{
+std::istream& safeGetline(std::istream& is, std::string& t){
 	t.clear();
 
 	// The characters in the stream are read one-by-one using a std::streambuf.
