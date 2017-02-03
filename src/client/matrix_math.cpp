@@ -1,3 +1,8 @@
+#ifdef WIN32
+#define _USE_MATH_DEFINES
+using namespace std;
+#endif // WIN32
+
 #include <math.h>
 #include <sstream>
 #include <string>
@@ -226,50 +231,154 @@ private:
   CameraInfo m_camera;
 };
 
-void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file){
-  FILE * fpv = NULL;
-  FILE * fpi = NULL;
-  char * line = NULL;
-  size_t len = 0;
-  ssize_t read;
+#ifdef WIN32
+std::istream& safeGetline(std::istream& is, std::string& t)
+{
+	t.clear();
 
-  fpv = fopen(v_file, "r");
-  if (fpv == NULL)
-    exit(EXIT_FAILURE);
-  
+	// The characters in the stream are read one-by-one using a std::streambuf.
+	// That is faster than reading them one-by-one using the std::istream.
+	// Code that uses streambuf this way must be guarded by a sentry object.
+	// The sentry object performs various tasks,
+	// such as thread synchronization and updating the stream state.
 
-  fpi = fopen(i_file, "r");
-  if (fpv == NULL) 
-    exit(EXIT_FAILURE);
-  
-  int v_i = 0;
-  int i_i = 0;
-  GLfloat x, y, z;
-  unsigned int a, b, c;
-  while ((read = getline(&line, &len, fpv)) != -1) {
-    sscanf(line, "%f %f %f\n", &x, &y, &z);
-    v[v_i] = x;
-    v_i += 1;
-    v[v_i] = y;
-    v_i += 1;
-    v[v_i] = z;
-    v_i += 1;
-  }
+	std::istream::sentry se(is, true);
+	std::streambuf* sb = is.rdbuf();
 
-  while ((read = getline(&line, &len, fpi)) != -1) {
-    sscanf(line, "%d %d %d\n", &a, &b, &c);
-    i[i_i] = a;
-    i_i += 1;
-    i[i_i] = b;
-    i_i += 1;
-    i[i_i] = c;
-    i_i += 1;
-  }
-
-  fclose(fpv);
-  fclose(fpi);
-  if(line) free(line);
+	for (;;) {
+		int c = sb->sbumpc();
+		//cout << c << endl; //Debug code to see what is being parsed
+		switch (c) {
+		case '\n':
+			return is;
+		case '\r':
+			if (sb->sgetc() == '\n')
+				sb->sbumpc();
+			return is;
+		case EOF:
+			// Also handle the case when the last line has no line ending
+			if (t.empty())
+				is.setstate(std::ios::eofbit);
+			return is;
+		default:
+			t += (char)c;
+		}
+	}
 }
+
+void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file) {
+	int v_i = 0;
+	int i_i = 0;
+	GLfloat x, y, z;
+	unsigned int a, b, c;
+	//new code
+
+
+	std::string path = v_file; // path to file (v first)
+	path = path.erase(0, 2); // remove unix ./ file path
+
+	std::ifstream vfile(path.c_str());
+
+	//making sure the file stream is open
+	if (!vfile.is_open()) { //is_open reaturns true if working
+		std::cout << ("Failed to open the file.  " + path) << std::endl;
+		return;
+	}
+
+	int n = 0;
+	std::string t;
+
+	while (!safeGetline(vfile, t).eof()) { // read the .v file
+		sscanf_s(t.c_str(), "%f %f %f\n", &x, &y, &z); //string is converted to constant char
+		v[v_i] = x;
+		v_i += 1;
+		v[v_i] = y;
+		v_i += 1;
+		v[v_i] = z;
+		v_i += 1;
+	}
+	//this will print garbage data if v[0 to 2] is not set
+	std::cout << "printing x,y,z " << v[0] << "," << v[1] << "," << v[2] << "," << std::endl;
+
+	path = i_file; // path to file (v first)
+	path = path.erase(0, 2); // remove unix ./ file path
+
+	std::ifstream ifile(path.c_str());
+
+	//making sure the file stream is open
+	if (!ifile.is_open()) { //is_open reaturns true if working
+		std::cout << ("Failed to open the file.  " + path) << std::endl;
+		return;
+	}
+
+
+	n = 0;
+	while (!safeGetline(ifile, t).eof()) { // read the .v file
+		sscanf_s(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
+		i[i_i] = a;
+		i_i += 1;
+		i[i_i] = b;
+		i_i += 1;
+		i[i_i] = c;
+		i_i += 1;
+	}
+	//std::cout << "printing x,y,z " << i[0] << "," << i[1] << "," << i[2] << "," << std::endl;
+
+	ifile.close();
+	vfile.close();
+
+}
+
+#endif // WIN32
+
+
+#ifdef LINUX
+void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file) {
+	FILE * fpv = NULL;
+	FILE * fpi = NULL;
+	char * line = NULL;
+	size_t len = 0;
+	ssize_t read;
+
+	fpv = fopen(v_file, "r");
+	if (fpv == NULL)
+		exit(EXIT_FAILURE);
+
+
+	fpi = fopen(i_file, "r");
+	if (fpv == NULL)
+		exit(EXIT_FAILURE);
+
+	int v_i = 0;
+	int i_i = 0;
+	GLfloat x, y, z;
+	unsigned int a, b, c;
+	while ((read = getline(&line, &len, fpv)) != -1) {
+		sscanf(line, "%f %f %f\n", &x, &y, &z);
+		v[v_i] = x;
+		v_i += 1;
+		v[v_i] = y;
+		v_i += 1;
+		v[v_i] = z;
+		v_i += 1;
+	}
+
+	while ((read = getline(&line, &len, fpi)) != -1) {
+		sscanf(line, "%d %d %d\n", &a, &b, &c);
+		i[i_i] = a;
+		i_i += 1;
+		i[i_i] = b;
+		i_i += 1;
+		i[i_i] = c;
+		i_i += 1;
+	}
+
+	fclose(fpv);
+	fclose(fpi);
+	if (line) free(line);
+}
+
+#endif // LINUX
 
 void Cross(const float left[3], const float right[3], float * result)
 {

@@ -1,0 +1,13 @@
+﻿  matrix_math.cpp
+c:\499drive\critic2\src\client\matrix_math.cpp(89): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(89): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(90): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(90): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(138): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2065: 'GLfloat': undeclared identifier
+c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2065: 'v': undeclared identifier
+c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2062: type 'unsigned int' unexpected
+c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2143: syntax error: missing ';' before '{'
+c:\499drive\critic2\src\client\matrix_math.cpp(268): error C2447: '{': missing function header (old-style formal list?)
