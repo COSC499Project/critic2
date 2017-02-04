@@ -24,7 +24,7 @@ ifeq ($(UNAME_S), Linux) #LINUX
 	LIBS = -lGL `pkg-config --static --libs glfw3`
 
 	CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
-	CXXFLAGS += -Wall -Wformat
+	CXXFLAGS += -Wall -Wformat -D LINUX
 	CFLAGS = $(CXXFLAGS)
 endif
 
