@@ -111,6 +111,65 @@ static GLuint LightingShader() {
 	return ShaderProgram;
 }
 
+
+static GLuint LightingShader2()
+{
+  GLuint ShaderProgram = glCreateProgram();
+  if (ShaderProgram == 0){
+    exit(1);
+  }
+
+  const char * vs = "#version 330 \n \
+    uniform mat4 gWorld; \n \
+    uniform mat4 normalMatrix; \n \
+    uniform vec4 mColor; \n \
+    layout (location = 0) in vec3 inPosition; \n \
+    layout (location = 1) in vec3 inNormal; \n \
+    smooth out vec3 vNormal; \n \
+    out vec4 Color; \n \
+    void main() { \n \
+      gl_Position = gWorld * vec4(inPosition, 1.0); \n \
+      vec4 vRes = normalMatrix * vec4(inNormal, 0.0); \n \
+      Color = mColor; \n \
+      vNormal =vRes.xyz;}";
+
+  const char * fs = "#version 330 \n \
+    smooth in vec3 vNormal; \n \
+    out vec4 outputColor; \n \
+    in vec4 Color; \n \
+    uniform sampler2D gSampler; \n \
+    uniform vec4 vColor; \n \
+    struct SimpleDirectionalLight { \n \
+      vec3 vColor; \n \
+      vec3 vDirection; \n \
+      float fAmbientIntensity;}; \n \
+    uniform SimpleDirectionalLight sunLight; \n \
+    void main() { \n \
+      float fDiffuseIntensity = max(0.0, dot(normalize(vNormal), -sunLight.vDirection)); \n \
+      outputColor = Color * vColor * vec4(sunLight.vColor * (sunLight.fAmbientIntensity+fDiffuseIntensity), 1.0);}";
+
+  AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
+  AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
+
+  GLint success = 0;
+  
+  glLinkProgram(ShaderProgram);
+  glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
+  if (success == 0) exit(1);
+
+  glValidateProgram(ShaderProgram);
+  glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
+  if (success == 0) exit(1);
+
+  return ShaderProgram;
+}
+
+
+
+
+
+
+
 static GLuint CompileShaders()
 {
   GLuint ShaderProgram = glCreateProgram();
@@ -204,6 +263,28 @@ void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 }
 
+void DrawBondLighted(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p, 
+              GLuint CylVB, GLuint CylIB,
+              const float p1[3], const float p2[3])
+{
+  float df[3] = {p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]};
+  float d = sqrt(df[0]*df[0] + df[1]*df[1] + df[2]*df[2]);
+  float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
+  float grey[3] = {.5, .5, .5};
+
+
+  p->Scale(0.1f, 0.1f, d);
+  p->Translate(mid[0], mid[1], mid[2]); 
+  p->Rotate(0.f, 0.f, 0.f);
+
+  glUniformMatrix4fv(WorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetTrans());
+  glBindBuffer(GL_ARRAY_BUFFER, CylVB);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+  glUniform4fv(ColorLocation, 1, (const GLfloat *)&grey);
+  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
+}
+
 #pragma region atom loading and drawing
 //global vars for an atom's mesh
 GLuint atomVB;
@@ -260,6 +341,7 @@ int main(int, char**)
     glBindVertexArray(VertexArray);
 
     GLuint trishader = CompileShaders();
+    GLuint lightshader = LightingShader2();
     GLuint gWorldLocation;
     gWorldLocation = glGetUniformLocation(trishader, "gWorld");
     GLuint mColorLocation = glGetUniformLocation(trishader, "mColor");
@@ -406,6 +488,7 @@ int main(int, char**)
     
         glEnableVertexAttribArray(0);
 
+/*
         p.Scale(0.25f, 0.25f, 0.25f);
         p.Translate(0.f, -1.f, 0.f); 
         p.Rotate(0.f, 0.f, 0.f);
@@ -464,13 +547,10 @@ int main(int, char**)
         glUniform4fv(mColorLocation, 1, (const GLfloat *)&grey);
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
 
-
+*/
         const float p1[3] = {-1, 2, 0};
         const float p2[3] = {1, 2, 0};
-//        DrawBond(gWorldLocation, mColorLocation, &p, 
-  //               CylVB, CylIB, p1, p2);
-
-
+        DrawBond(gWorldLocation, mColorLocation, &p, CylVB, CylIB, p1, p2);
 
         glDisableVertexAttribArray(0);
         
@@ -478,7 +558,7 @@ int main(int, char**)
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+       // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glfwSwapBuffers(window);
     }
 

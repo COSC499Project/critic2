@@ -221,6 +221,7 @@ public:
 
   const Matrix4f * GetTrans();
   const Matrix4f * GetCTrans();
+  const Matrix4f * GetNormal();
 
 private:
   float m_scale[3];
@@ -412,7 +413,20 @@ const Matrix4f * Pipeline::GetTrans(){
   return &m_transform;
 }
 
+const Matrix4f * Pipeline::GetNormal(){
+  Matrix4f ScaleTrans, RotateTrans, CamRotateTrans,
+           PersProjTrans, OrthoProjTrans;
+  ScaleTrans.InitScaleTransform(m_scale[0], m_scale[1], m_scale[2]);
+  RotateTrans.InitRotateTransform(m_rotate[0], m_rotate[1], m_rotate[2]);
+  CamRotateTrans.InitCameraTransform(m_camera.Target, m_camera.Up);
+  PersProjTrans.InitPersProjTransform(m_projInfo);
+  OrthoProjTrans.InitOrthoProjTransform(m_orthoInfo);
 
+  m_transform =  PersProjTrans * CamRotateTrans *
+                RotateTrans * ScaleTrans;
+
+  return &m_transform;
+}
 class Camera
 {
 public:
