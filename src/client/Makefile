@@ -9,7 +9,7 @@
 #   brew install glfw            # Mac OS X
 #
 
-#CXX = g++
+CXX = g++
 
 EXE = critic2
 OBJS = main.o imgui_impl_glfw_gl3.o
@@ -60,4 +60,4 @@ $(EXE): $(OBJS)
 	$(CXX) -o $(EXE) $(OBJS) $(CXXFLAGS) $(LIBS)
 
 clean:
-	rm $(EXE) $(OBJS)
+	rm $(EXE)
