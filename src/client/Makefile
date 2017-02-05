@@ -9,7 +9,7 @@
 #   brew install glfw            # Mac OS X
 #
 
-CXX = g++
+#CXX = g++
 
 EXE = critic2
 OBJS = main.o imgui_impl_glfw_gl3.o
@@ -24,7 +24,7 @@ ifeq ($(UNAME_S), Linux) #LINUX
 	LIBS = -lGL `pkg-config --static --libs glfw3`
 
 	CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
-	CXXFLAGS += -Wall -Wformat -D LINUX
+	CXXFLAGS += -Wall -Wformat -DLINUX
 	CFLAGS = $(CXXFLAGS)
 endif
 
@@ -60,4 +60,4 @@ $(EXE): $(OBJS)
 	$(CXX) -o $(EXE) $(OBJS) $(CXXFLAGS) $(LIBS)
 
 clean:
-	rm $(EXE)
+	rm $(EXE) $(OBJS)
