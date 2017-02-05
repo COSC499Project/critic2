@@ -221,7 +221,32 @@ void loadAtomObject() {
 		numbVerteces, numbIndeces);
 }
 
-void drawAtom(int atomicNumber, float posVector[3], GLfloat color[4], GLuint mColorLocation, Pipeline p) {
+struct atom{
+	bool selected = false;
+	int atomicNumber;
+	int indentifyingNumber;
+};
+
+int loadedAtomsAmount;
+atom *loadedAtoms;
+
+//TODO call this when atoms are loaded
+void loadAtoms() {
+	
+}
+
+float* getScreenPositionOfVertex(float *vertexLocation) {
+
+	return NULL;
+}
+
+GLuint gWorldLocation; //made global to make Drawing via methods easer
+GLuint mColorLocation;
+void drawAtomInstance(int identifyer, float posVector[3], GLfloat color[4], Pipeline p) {
+	if (loadedAtoms[identifyer].selected) {
+		color[2] = color[2] + .2f;
+	}
+
 	glBindBuffer(GL_ARRAY_BUFFER, atomVB);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
@@ -230,7 +255,11 @@ void drawAtom(int atomicNumber, float posVector[3], GLfloat color[4], GLuint mCo
 
 	p.Translate(posVector[0], posVector[1], posVector[2]);
 }
+
+
+
 #pragma endregion
+
 
 int main(int, char**)
 {
@@ -260,9 +289,8 @@ int main(int, char**)
     glBindVertexArray(VertexArray);
 
     GLuint trishader = CompileShaders();
-    GLuint gWorldLocation;
     gWorldLocation = glGetUniformLocation(trishader, "gWorld");
-    GLuint mColorLocation = glGetUniformLocation(trishader, "mColor");
+    mColorLocation = glGetUniformLocation(trishader, "mColor");
     
 	//glEnables
     glEnable(GL_DEPTH_TEST);
@@ -272,13 +300,20 @@ int main(int, char**)
     Pipeline p;
 
     //define some colors
+	float colorIntesity = 0.6f;
     GLfloat color[4] = {0.f, 0.f, 0.f, 1.f};
-    const GLfloat red[4] = {1.f, 0.f, 0.f, 1.f};
-    const GLfloat green[4] = {0.f, 1.f, 0.f, 1.f};
-    const GLfloat blue[4] = {0.f, 0.f, 1.f, 1.f};
-    const GLfloat black[4] = {0.f, 0.f, 0.f, 1.f};
-    const GLfloat white[4] = {1.f, 1.f, 1.f, 1.f};
-    const GLfloat grey[4] = {.5f, .5f, .5f, 1.f};
+    const GLfloat red[4] = {1.f, 0.f, 0.f, colorIntesity};
+    const GLfloat green[4] = {0.f, 1.f, 0.f, colorIntesity};
+    const GLfloat blue[4] = {0.f, 0.f, 1.f, colorIntesity};
+    const GLfloat black[4] = {0.f, 0.f, 0.f, colorIntesity};
+    const GLfloat white[4] = {1.f, 1.f, 1.f, colorIntesity};
+    const GLfloat grey[4] = {.5f, .5f, .5f, colorIntesity};
+
+	//load all atom information ---------------------------------------------
+	loadAtomObject();
+
+
+
 
     // Load sphere mesh
     GLuint SphereIB;
@@ -316,14 +351,30 @@ int main(int, char**)
     cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -3.f;
     cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
     cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
+//this section will be replaced by the loadAtoms function
+#pragma region atom test
+	loadedAtomsAmount = 3;
+	loadedAtoms = new atom[loadedAtomsAmount];
+	loadedAtoms[0].atomicNumber = 1;
+	loadedAtoms[0].indentifyingNumber = 1;
+
+	loadedAtoms[1].atomicNumber = 1;
+	loadedAtoms[1].indentifyingNumber = 2;
+
+	loadedAtoms[2].atomicNumber = 8;
+	loadedAtoms[2].indentifyingNumber = 3;
+#pragma endregion
 
     bool show_test_window = true;
-    // Main loop
+    // Main loop ------------------------------------------------------------------
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
         ImGuiIO& io = ImGui::GetIO();
+	
+
+		drawTreeViewer();
 
         // get input
         lLMB = cLMB;
@@ -451,7 +502,6 @@ int main(int, char**)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
         glUniform4fv(mColorLocation, 1, (const GLfloat *)&grey);
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
-
 
         p.Scale(0.1f, 0.1f, .5f);
         p.Translate(-.7, 1, 0); 
