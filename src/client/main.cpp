@@ -67,33 +67,33 @@ static GLuint LightingShader() {
 		exit(1);
 	}
 
-	const char * vs = "#version 330 \n \
-      layout (location = 0) in vec3 Position; \n \
-      layout (location = 1) in vec3 Normal; \n \
-      uniform mat4 gWorld; \n \
-      uniform vec4 mColor; \n \
-      out vec4 Color; \n \
-      out vec3 Normal0; \n \
-      void main() { \n \
-        gl_Position = gWorld * vec4(Position, 1.0); \n \
-        Normal0 = (gWorld * vec4(Normal, 0.0)).xyz; \n \
-        Color = mColor;}";
+	const char * vs = "#version 400 \n \
+		varying vec3 N; \
+		varying vec3 v; \
+		void main(void){ \
+		v = vec3(gl_ModelViewMatrix * gl_Vertex); \
+		N = normalize(gl_NormalMatrix * gl_Normal); \
+		gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex; \
+		}";
+	
 
-	const char * fs = "#version 330 \n \
-      in vec4 Color; \n \
-      in vec3 Normal0; \n \
-      vec3 Direction = vec3(0.0, 0.0, 1.0);\n \
-      float DiffuseFactor = dot(normalize(Normal0), Direction); \n \
-      out vec4 FragColor; \n \
-      vec4 DiffuseColor; \n \
-      float DiffuseIntensity = 1.0; \n \
-      void main() { \n \
-        if (DiffuseFactor > 0) { \n \
-          DiffuseColor = vec4(Color * DiffuseFactor * DiffuseIntensity); \n \
-        } else { \n \
-          DiffuseColor = vec4(0, 0, 0, 0);} \n \
-        FragColor = Color; }";
-
+	const char * fs = "#version 400 \n \
+		varying vec3 N;\
+		varying vec3 v;\
+		void main(void){ \
+		vec3 L = normalize(gl_LightSource[0].position.xyz - v);\
+		vec3 E = normalize(-v); // we are in Eye Coordinates, so EyePos is (0,0,0)\
+		vec3 R = normalize(-reflect(L, N));\
+		//calculate Ambient Term: \
+		vec4 Iamb = gl_FrontLightProduct[0].ambient; \
+		//calculate Diffuse Term:\
+		vec4 Idiff = gl_FrontLightProduct[0].diffuse * max(dot(N, L), 0.0); \
+		// calculate Specular Term: \
+		vec4 Ispec = gl_FrontLightProduct[0].specular \
+			* pow(max(dot(R, E), 0.0), 0.3*gl_FrontMaterial.shininess); \
+		// write Total Color:\
+		gl_FragColor = gl_FrontLightModelProduct.sceneColor + Iamb + Idiff + Ispec;\
+		}";
 
 	AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
 	AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
@@ -247,7 +247,6 @@ int main(int, char**)
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Critic2", NULL, NULL);
     glfwMakeContextCurrent(window);
     gl3wInit();
-
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
 
@@ -267,7 +266,6 @@ int main(int, char**)
     
 	//glEnables
     glEnable(GL_DEPTH_TEST);
-
     glDepthFunc(GL_LESS);
 
     // initialize pipeline
