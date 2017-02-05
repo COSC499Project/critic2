@@ -225,6 +225,8 @@ struct atom{
 	bool selected = false;
 	int atomicNumber;
 	int indentifyingNumber;
+	float* atomPosition = new float[3];
+	int 
 };
 
 int loadedAtomsAmount;
@@ -242,18 +244,52 @@ float* getScreenPositionOfVertex(float *vertexLocation) {
 
 GLuint gWorldLocation; //made global to make Drawing via methods easer
 GLuint mColorLocation;
-void drawAtomInstance(int identifyer, float posVector[3], GLfloat color[4], Pipeline p) {
-	if (loadedAtoms[identifyer].selected) {
-		color[2] = color[2] + .2f;
+void drawAtomInstance(int identifyer, float posVector[3],const GLfloat color[4], Pipeline p) {
+	if (loadedAtoms[identifyer].selected) { //selection is color based
+		//color[3] = color[3] + 0.2f;
 	}
+
+	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber / 5.0f - 0.2f;
+	p.Scale(scaleAmount, scaleAmount, scaleAmount);
+	p.Translate(posVector[0], posVector[1], posVector[2]);
+	p.Rotate(0.f, 0.f, 0.f); //no rotation required
+	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
 	glBindBuffer(GL_ARRAY_BUFFER, atomVB);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
 	glUniform4fv(mColorLocation, 1, (const GLfloat *)&color);
 	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
+	
+}
 
-	p.Translate(posVector[0], posVector[1], posVector[2]);
+///draws all atoms in the loadedAtoms struct
+void drawAllAtoms(Pipeline p) {
+	for (size_t x = 0; x < loadedAtomsAmount; x++){
+		drawAtomInstance(x,loadedAtoms[x].atomPosition,loadedAtoms[x].color,p);
+	}
+}
+
+#pragma endregion
+
+#pragma region IMGUI
+
+
+void drawTreeViewer() {
+	//TODO tree nodes
+	for (size_t x = 0; x < loadedAtomsAmount; x++){
+		string nodeName = "Atomic #:";		
+		nodeName += to_string(loadedAtoms[x].atomicNumber);
+		nodeName += "  ID: ";
+		nodeName += to_string(loadedAtoms[x].indentifyingNumber);
+		if (ImGui::TreeNode(nodeName.c_str())) {
+			loadedAtoms[x].selected = true;
+			ImGui::TreePop();
+		}else{
+			loadedAtoms[x].selected = false;
+		}
+	}
+
 }
 
 
@@ -311,9 +347,37 @@ int main(int, char**)
 
 	//load all atom information ---------------------------------------------
 	loadAtomObject();
+	
+	//this section will be replaced by the loadAtoms function
+#pragma region atom test
+	loadedAtomsAmount = 3;
+	loadedAtoms = new atom[loadedAtomsAmount];
+	loadedAtoms[0].atomicNumber = 1;
+	loadedAtoms[0].indentifyingNumber = 1;
+	float * pos = new float[3];
+	pos[0] = 0.f;
+	pos[1] = -1.f;
+	pos[2] = 0.f;
+	loadedAtoms[0].atomPosition = pos;
+	loadedAtoms[0].color = { 1.f, 1.f, 1.f, colorIntesity };
+
+	loadedAtoms[1].atomicNumber = 1;
+	loadedAtoms[1].indentifyingNumber = 2;
+	pos[0] = -1.29f;
+	pos[1] = 1.16f;
+	pos[2] = 0.f;
+	loadedAtoms[1].atomPosition = pos;
+	loadedAtoms[1].color = { 1.f, 1.f, 1.f, colorIntesity };;
 
 
-
+	loadedAtoms[2].atomicNumber = 8;
+	loadedAtoms[2].indentifyingNumber = 3;
+	pos[0] = 0.f;
+	pos[1] = .715f;
+	pos[2] = 0.f;
+	loadedAtoms[2].atomPosition = pos;
+	loadedAtoms[2].color = red;
+#pragma endregion
 
     // Load sphere mesh
     GLuint SphereIB;
@@ -351,19 +415,7 @@ int main(int, char**)
     cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -3.f;
     cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
     cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
-//this section will be replaced by the loadAtoms function
-#pragma region atom test
-	loadedAtomsAmount = 3;
-	loadedAtoms = new atom[loadedAtomsAmount];
-	loadedAtoms[0].atomicNumber = 1;
-	loadedAtoms[0].indentifyingNumber = 1;
 
-	loadedAtoms[1].atomicNumber = 1;
-	loadedAtoms[1].indentifyingNumber = 2;
-
-	loadedAtoms[2].atomicNumber = 8;
-	loadedAtoms[2].indentifyingNumber = 3;
-#pragma endregion
 
     bool show_test_window = true;
     // Main loop ------------------------------------------------------------------
