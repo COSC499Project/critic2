@@ -13,6 +13,7 @@
 
 extern "C" void call_crystal(const char *filename, int size);
 extern "C" void initialize();
+extern "C" void get_positions(int *n,int **z,double **x);
 
 static void error_callback(int error, const char* description)
 {
@@ -124,7 +125,7 @@ int main(int, char**)
 #if __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Critic2", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Critic2", NULL, NULL);
     glfwMakeContextCurrent(window);
     gl3wInit();
 
@@ -191,6 +192,7 @@ int main(int, char**)
         static float camPos[3] = {1.f, 1.f, -1.f};
         static float camTarget[3] = {0.45f, 0.f, 1.f};
         static float camUp[3] = {0.f, 1.f, 0.f};
+
         if (show_render)
         {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -224,24 +226,6 @@ int main(int, char**)
 
         }
 
-        if (ImGui::BeginMainMenuBar())
-        {
-            if (ImGui::BeginMenu("File"))
-            {
-                ImGui::MenuItem("File Menu", NULL, false, false);
-                if (ImGui::MenuItem("Crystal", "Ctrl+O"))
-                {
-                    initialize();
-                    char const *filename = "../../examples/data/thymine_rho.cube";
-                    call_crystal(filename, (int) strlen(filename));
-                }
-                ImGui::MenuItem("Window", NULL, &show_render);
-                ImGui::EndMenu();
-            }
-            ImGui::EndMainMenuBar();
-        }
-
-
 
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
@@ -258,34 +242,72 @@ int main(int, char**)
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        if (show_render)
+        {
 
-        p.SetPersProjInfo(60.f, display_w, display_h, 1.f, 1000.f);
-        p.SetCamera(camPos, camTarget, camUp);
-        p.Scale(sx*sf, sy*sf, sz*sf);
-        p.Translate(tx*-.5f, ty, tz);
-        p.Rotate(rx, ry, rz);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
+            p.SetPersProjInfo(60.f, display_w, display_h, 1.f, 1000.f);
+            p.SetCamera(camPos, camTarget, camUp);
+            p.Scale(sx*sf, sy*sf, sz*sf);
+            p.Translate(tx*-.5f, ty, tz);
+            p.Rotate(rx, ry, rz);
+            glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
-        glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(0);
 
-        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
-        glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
+            glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+            glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
+            glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
 
-        p.Translate(tx*.5f, ty, tz);
+            p.Translate(tx*-.5f, ty*-.5f, tz*-.5f);
 
-        glBindBuffer(GL_ARRAY_BUFFER, CylVB);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
-        glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
+            glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+            glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
+            glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
 
-        glDisableVertexAttribArray(0);
+            p.Translate(tx, ty, tz);
+
+            glBindBuffer(GL_ARRAY_BUFFER, CylVB);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+            glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
+            glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
+            glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
+
+            glDisableVertexAttribArray(0);
+        }
 
         glUseProgram(trishader);
+
+        if (ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                ImGui::MenuItem("File Menu", NULL, false, false);
+                if (ImGui::MenuItem("Crystal", "Ctrl+O"))
+                {
+                    initialize();
+                    char const *filename = "../../examples/data/thymine_rho.cube";
+                    call_crystal(filename, (int) strlen(filename));
+
+                    int *z; // atomic numbers
+                    double *x; // atomic positions
+                    int n; // number of atoms
+
+                    // get_positions(&n,&z,&x);
+                    // for (int i=0;i<n;i++) {
+                    //     glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
+                    // }
+
+                }
+                ImGui::MenuItem("Window", NULL, &show_render);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
