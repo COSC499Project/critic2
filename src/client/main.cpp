@@ -61,6 +61,56 @@ static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum Shad
     glAttachShader(ShaderProgram, ShaderObj);
 }
 
+static GLuint LightingShader() {
+	GLuint ShaderProgram = glCreateProgram();
+	if (ShaderProgram == 0) {
+		exit(1);
+	}
+
+	const char * vs = "#version 330 \n \
+      layout (location = 0) in vec3 Position; \n \
+      layout (location = 1) in vec3 Normal; \n \
+      uniform mat4 gWorld; \n \
+      uniform vec4 mColor; \n \
+      out vec4 Color; \n \
+      out vec3 Normal0; \n \
+      void main() { \n \
+        gl_Position = gWorld * vec4(Position, 1.0); \n \
+        Normal0 = (gWorld * vec4(Normal, 0.0)).xyz; \n \
+        Color = mColor;}";
+
+	const char * fs = "#version 330 \n \
+      in vec4 Color; \n \
+      in vec3 Normal0; \n \
+      vec3 Direction = vec3(0.0, 0.0, 1.0);\n \
+      float DiffuseFactor = dot(normalize(Normal0), Direction); \n \
+      out vec4 FragColor; \n \
+      vec4 DiffuseColor; \n \
+      float DiffuseIntensity = 1.0; \n \
+      void main() { \n \
+        if (DiffuseFactor > 0) { \n \
+          DiffuseColor = vec4(Color * DiffuseFactor * DiffuseIntensity); \n \
+        } else { \n \
+          DiffuseColor = vec4(0, 0, 0, 0);} \n \
+        FragColor = Color; }";
+
+
+	AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
+	AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
+
+	GLint success = 0;
+
+	glLinkProgram(ShaderProgram);
+	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
+	if (success == 0) exit(1);
+
+	glValidateProgram(ShaderProgram);
+	glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
+	if (success == 0) exit(1);
+
+	return ShaderProgram;
+}
+
 static GLuint CompileShaders()
 {
   GLuint ShaderProgram = glCreateProgram();
@@ -154,6 +204,34 @@ void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 }
 
+#pragma region atom loading and drawing
+//global vars for an atom's mesh
+GLuint atomVB;
+GLuint atomIB;
+unsigned int numbIndeces;
+
+void loadAtomObject() {
+	// Load sphere mesh
+	unsigned int numbVerteces = 3078;
+	numbIndeces = 6144;
+	static GLfloat *atomVerteces = (GLfloat *)malloc(sizeof(GLfloat)*numbVerteces);
+	static unsigned int *atomIndeces = (unsigned int *)malloc(sizeof(unsigned int)*numbIndeces);
+	ReadMesh(atomVerteces, atomIndeces, "./sphere.v", "./sphere.i");
+	CreateAndFillBuffers(&atomVB, &atomIB, atomVerteces, atomIndeces,
+		numbVerteces, numbIndeces);
+}
+
+void drawAtom(int atomicNumber, float posVector[3], GLfloat color[4], GLuint mColorLocation, Pipeline p) {
+	glBindBuffer(GL_ARRAY_BUFFER, atomVB);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
+	glUniform4fv(mColorLocation, 1, (const GLfloat *)&color);
+	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
+
+	p.Translate(posVector[0], posVector[1], posVector[2]);
+}
+#pragma endregion
+
 int main(int, char**)
 {
     // Setup window
@@ -187,7 +265,9 @@ int main(int, char**)
     gWorldLocation = glGetUniformLocation(trishader, "gWorld");
     GLuint mColorLocation = glGetUniformLocation(trishader, "mColor");
     
+	//glEnables
     glEnable(GL_DEPTH_TEST);
+
     glDepthFunc(GL_LESS);
 
     // initialize pipeline
@@ -400,7 +480,7 @@ int main(int, char**)
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glfwSwapBuffers(window);
     }
 
