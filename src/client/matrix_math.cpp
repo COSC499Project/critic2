@@ -221,16 +221,31 @@ public:
 
   const Matrix4f * GetTrans();
   const Matrix4f * GetCTrans();
-  const Matrix4f * GetNormal();
+
+  const Matrix4f * GetProjTrans();
+  const Matrix4f * GetViewTrans();
+  const Matrix4f * GetWorldTrans();
+  const Matrix4f * GetVPTrans();
+  const Matrix4f * GetWVPTrans();
 
 private:
   float m_scale[3];
   float m_pos[3];
   float m_rotate[3];
   Matrix4f m_transform;
+
   PersProjInfo m_projInfo;
   OrthoProjInfo m_orthoInfo;
+
   CameraInfo m_camera;
+
+  Matrix4f m_WVPtransformation;
+  Matrix4f m_VPtransformation;
+  Matrix4f m_ProjTransformation;
+  Matrix4f m_Vtransformation;
+  Matrix4f m_Wtransformation;
+  Matrix4f m_WVtransformation;
+  Matrix4f m_WPtransformation;
 };
 
 #ifdef WIN32
@@ -413,20 +428,43 @@ const Matrix4f * Pipeline::GetTrans(){
   return &m_transform;
 }
 
-const Matrix4f * Pipeline::GetNormal(){
-  Matrix4f ScaleTrans, RotateTrans, CamRotateTrans,
-           PersProjTrans, OrthoProjTrans;
+const Matrix4f * Pipeline::GetProjTrans(){
+  m_ProjTransformation.InitPersProjTransform(m_projInfo);
+  return &m_ProjTransformation;
+}
+
+const Matrix4f * Pipeline::GetViewTrans(){
+  Matrix4f CamTranslateTrans, CamRotateTrans;
+  CamTranslateTrans.InitTranslateTransform(m_camera.Pos[0], -m_camera.Pos[1], -m_camera.Pos[2]);
+  CamRotateTrans.InitCameraTransform(m_camera.Target, m_camera.Up);
+  m_Vtransformation = CamRotateTrans * CamTranslateTrans;
+  return &m_Vtransformation;
+}
+
+const Matrix4f * Pipeline::GetWorldTrans(){
+  Matrix4f ScaleTrans, RotateTrans, TranslateTrans;
   ScaleTrans.InitScaleTransform(m_scale[0], m_scale[1], m_scale[2]);
   RotateTrans.InitRotateTransform(m_rotate[0], m_rotate[1], m_rotate[2]);
-  CamRotateTrans.InitCameraTransform(m_camera.Target, m_camera.Up);
-  PersProjTrans.InitPersProjTransform(m_projInfo);
-  OrthoProjTrans.InitOrthoProjTransform(m_orthoInfo);
-
-  m_transform =  PersProjTrans * CamRotateTrans *
-                RotateTrans * ScaleTrans;
-
-  return &m_transform;
+  TranslateTrans.InitTranslateTransform(m_pos[0], m_pos[1], m_pos[2]);
+  m_Wtransformation = TranslateTrans * RotateTrans * ScaleTrans;
+  return &m_Wtransformation;
 }
+
+const Matrix4f * Pipeline::GetVPTrans(){
+  GetViewTrans();
+  GetProjTrans();
+  m_VPtransformation = m_ProjTransformation * m_Vtransformation;
+  return &m_VPtransformation;
+}
+
+const Matrix4f * Pipeline::GetWVPTrans(){
+  GetWorldTrans();
+  GetVPTrans();
+  m_WVPtransformation = m_VPtransformation * m_Wtransformation;
+  return &m_WVPtransformation;
+}
+
+
 class Camera
 {
 public:

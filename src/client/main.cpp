@@ -29,6 +29,15 @@ struct {
 
 static CameraInfo cam;
 
+struct {
+  GLuint gWorldLocation;
+  GLuint gWVPLocation;
+  GLuint vColorLocation;
+  GLuint lColorLocation;
+  GLuint lDirectionLocation;
+  GLuint fAmbientIntensityLocation;
+} ShaderVarLocations;
+
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
@@ -61,58 +70,7 @@ static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum Shad
     glAttachShader(ShaderProgram, ShaderObj);
 }
 
-static GLuint LightingShader() {
-	GLuint ShaderProgram = glCreateProgram();
-	if (ShaderProgram == 0) {
-		exit(1);
-	}
-
-	const char * vs = "#version 400 \n \
-		varying vec3 N; \
-		varying vec3 v; \
-		void main(void){ \
-		v = vec3(gl_ModelViewMatrix * gl_Vertex); \
-		N = normalize(gl_NormalMatrix * gl_Normal); \
-		gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex; \
-		}";
-	
-
-	const char * fs = "#version 400 \n \
-		varying vec3 N;\
-		varying vec3 v;\
-		void main(void){ \
-		vec3 L = normalize(gl_LightSource[0].position.xyz - v);\
-		vec3 E = normalize(-v); // we are in Eye Coordinates, so EyePos is (0,0,0)\
-		vec3 R = normalize(-reflect(L, N));\
-		//calculate Ambient Term: \
-		vec4 Iamb = gl_FrontLightProduct[0].ambient; \
-		//calculate Diffuse Term:\
-		vec4 Idiff = gl_FrontLightProduct[0].diffuse * max(dot(N, L), 0.0); \
-		// calculate Specular Term: \
-		vec4 Ispec = gl_FrontLightProduct[0].specular \
-			* pow(max(dot(R, E), 0.0), 0.3*gl_FrontMaterial.shininess); \
-		// write Total Color:\
-		gl_FragColor = gl_FrontLightModelProduct.sceneColor + Iamb + Idiff + Ispec;\
-		}";
-
-	AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
-	AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
-
-	GLint success = 0;
-
-	glLinkProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
-	if (success == 0) exit(1);
-
-	glValidateProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
-	if (success == 0) exit(1);
-
-	return ShaderProgram;
-}
-
-
-static GLuint LightingShader2()
+static GLuint LightingShader()
 {
   GLuint ShaderProgram = glCreateProgram();
   if (ShaderProgram == 0){
@@ -121,32 +79,33 @@ static GLuint LightingShader2()
 
   const char * vs = "#version 330 \n \
     uniform mat4 gWorld; \n \
-    uniform mat4 normalMatrix; \n \
-    uniform vec4 mColor; \n \
+    uniform mat4 gWVP; \n \
+    uniform vec4 vColor; \n \
     layout (location = 0) in vec3 inPosition; \n \
     layout (location = 1) in vec3 inNormal; \n \
     smooth out vec3 vNormal; \n \
     out vec4 Color; \n \
     void main() { \n \
-      gl_Position = gWorld * vec4(inPosition, 1.0); \n \
-      vec4 vRes = normalMatrix * vec4(inNormal, 0.0); \n \
-      Color = mColor; \n \
-      vNormal =vRes.xyz;}";
+      gl_Position = gWVP * vec4(inPosition, 1.0); \n \
+      vec4 vRes = gWVP * vec4(inNormal, 0.0); \n \
+      vNormal =vRes.xyz;\n \
+      Color = vColor;\n \
+      }";
 
   const char * fs = "#version 330 \n \
     smooth in vec3 vNormal; \n \
-    out vec4 outputColor; \n \
     in vec4 Color; \n \
-    uniform sampler2D gSampler; \n \
-    uniform vec4 vColor; \n \
-    struct SimpleDirectionalLight { \n \
-      vec3 vColor; \n \
-      vec3 vDirection; \n \
-      float fAmbientIntensity;}; \n \
-    uniform SimpleDirectionalLight sunLight; \n \
+    out vec4 outputColor; \n \
+    uniform vec3 lColor; \n \
+    uniform vec3 lDirection; \n \
+    uniform float fAmbientIntensity; \n \
     void main() { \n \
-      float fDiffuseIntensity = max(0.0, dot(normalize(vNormal), -sunLight.vDirection)); \n \
-      outputColor = Color * vColor * vec4(sunLight.vColor * (sunLight.fAmbientIntensity+fDiffuseIntensity), 1.0);}";
+      float fDiffuseIntensity = max(0.0, dot(normalize(vNormal), lDirection)); \n \
+      outputColor = Color; \n \
+      }";
+
+//outputColor = vColor * vec4(lColor * (fAmbientIntensity+fDiffuseIntensity), 1.0);
+
 
   AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
   AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
@@ -165,11 +124,6 @@ static GLuint LightingShader2()
 }
 
 
-
-
-
-
-
 static GLuint CompileShaders()
 {
   GLuint ShaderProgram = glCreateProgram();
@@ -182,13 +136,13 @@ static GLuint CompileShaders()
       layout (location = 0) in vec3 Position; \n \
       layout (location = 1) in vec3 Normal; \n \
       uniform mat4 gWorld; \n \
-      uniform vec4 mColor; \n \
+      uniform vec4 vColor; \n \
       out vec4 Color; \n \
       out vec3 Normal0; \n \
       void main() { \n \
         gl_Position = gWorld * vec4(Position, 1.0); \n \
         Normal0 = (gWorld * vec4(Normal, 0.0)).xyz; \n \
-        Color = mColor;}";
+        Color = vColor;}";
 
   const char * fs = "#version 330 \n \
       in vec4 Color; \n \
@@ -263,25 +217,34 @@ void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 }
 
-void DrawBondLighted(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p, 
-              GLuint CylVB, GLuint CylIB,
-              const float p1[3], const float p2[3])
+void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
+                     const float p1[3], const float p2[3])
 {
   float df[3] = {p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]};
   float d = sqrt(df[0]*df[0] + df[1]*df[1] + df[2]*df[2]);
   float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
   float grey[3] = {.5, .5, .5};
-
+  float white[3] = {1, 1, 1};
 
   p->Scale(0.1f, 0.1f, d);
   p->Translate(mid[0], mid[1], mid[2]); 
   p->Rotate(0.f, 0.f, 0.f);
 
-  glUniformMatrix4fv(WorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetTrans());
+  float dir[3] = {-cam.Target[0], -cam.Target[1], -cam.Target[2]};
+  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, 
+                     (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, 
+                     (const GLfloat *)p->GetWorldTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&grey);
+  glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
+  glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
+  glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
+
+
+
   glBindBuffer(GL_ARRAY_BUFFER, CylVB);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glUniform4fv(ColorLocation, 1, (const GLfloat *)&grey);
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 }
 
@@ -339,14 +302,17 @@ int main(int, char**)
     GLuint VertexArray;
     glGenVertexArrays(1, &VertexArray);
     glBindVertexArray(VertexArray);
-
-    GLuint trishader = CompileShaders();
-    GLuint lightshader = LightingShader2();
-    GLuint gWorldLocation;
-    gWorldLocation = glGetUniformLocation(trishader, "gWorld");
-    GLuint mColorLocation = glGetUniformLocation(trishader, "mColor");
     
-	//glEnables
+    // Compile shaders and find shader variable locations
+    GLuint trishader = CompileShaders();
+    GLuint lightshader = LightingShader();
+    ShaderVarLocations.gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
+    ShaderVarLocations.gWorldLocation = glGetUniformLocation(lightshader, "gWVP");
+    ShaderVarLocations.vColorLocation = glGetUniformLocation(lightshader, "vColor");
+    ShaderVarLocations.lColorLocation = glGetUniformLocation(lightshader, "lColor");
+    ShaderVarLocations.lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
+    
+  	//glEnables
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
@@ -426,44 +392,6 @@ int main(int, char**)
           }
         }
 
-        /*
-        static float sx=1.f, sy=1.f, sz=1.f;
-        static float sf = 0.5f;
-        static bool lockScale = true;
-        static float rx = 0.f, ry = 0.f, rz = 0.f;
-        static float tx = 0.5f, ty = 0.f, tz = 0.f;
-        {
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::Checkbox("Lock Scale Ratio", &lockScale);
-            if(lockScale){
-              ImGui::DragFloat("Scale", &sf, 0.005f);
-            } else {
-              ImGui::DragFloat("Scale X", &sx, 0.005f);
-              ImGui::DragFloat("Scale Y", &sy, 0.005f);
-              ImGui::DragFloat("Scale Z", &sz, 0.005f);
-            }
-            ImGui::DragFloat("Rotate X", &rx, 0.5f);
-            ImGui::DragFloat("Rotate Y", &ry, 0.5f);
-            ImGui::DragFloat("Rotate Z", &rz, 0.5f);
-
-            ImGui::DragFloat("Translate X", &tx, 0.005f);
-            ImGui::DragFloat("Translate Y", &ty, 0.005f);
-            ImGui::DragFloat("Translate Z", &tz, 0.005f);
-
-            ImGui::DragFloat("Translate CamX", &camPos[0], 0.005f);
-            ImGui::DragFloat("Translate CamY", &camPos[1], 0.005f);
-            ImGui::DragFloat("Translate CamZ", &camPos[2], 0.005f);
-  
-            ImGui::DragFloat("CamTargetX", &camTarget[0], 0.005f);
-            ImGui::DragFloat("CamTargetY", &camTarget[1], 0.005f);
-            ImGui::DragFloat("CamTargetZ", &camTarget[2], 0.005f);
-
-            ImGui::DragFloat("CamUpX", &camUp[0], 0.005f);
-            ImGui::DragFloat("CamUpY", &camUp[1], 0.005f);
-            ImGui::DragFloat("CamUpZ", &camUp[2], 0.005f);
-
-        }
-*/
 
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
@@ -550,11 +478,13 @@ int main(int, char**)
 */
         const float p1[3] = {-1, 2, 0};
         const float p2[3] = {1, 2, 0};
-        DrawBond(gWorldLocation, mColorLocation, &p, CylVB, CylIB, p1, p2);
+//        DrawBond(gWorldLocation, mColorLocation, &p, CylVB, CylIB, p1, p2);
+        DrawBondLighted(&p, CylVB, CylIB, p1, p2);
+
 
         glDisableVertexAttribArray(0);
         
-        glUseProgram(trishader);
+        glUseProgram(lightshader);
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
