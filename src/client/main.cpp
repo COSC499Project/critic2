@@ -34,31 +34,32 @@ static void error_callback(int error, const char* description)
     fprintf(stderr, "Error %d: %s\n", error, description);
 }
 
+#pragma region shaders
 
 static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
 {
-    GLuint ShaderObj = glCreateShader(ShaderType);
+	GLuint ShaderObj = glCreateShader(ShaderType);
 
-    if (ShaderObj == 0) {
-        fprintf(stderr, "Error creating shader type %d\n", ShaderType);
-        exit(0);
-    }
+	if (ShaderObj == 0) {
+		fprintf(stderr, "Error creating shader type %d\n", ShaderType);
+		exit(0);
+	}
 
-    const GLchar * p[1];
-    p[0] = pShaderText;
-    GLint Lengths[1];
-    Lengths[0] = strlen(pShaderText);
-    glShaderSource(ShaderObj, 1, p, Lengths);
-    glCompileShader(ShaderObj);
-    GLint success;
-    glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
-    if (!success){
-        GLchar InfoLog[1024];
-        glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
-        fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
-        exit(1);
-    }
-    glAttachShader(ShaderProgram, ShaderObj);
+	const GLchar * p[1];
+	p[0] = pShaderText;
+	GLint Lengths[1];
+	Lengths[0] = strlen(pShaderText);
+	glShaderSource(ShaderObj, 1, p, Lengths);
+	glCompileShader(ShaderObj);
+	GLint success;
+	glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
+	if (!success) {
+		GLchar InfoLog[1024];
+		glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
+		fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
+		exit(1);
+	}
+	glAttachShader(ShaderProgram, ShaderObj);
 }
 
 static GLuint LightingShader() {
@@ -75,7 +76,7 @@ static GLuint LightingShader() {
 		N = normalize(gl_NormalMatrix * gl_Normal); \
 		gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex; \
 		}";
-	
+
 
 	const char * fs = "#version 400 \n \
 		varying vec3 N;\
@@ -113,13 +114,13 @@ static GLuint LightingShader() {
 
 static GLuint CompileShaders()
 {
-  GLuint ShaderProgram = glCreateProgram();
-  if (ShaderProgram == 0){
-    exit(1);
-  }
+	GLuint ShaderProgram = glCreateProgram();
+	if (ShaderProgram == 0) {
+		exit(1);
+	}
 
-  
-  const char * vs = "#version 330 \n \
+
+	const char * vs = "#version 330 \n \
       layout (location = 0) in vec3 Position; \n \
       layout (location = 1) in vec3 Normal; \n \
       uniform mat4 gWorld; \n \
@@ -131,7 +132,7 @@ static GLuint CompileShaders()
         Normal0 = (gWorld * vec4(Normal, 0.0)).xyz; \n \
         Color = mColor;}";
 
-  const char * fs = "#version 330 \n \
+	const char * fs = "#version 330 \n \
       in vec4 Color; \n \
       in vec3 Normal0; \n \
       vec3 Direction = vec3(0.0, 0.0, 1.0);\n \
@@ -147,21 +148,23 @@ static GLuint CompileShaders()
         FragColor = Color; }";
 
 
-  AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
-  AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
+	AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
+	AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
 
-  GLint success = 0;
-  
-  glLinkProgram(ShaderProgram);
-  glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
-  if (success == 0) exit(1);
+	GLint success = 0;
 
-  glValidateProgram(ShaderProgram);
-  glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
-  if (success == 0) exit(1);
+	glLinkProgram(ShaderProgram);
+	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
+	if (success == 0) exit(1);
 
-  return ShaderProgram;
+	glValidateProgram(ShaderProgram);
+	glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
+	if (success == 0) exit(1);
+
+	return ShaderProgram;
 }
+
+#pragma endregion
 
 void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer, 
                           GLfloat * Vertices, unsigned int * Indices,
@@ -226,30 +229,50 @@ struct atom{
 	int atomicNumber;
 	int indentifyingNumber;
 	float* atomPosition = new float[3];
-	int 
 };
 
 int loadedAtomsAmount;
 atom *loadedAtoms;
 
-//TODO call this when atoms are loaded
+//TODO call this to load all atoms from the critic2 interface
 void loadAtoms() {
 	
 }
 
-float* getScreenPositionOfVertex(float *vertexLocation) {
+///returns the color of an atom based on the atomic number
+///and desired color Intesity (brightness)
+const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
+	if (atomicNumber == 1) {
+		return new GLfloat[4]{ 0.f, 0.f, 0.f, colorIntesity};
+	}else if(atomicNumber == 8) {
+		return new GLfloat[4]{ 1.0f,0.0f, 0.0f, colorIntesity };
+	} else  {
+		return new GLfloat[4]{ 0.8f,0.8f, 0.8f, colorIntesity };
+	}
+}
 
+///will be used to draw atom number over the atom using imgui window
+float* getScreenPositionOfVertex(float *vertexLocation) {
+	//TODO transfrom from vertex location to screen location 
 	return NULL;
 }
 
 GLuint gWorldLocation; //made global to make Drawing via methods easer
 GLuint mColorLocation;
 void drawAtomInstance(int identifyer, float posVector[3],const GLfloat color[4], Pipeline p) {
+	float inc = 0.0f;
 	if (loadedAtoms[identifyer].selected) { //selection is color based
-		//color[3] = color[3] + 0.2f;
+		inc = 0.2f;
+	}
+	const GLfloat n_Color[4]{color[0],color[1],color[2],color[3] + inc};
+
+	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
+	if (scaleAmount < 4.0f) {
+		scaleAmount = 0.25f;
+	} else {
+		scaleAmount = 0.5f;
 	}
 
-	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber / 5.0f - 0.2f;
 	p.Scale(scaleAmount, scaleAmount, scaleAmount);
 	p.Translate(posVector[0], posVector[1], posVector[2]);
 	p.Rotate(0.f, 0.f, 0.f); //no rotation required
@@ -258,7 +281,7 @@ void drawAtomInstance(int identifyer, float posVector[3],const GLfloat color[4],
 	glBindBuffer(GL_ARRAY_BUFFER, atomVB);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
-	glUniform4fv(mColorLocation, 1, (const GLfloat *)&color);
+	glUniform4fv(mColorLocation, 1, (const GLfloat *)&n_Color);
 	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
 	
 }
@@ -266,7 +289,7 @@ void drawAtomInstance(int identifyer, float posVector[3],const GLfloat color[4],
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline p) {
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-		drawAtomInstance(x,loadedAtoms[x].atomPosition,loadedAtoms[x].color,p);
+		drawAtomInstance(x,loadedAtoms[x].atomPosition,getAtomColor(loadedAtoms[x].atomicNumber, 0.6f),p);
 	}
 }
 
@@ -349,7 +372,7 @@ int main(int, char**)
 	loadAtomObject();
 	
 	//this section will be replaced by the loadAtoms function
-#pragma region atom test
+#pragma region atom loading test
 	loadedAtomsAmount = 3;
 	loadedAtoms = new atom[loadedAtomsAmount];
 	loadedAtoms[0].atomicNumber = 1;
@@ -359,7 +382,6 @@ int main(int, char**)
 	pos[1] = -1.f;
 	pos[2] = 0.f;
 	loadedAtoms[0].atomPosition = pos;
-	loadedAtoms[0].color = { 1.f, 1.f, 1.f, colorIntesity };
 
 	loadedAtoms[1].atomicNumber = 1;
 	loadedAtoms[1].indentifyingNumber = 2;
@@ -367,8 +389,6 @@ int main(int, char**)
 	pos[1] = 1.16f;
 	pos[2] = 0.f;
 	loadedAtoms[1].atomPosition = pos;
-	loadedAtoms[1].color = { 1.f, 1.f, 1.f, colorIntesity };;
-
 
 	loadedAtoms[2].atomicNumber = 8;
 	loadedAtoms[2].indentifyingNumber = 3;
@@ -376,7 +396,6 @@ int main(int, char**)
 	pos[1] = .715f;
 	pos[2] = 0.f;
 	loadedAtoms[2].atomPosition = pos;
-	loadedAtoms[2].color = red;
 #pragma endregion
 
     // Load sphere mesh
@@ -508,7 +527,8 @@ int main(int, char**)
 
     
         glEnableVertexAttribArray(0);
-
+		drawAllAtoms(p);
+		/* old atom drawing
         p.Scale(0.25f, 0.25f, 0.25f);
         p.Translate(0.f, -1.f, 0.f); 
         p.Rotate(0.f, 0.f, 0.f);
@@ -542,7 +562,7 @@ int main(int, char**)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
         glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
         glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
-
+		*/
 
         p.Scale(0.1f, 0.1f, .5f);
         p.Translate(0.f, -.275, 0.f); 

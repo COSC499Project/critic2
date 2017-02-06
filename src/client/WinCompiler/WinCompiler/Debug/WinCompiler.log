@@ -6,19 +6,17 @@ c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing
 c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
 c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
 c:\499drive\critic2\src\client\matrix_math.cpp(140): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(182): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(180): warning C4100: 'xoffset': unreferenced formal parameter
-c:\499drive\critic2\src\client\main.cpp(180): warning C4100: 'window': unreferenced formal parameter
-c:\499drive\critic2\src\client\main.cpp(240): warning C4100: 'vertexLocation': unreferenced formal parameter
-c:\499drive\critic2\src\client\main.cpp(268): warning C4018: '<': signed/unsigned mismatch
-c:\499drive\critic2\src\client\main.cpp(280): warning C4018: '<': signed/unsigned mismatch
-c:\499drive\critic2\src\client\main.cpp(445): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(446): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(524): warning C4305: 'argument': truncation from 'double' to 'float'
-c:\499drive\critic2\src\client\main.cpp(536): warning C4305: 'argument': truncation from 'double' to 'float'
-c:\499drive\critic2\src\client\main.cpp(548): warning C4305: 'argument': truncation from 'double' to 'float'
-c:\499drive\critic2\src\client\main.cpp(559): warning C4305: 'argument': truncation from 'double' to 'float'
-c:\499drive\critic2\src\client\main.cpp(442): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
-c:\499drive\critic2\src\client\main.cpp(64): warning C4505: 'LightingShader': unreferenced local function has been removed
+c:\499drive\critic2\src\client\main.cpp(185): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(183): warning C4100: 'xoffset': unreferenced formal parameter
+c:\499drive\critic2\src\client\main.cpp(183): warning C4100: 'window': unreferenced formal parameter
+c:\499drive\critic2\src\client\main.cpp(255): warning C4100: 'vertexLocation': unreferenced formal parameter
+c:\499drive\critic2\src\client\main.cpp(291): warning C4018: '<': signed/unsigned mismatch
+c:\499drive\critic2\src\client\main.cpp(303): warning C4018: '<': signed/unsigned mismatch
+c:\499drive\critic2\src\client\main.cpp(464): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(465): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(568): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\499drive\critic2\src\client\main.cpp(579): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\499drive\critic2\src\client\main.cpp(461): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
+c:\499drive\critic2\src\client\main.cpp(65): warning C4505: 'LightingShader': unreferenced local function has been removed
   WinCompiler.vcxproj -> C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.exe
   WinCompiler.vcxproj -> C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.pdb (Partial PDB)
