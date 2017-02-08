@@ -56,23 +56,25 @@ module bader
 
 contains
 
-  !> Do a grid integration using the BADER method. cr is the crystal
-  !> and f is the field. Return the number of basins (nbasin0), their
-  !> coordinates (crystallographic corods, volpos_lat). volnum0 gives
-  !> the id of the basin (from 1 to nbasin0) on the lattice. If 
-  !> the arithmetic expression discexpr is not empty, then apply that
-  !> expression to the basin attractors. If the expression is non-zero,
-  !> discard the attractor.
+  !> Do a grid integration using the BADER method. c is the crystal
+  !> and ff is the field. Return the number of basins (nbasin0), their
+  !> coordinates (crystallographic corods, xcoord). volnum0 gives the
+  !> id of the basin (from 1 to nbasin0) on the lattice. If the
+  !> arithmetic expression discexpr is not empty, then apply that
+  !> expression to the basin attractors. If the expression is
+  !> non-zero, discard the attractor. If atexist is true, then the
+  !> code is aware of the presence of atoms, which are added as
+  !> attractors at the beginning of the run. Two attractors are
+  !> considered equal if they are within a ditsance of ratom
+  !> (bohr).
   subroutine bader_integrate(c,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-    use tools_math
-    use arithmetic
-    use types
-    use param
-
+    use struct_basic, only: crystal
+    use fields, only: fields_fcheck, fields_feval
+    use tools_io, only: faterr, ferror
+    use tools_math, only: matinv
+    use arithmetic, only: eval
+    use param, only: vsmall
+    use types, only: realloc
     type(crystal), intent(in) :: c
     real*8, intent(in) :: ff(:,:,:)
     character*(*), intent(in) :: discexpr
@@ -87,6 +89,12 @@ contains
     real*8 :: dlat(3), dcar(3), dist, dv(3), x(3), fval
     integer :: bat(c%ncel)
     logical :: isassigned, ok
+
+    ! deallocate the arguments and private globals
+    if (allocated(volnum0)) deallocate(volnum0)
+    if (allocated(volnum)) deallocate(volnum)
+    if (allocated(known)) deallocate(known)
+    if (allocated(path)) deallocate(path)
 
     ! Pre-allocate atoms as maxima
     allocate(xcoord(3,c%ncel))
@@ -154,8 +162,7 @@ contains
                    ! check if it is a known nnm
                    if (.not.isassigned .and. ratom > vsmall) then
                       do l = 1, nbasin
-                         dist = c%eql_distance(dv,xcoord(:,l))
-                         if (dist < ratom) then
+                         if (c%are_lclose(dv,xcoord(:,l),ratom)) then
                             path_volnum = l
                             isassigned = .true.
                             exit
@@ -211,12 +218,13 @@ contains
     call realloc(xcoord,3,nbasin)
     call move_alloc(volnum,volnum0)
     nbasin0 = nbasin
+    if (allocated(known)) deallocate(known)
+    if (allocated(path)) deallocate(path)
 
   end subroutine bader_integrate
 
   subroutine refine_edge(f,irefine_edge,ref_itrs)
-    use tools_io
-    use types
+    use tools_io, only: faterr, ferror
 
     real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: irefine_edge
@@ -284,7 +292,7 @@ contains
           end do
        end do
 
-       ! make the surrounding points unkown
+       ! make the surrounding points unknown
        do n1 = 1, n(1)
           do n2 = 1, n(2)
              do n3 = 1, n(3)
@@ -344,8 +352,7 @@ contains
   ! From the point p do a maximization on the charge density grid and
   ! assign the maximum found to the volnum array.
   subroutine max_neargrid(f,p)
-    use types
-
+    use types, only: realloc
     real*8, intent(in) :: f(:,:,:)
     integer, dimension(3), intent(inout) :: p
     
@@ -373,10 +380,9 @@ contains
   ! Do a single iteration of a maximization on the charge density 
   ! grid from the point (px,py,pz).
   subroutine step_neargrid(f,p)
-    use types
     
     real*8, intent(in) :: f(:,:,:)
-    integer,dimension(3),intent(inout) :: p
+    integer, intent(inout) :: p(3)
 
     real*8, save :: dr(3)
     real*8 :: gradrl(3), coeff
@@ -419,8 +425,7 @@ contains
   ! Do a single iteration of a maximization on the charge density 
   ! grid from the point (px,py,pz).  Return a logical indicating 
   ! if the current  point is a charge density maximum.
-  SUBROUTINE step_ongrid(f,p)
-    use types
+  subroutine step_ongrid(f,p)
 
     real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: p(3)
@@ -454,7 +459,6 @@ contains
   ! Return the direction of the gradient in lattice vectors
   ! at the grid position p
   function rho_grad_dir(f,p)
-    use types
 
     real*8, intent(in) :: f(:,:,:)
     integer, intent(in) :: p(3)
@@ -495,7 +499,6 @@ contains
   ! is_max
   ! return .true. if the grid point is a maximum of charge density
   function is_max(f,p)
-    use types
 
     real*8, intent(in) :: f(:,:,:)
     integer, intent(in) :: p(3)
@@ -527,7 +530,6 @@ contains
   ! pbc
   ! Wrap the point (p(1),p(2),p(3)) to the boundary conditions [0,pmax].
   subroutine pbc(p)
-
     integer, intent(inout) :: p(3)
 
     integer :: i
@@ -546,7 +548,6 @@ contains
   end subroutine pbc
 
   function rho_val(ff,p1,p2,p3)
-    use types
 
     real*8, intent(in) :: ff(:,:,:)
     integer, intent(in) :: p1, p2, p3

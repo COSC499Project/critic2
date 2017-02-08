@@ -67,6 +67,11 @@ references if you find this program useful. The file THANKS contains a
 complete list of contributors and other programs from where parts of
 critic2 have been adapted.
 
+Installation
+------------
+
+Please, see the README file.
+
 Command-line options, usage, and input overview
 -----------------------------------------------
 
@@ -1530,16 +1535,16 @@ SYMM/NOSYMM (before CRYSTAL) and CLEARSYM (after CRYSTAL) keywords.
 
 ::
 
-  SYMM [0|1|2]
-  NOSYMM
+  SYMM [-1|0|1|2]
+  NOSYMM|NOSYM
 
-Activates (SYMM) or deactivates (NOSYMM) the use of symmetry. These
-keywords must be used before CRYSTAL to be effective. The three
-options two SYMM are: 0, no symmetry (same as NOSYMM); 1, only
-centering vectors; 2, full symmetry. The default is full
-symmetry. NOSYMM is occasionally useful for very large crystals where
-critic2 would take seconds or minutes to complete the symmetry
-analysis.
+Activates (SYMM) or deactivates (NOSYMM or NOSYM) the use of
+symmetry. These keywords must be used before CRYSTAL to be effective,
+and they have no effect on MOLECULE (molecules never use
+symmetry). The four options to SYMM are: 0, no symmetry (same as
+NOSYMM); 1, only centering vectors; 2, full symmetry; -1, use full
+symmetry only if the system is small (<= 500 atoms). The default is
+-1. 
 
 ::
 
@@ -1566,7 +1571,7 @@ of these keywords in the NEQ line of the CRYSTAL environment is
 exactly the same.  
 
 Q is used to calculate the point-charge electrostatic energy (using
-Ewald's method, see `Other structural tools (NEWCELL, WS, ENVIRON,
+Ewald's method, see `Other structural tools (NEWCELL, ENVIRON,
 PACKING, IDENTIFY, EWALD)`_) and, if Q is positive, to build the
 promolecular density using the corresponding cation instead of the
 neutral atom.
@@ -1883,11 +1888,12 @@ radii criterion is used to determine whether two atoms are bonded or
 not. The full syntax of the WRITE keyword is::
 
   WRITE file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
-        [CUBE side.r [x0.r y0.r z0.r]] 
-        [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i] 
-  WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
-        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] 
-        [BURST] [CELL] [MOLCELL] [ix.i iy.i iz.i]
+        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+        [MOLMOTIF] [ONEMOTIF] [ENVIRON dist.r]
+        [NMER nmer.i]
+  WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]] 
+        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i] 
+        [MOLMOTIF] [ONEMOTIF] [CELL] [MOLCELL] 
   WRITE file.scf.in
   WRITE file.tess
   WRITE file.cri|file.incritic
@@ -1932,31 +1938,38 @@ cell. However, this does not look good when the unit cell is
 represented in a figure, because many of the atoms in the cubic cell
 are "missing". By using BORDER, these atoms are included.
 
+The SPHERE keyword writes all atoms inside a sphere of radius rad.r
+(bohr) and centered around the crystallographic coordinates (x0.r y0.r
+z0.r). In molecules, the default units for both the center and radius
+of the sphere are Cartesian in angstrom. If no center is given,
+(0,0,0) is used. The similar keyword CUBE writes all atoms inside a
+cube of side side.r centered around (x0.r y0.r z0.r) (default:
+(0,0,0)).
+
 The keyword MOLMOTIF is used in molecular crystals. All atoms in the
-requested cells (ix.i iy.i iz.i) are written to the xyz file (BORDER
-can also be used to include the atoms at the cell border). Then, the
-molecules that lie across the cell boundary are completed using atoms
-from the neighboring cells. In order to do this, a connectivity
-criterion is used: two atoms are bonded if their distance is less than
-1.5 times their sum of covalent radii.
+requested crystal fragment are written to the xyz file. Then, the
+molecules are completed using atoms from outside the fragment. In
+order to do this, a connectivity criterion is used: two atoms are
+bonded if their distance is less than 1.5 times their sum of covalent
+radii.
 
-The BURST keyword is similar to MOLMOTIF in that the molecular crystal
-structure is partitioned into individual molecules, which are then
-completed using the atoms from neighboring cells. In contrast to
-MOLMOTIF, each of those molecular fragments is written to a separate
-file. In the particular case of xyz or gjf output, the keyword PAIRS
-can also be used. The behavior of PAIRS is similar to burst in that it
-creates a collection of xyz (or gjf) files from fragments of the
-crystal. Instead of writing all individual molecules, PAIRS writes all
-pairs of molecules in the unit cell.
+The ONEMOTIF and ENVIRON keywords are also used in molecular
+crystals. ONEMOTIF writes all atoms in the unit cell, translated by
+lattice vectors to give connected molecules. ENVIRON writes the
+molecular environment of the unit cell origin up to a distance renv.r
+(bohr in crystals, angstrom in molecules). All connected molecules
+whose center of mass is at a distance less than renv.r are written.
 
-In crystals, the SPHERE keyword writes all atoms inside a sphere of
-radius rad.r (bohr) and centered around the crystallographic
-coordinates (x0.r y0.r z0.r). In molecules, the default units for both
-the center and radius of the sphere are Cartesian in angstrom. If no
-center is given, (0,0,0) is used. The similar keyword CUBE writes all
-atoms inside a cube of side side.r centered around (x0.r y0.r z0.r)
-(default: (0,0,0)).
+The NMER keyword is used in molecular systems as well, and in
+combination with ONEMOTIF, MOLMOTIF, or ENVIRON. When NMER is given,
+the selected fragment of the system is split into its component
+connected molecules. Then, all monomers, dimers, trimers,... are
+written to separate files. All n-mers are written from monomers up to
+n-mers, where n is the value of nmer.i. In NMER is used with ENVIRON,
+the first molecule in all n-mers except for those with n = nmer.i is
+always part of the Wigner-Seitz cell, which is useful when generating
+molecular environments of the crystal for calculations using
+incremental methods.
 
 There is an important application of the xyz-format WRITE keyword: the
 coordinates written to the xyz file are consistent with the
@@ -1966,6 +1979,13 @@ represent a subset of the atoms in a crystal. This is very useful
 when generating fragments for an NCIPLOT calculation (see FRAGMENT
 keyword in section `Non-covalent interaction visualization
 (NCIPLOT)`_).
+
+The CML (Chemical Markup Language) format has the same options as the
+xyz and obj output formats. In the CML format, an XML-style file is
+written containing the selected crystal fragment. If the system is a
+crystal (loaded with the CRYSTAL keyword), then the cell geometry is
+written as well. The CML output format is specially tailored for being
+easy to read by avogadro and its underlying engine, openbabel.
 
 The OBJ output is similar to xyz: critic2 will write a finite piece of
 the crystal or molecule to a file with Wavefront OBJ format. The OBJ
@@ -1979,13 +1999,6 @@ keyword can be used to represent the molecular cell (see `The
 molecular cell`_). The similarly popular PLY (polygon file format or
 Stanford triangle format) and OFF (Geomview) file formats can be used
 as well, with the same options.
-
-The CML (Chemical Markup Language) has the same options as the xyz and
-obj output formats. In the CML format, an XML-style file is written
-containing the selected crystal fragment. If the system is a crystal
-(loaded with the CRYSTAL keyword), then the cell geometry is written
-as well. The CML output format is specially tailored for being easy to
-read by avogadro and its underlying engine, openbabel.
 
 Quantum ESPRESSO inputs can be written using the extension
 scf.in. This conversion is especially useful in the case of
@@ -2966,42 +2979,35 @@ Planes and contour plots (PLANE)
 
 ::
 
-  PLANE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i ...
-  PLANE {ATOM|ATOMS} at1.i at2.i at3.i [{SCALE sx.r sy.r}|
-        {SIZE zx.r zy.r}] nx.i ny.i ...
-
-  PLANE ... [FILE file.s] [FIELD id.s|"expr.s"]
-      [F|GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|HYZ|HZX|HZY|HZZ|LAP]
-      [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i r0.r r1.r}]
-      [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
+  PLANE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i 
+   	[SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
+        [FILE file.s] [FIELD id.s/"expr"]
+        [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
+        [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i rini.r rend.r}]
+	[COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
 
 Calculate the value or other properties of the reference field on a
 plane. The results are written to a file, with default name
-<root>_plane.dat. There are two ways to specify the geometry of the
-plane. In the first option, three points are given: (x0.r y0.r z0.r)
-is the origin, (x1.r y1.r z1.r) is the x-end of the plane and (x2.r
-y2.r z2.r) is the y-end. The number of calculated points on each axis
-are given by nx.i (x-axis) and ny.i (y-axis). The units for these
-points are crystallographic coordinates in a crystal, and molecular
-Cartesian coordinates in a molecule (default: angstrom unless the
-UNITS keyword is used).
+<root>_plane.dat. The geometry of the plane is specified by three
+points: (x0.r y0.r z0.r) is the origin, (x1.r y1.r z1.r) is the x-end
+of the plane and (x2.r y2.r z2.r) is the y-end. The number of
+calculated points on each axis are given by nx.i (x-axis) and ny.i
+(y-axis). The units for these points are crystallographic coordinates
+in a crystal, and molecular Cartesian coordinates in a molecule
+(default: angstrom unless the UNITS keyword is used). The two axes of
+the plane can be scaled using the SCALE keyword. If sx.r (sy.r) is
+given, the total length of the x-axis (y-axis) is scaled by sx.r
+(sy.r). If EXTENDX is used, extend the x-axis by zx0.r (initial point
+of the x-axis) and zx1.r (end point). The keyword EXTENDY performs the
+equivalent operation on the y-axis. The units for EXTENDX and EXTENDY
+are bohr (crystals) or angstrom (molecules) unless changed by the
+UNITS keyword.
 
-An alternative way of passing the plane geometry to critic2 is to use
-the ATOM (or ATOMS) keyword. This keyword accepts three integers,
-corresponding to the atom identifiers in the atomic cell list. The
-sx.r and sy.r parameters to SCALE enlarge the plot plane by sx.r in
-the x direction and by sy.r in the y direction. The total length of
-the x or y axis can be set with SIZE (in bohr). SCALE and SIZE are
-mutually exclusive. The syntax of ATOM is similar to GRDVEC. The rest
-of the options FILE, FIELD, ... are treated in the same way.
-
-Regardless of how the plane geometry is given, there are a number of
-additional options that control the behavior of PLANE.  The name of
-the output file can be changed with FILE. Using FIELD, one of the
-loaded fields (id.s) or an expression ("expr.s") can be evaluated. In
-addition to the field value, a second property can be evaluated: the
-field again (F), its derivatives (Gx), its second derivatives (Hxx),
-the gradient norm (GMOD) or the Laplacian (LAP).
+The name of the output file can be changed with FILE. Using FIELD, one
+of the loaded fields (id.s) or an expression ("expr.s") can be
+evaluated. In addition to the field value, a second property can be
+evaluated: the field again (F), its derivatives (Gx), its second
+derivatives (Hxx), the gradient norm (GMOD) or the Laplacian (LAP).
 
 The keyword CONTOUR writes a contour map representation of the plane:
 two contour line files (.iso and .neg.iso) and a gnuplot script
@@ -3082,8 +3088,8 @@ Automatic determination of critical points (AUTO)
 
 ::
 
-  AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] 
-       [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
+  AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] [NUCEPSH nepsh.r]
+       [EPSDEGEN edeg.r] [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
   AUTO ... [SEED ...] [SEED ...] ...
@@ -3250,12 +3256,22 @@ zero computational cost (for intsance, after a CHECK run).
 
 CPEPS controls the minimum distance between CPs to consider them
 equivalent. The default units for CPEPS are bohr in crystals and
-angstrom in molecules. Default: 0.1 bohr. Similarly, NUCEPS controls
+angstrom in molecules. Default: 0.2 bohr. Similarly, NUCEPS controls
 the distance to consider a CP the same as a nucleus. If a CP is found
 at a distance less than neps.r from the closest nucleus, critic2
 considers the two are the same. The default value of NUCEPS is 0.1
 bohr, except for fields defined on a grid, where it defaults to 2
-times the maximum of the grid step in each direction.
+times the maximum of the grid step in each direction. Hydrogens are
+particular in that the maximum of the electron density may be
+significantly displaced from the atomic position. A separate NUCEPS
+distance criterion is provided for hydrogens (NUCEPSH), which defaults
+to 0.2 bohr.
+
+EPSDEGEN controls how degenerate critical points (i.e. one or more
+eigenvalues of the Hessian is zero) are discarded. This is important
+to get rid of critical points that appear in vacuum regions. A
+critical point is considered degenerate if any of the elements of the
+diagonal of the Hessian is less than edeg.r in absolute value.
 
 Because finding the CPs can be an expensive task in large structures,
 the CP list for the current field can be saved to a checkpoint file
@@ -3648,12 +3664,13 @@ Requesting more information about the critical point list (CPREPORT)
 ::
 
   CPREPORT {SHORT|LONG|VERYLONG|SHELLS [n.i]}
-  CPREPORT file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]]
-           [CUBE side.r [x0.r y0.r z0.r]]
-           [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i]
-  CPREPORT file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
-           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] 
-           [BURST] [CELL] [MOLCELL] [ix.i iy.i iz.i]
+  CPREPORT file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
+           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+           [MOLMOTIF] [ONEMOTIF] [ENVIRON dist.r]
+           [NMER nmer.i]
+  CPREPORT file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]] 
+           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i] 
+           [MOLMOTIF] [ONEMOTIF] [CELL] [MOLCELL] 
   CPREPORT file.scf.in
   CPREPORT file.tess
   CPREPORT file.cri|file.incritic
@@ -3823,10 +3840,9 @@ Gradient path representations in a plane (GRDVEC)
   GRDVEC
      {FILES|ROOT|ONAME} rootname.s
      PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r
-           [SCALE sx.r sy.r]
-     PLANE {CP|ATOM} cp1.i [LVEC x.i y.i z.i]
-           cp2.i [LVEC x.i y.i z.i] cp3.i [LVEC x.i y.i z.i]
-           [SCALE sx.r sy.r] [SIZE zx.r zy.r]
+     SCALE sx.r sy.r
+     EXTENDX zx0.r zx1.r
+     EXTENDY zy0.r zy1.r
      OUTCP sx.r sy.r
      HMAX hmax.r
      ORIG x.r y.r z.r atr.i up.i down.i
@@ -3867,25 +3883,17 @@ the plot (default: <root>). These files include:
   containing the information for the position of the CPs in the plot
   plane.
 
-In the standard syntax, PLANE specifies the plane for the plot using
-three points: x0 is the origin, x1 the end of the x-axis and x2 the
-end of the y-axis. These points are in crystallographic coordinates in
-a crystal, and in molecular Cartesian coordinates in a molecule
-(default units: angstrom). The SCALE option allows the user to extend
-the plane relative to the reference points; The x- and y- axis of the
-rectangle are scaled using the sx.r and sy.r values.
-
-There is another possibility: the PLANE CP keyword (or the equivalent
-syntax PLANE ATOM) accepts three atoms or critical points from the
-complete CP (or atom) list. The first atom (or CP) is taken as
-reference, and the other two are replicated by symmetry until critic2
-finds the equivalent position that is nearest to the first. The three
-points found this way (hopefully) determine a plane. The barycenter of
-the points is calculated, and is set as the center of the plot window,
-which consists of a rectangle with sides equal to two times the
-longest distance from the barycenter to the nuclei. The reference
-points for the plane in PLANE CP may translated by lattice vectors
-(optional keyword LVEC).
+PLANE specifies the plane for the plot using three points: x0 is the
+origin, x1 the end of the x-axis and x2 the end of the y-axis. These
+points are in crystallographic coordinates in a crystal, and in
+molecular Cartesian coordinates in a molecule (default units:
+angstrom). The two axes of the plane can be scaled using the SCALE
+keyword. If sx.r (sy.r) is given, the total length of the x-axis
+(y-axis) is scaled by sx.r (sy.r). If EXTENDX is used, extend the
+x-axis by zx0.r (initial point of the x-axis) and zx1.r (end
+point). The keyword EXTENDY performs the equivalent operation on the
+y-axis. The units for EXTENDX and EXTENDY are bohr (crystals) or
+angstrom (molecules) unless changed by the UNITS keyword.
 
 The plot plane may contain regions that are traversed by gradient
 lines originating at critical points located outside the plot
@@ -3982,7 +3990,6 @@ Three-dimensional gradient path representations (FLUXPRINT)
     GRAPH igraph.i [step.r epsi.r]
     COLOR r.i g.i b.i
     TEXT|TESSEL|TESS|OBJ|PLY|OFF|CML
-    PRUNE prune.r
     SHELLS ishl.i
     NOSYM
   ENDFLUXPRINT/END
@@ -4076,9 +4083,7 @@ OBJ (Wavefront obj), PLY (ply format), OFF (Geomview's off), and CML
 (Chemical Markup Language). The CML format, which can be read with the
 avogadro program, is used by default. The color specs are not used in
 CML format. To keep the number of points manageable, critic2 writes
-one gradient path point every certain distance is advanced. The PRUNE
-keyword controls how much this distance is (bohr in crystals, angstrom
-in molecules). The default PRUNE is 0.1 bohr.
+one gradient path point every certain distance is advanced. 
 
 Finally, the SHELLS keyword applies only to graph and graphcp. It
 represents the number of unit cell shells where the graph is going
@@ -4245,24 +4250,25 @@ List of properties integrated in the attractor basins (INTEGRABLE)
   INTEGRABLE "expr.s"
   INTEGRABLE CLEAR
 
-The list of integrable properties follows a similar strategy to field
+In critic2 there is an internal list of the properties that will be
+integrated in the attraction basins, which can be modified by the user
+with the INTEGRABLE keyword. This follows a similar strategy to field
 loading (`Loading a field (LOAD)`_) and the list of properties
 calculated at the critical points (`List of properties calculated at
-points (POINTPROP)`_). There is an internal list of the properties
-that will be integrated in the attraction basins, which can be
-modified by the user using the INTEGRABLE keyword.
+points (POINTPROP)`_).
 
-INTEGRABLE defines a new quantity to be integrated in the basins. The
-new integrable property is related to field id.s (given as field
-number or identifier) as an integrable property. This quantity can be
-the field value itself (F), its valence component (if the field is
-core-augmented, FVAL), the gradient norm (GMOD), the Laplacian (LAP),
-or the valence-component of the Laplacian (LAPVAL). By default, F is
-used. With MULTIPOLES (or MULTIPOLE), the multipole moments of the
-field are calculated up to l=lmax.i (default: 5). This keyword only
-applies to the BADER and YT integration methods; for the others, it is
-equivalent to the field value (same as F). The name for the integrand
-can be changed using the keyword NAME.
+INTEGRABLE defines a new quantity to be integrated in the atomic
+basins. The new integrable property is related to field id.s (given as
+field number or identifier). This quantity can be the field value
+itself (F), its valence component (if the field is core-augmented,
+FVAL), the gradient norm (GMOD), the Laplacian (LAP), or the
+valence-component of the Laplacian (LAPVAL). If no keyword is given
+after id.s, F is used by default. With MULTIPOLES (or MULTIPOLE), the
+multipole moments of the field are calculated up to l=lmax.i (default:
+5). This keyword only applies to the BADER and YT integration methods;
+for the others, it is equivalent to the field value (same as F). The
+units for all calculated multipoles are atomic units. The name for the
+integrand can be changed using the keyword NAME.
 
 In addition, it is possible to define an integrable property using an
 expression involving more than one field (expr.s). For instance, if
@@ -4273,7 +4279,8 @@ field 2, the atomic moments can be obtained using::
   REFERENCE 3
   INTEGRABLE "$1-$2"
 
-The default integrable properties are:
+Note that the double quotation marks are required. The default
+integrable properties are:
 
 * Volume (1)
 
@@ -5056,7 +5063,7 @@ The steps of the algorithm are:
   accuracy counterparts.
 
   The step size of the fixed step methods (1--4) is controlled with
-  the STEPSIZE keyword. In the variable step methods (5--8) the
+  the STEPSIZE keyword (bohr). In the variable step methods (5--8) the
   value of STEPSIZE is used as the starting step.
 
   The default QTREE_ODE_MODE is Dormand-Prince (8).
@@ -5135,7 +5142,8 @@ Yu and Trinkle (YT)
 
 ::
 
-  YT [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r] [DISCARD expr.s]
+  YT [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF]] [RATOM ratom.r]
+     [DISCARD expr.s]
 
 The Yu-Trinkle (YT) algorithm uses the reference field to calculate
 the attraction basins. The reference field must be defined on a
@@ -5165,11 +5173,17 @@ of NNM. The NOATOMS option is appropriate for scalar fields where the
 maxima are not expected to be at the atomic positions (or at least not
 all of them). If NOATOMS is used, all the maxima found are given as
 NNM. This is useful for fields such as the ELF, the Laplacian,
-etc. The WCUBE option makes critic2 write cube files for the
-integration weights of each attractor. In YT, these weights are values
-zero (outisde the basin), one (inside the basin), or some intermediate
+etc.
+
+The WCUBE option makes critic2 write cube files for the integration
+weights of each attractor. In YT, these weights are values zero
+(outisde the basin), one (inside the basin), or some intermediate
 value near the atomic basin boundary. The generated cube files have
 names <root>_wcube_xx.cube, where xx is the attractor number.
+
+Use the BASINS option to write a graphical representation of the
+calculated basins. The format can be chosen using the OBJ, PLY, and
+OFF keywords (default: OBJ).
 
 Any maxima that is not assigned to an existing atom or non-nuclear
 critical point is automatically added to the critical point list, see
@@ -5218,7 +5232,8 @@ The algorithm by Henkelman et al. uses the BADER keyword:
 
 ::
 
-  BADER [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r] [DISCARD expr.s]
+  BADER [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF]] [RATOM ratom.r]
+     [DISCARD expr.s]
 
 The BADER algorithm uses the reference field to calculate the basins;
 this field must be defined on a grid. BADER assigns grid nodes to
@@ -5542,7 +5557,7 @@ keyword. Hence, a valid critic2 input would be::
 
 provided the two files exist.
 
-Other structural tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY, EWALD)
+Other structural tools (NEWCELL, ENVIRON, PACKING, IDENTIFY, EWALD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -5595,21 +5610,24 @@ primitive cell (ANY).
 
 ::
 
-  WS
-
-Find the Wigner-Seitz cell of the system and print information about
-its partition in tetrahedra. Useful for debugging.
-
-::
-
-  ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r]
+  ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r] [AT at.s/iat.i] [BY by.s/iby.i]
 
 Print the shells of atomic neighbors for every non-equivalent atom
 in the cell, up to nshel.i shells (default: 10). If a point is given
 with the POINT keyword (crystallographic coordinates), then print the
 atomic environment of that point instead. When the POINT keyword is
 used, critic2 also prints a complete list of all the atoms in the
-vicinity of that point.
+vicinity of that point. 
+
+The list of atoms in the environment can be filtered with the AT and
+BY keywords. If AT is given with an atomic symbol (at.s), only the
+environments of the atoms with the same atomic number are printed. If
+an integer is given (iat.i), the environments of non-equivalent atom
+iat.i are printed. The BY keyword filters the atoms in each
+environment. If a string is used as argument to BY, only the atoms in
+the environment with the same atomic number as by.s are printed. If an
+integer is used, only the atoms equivalent by symmetry to
+non-equivalent atom iby.i are shown.
 
 ::
 
@@ -5915,14 +5933,25 @@ and first step as last. RKCK, Runge-Kutta-Cash-Karp embedded 4-5th
 order method with local extrapolation and error estimate. DP,
 Dormand-Prince 4-5th order with local extrapolation and error estimate
 (7 evaluations per step). maxstep.r is the initial (and maximum) step
-size (bohr), gradeps.r is the gradient norm termination criterion for
-the gradient path. maxerr.r is the maximum error in the trajectory (in
-bohr). MAXERR only affects methods that provide an error estimate for
-the predicted steps: BS, RKCK, and DP.
+size (bohr in crystals, angstrom in molecules), gradeps.r is the
+gradient norm termination criterion for the gradient path. maxerr.r is
+the maximum error in the trajectory (in bohr). MAXERR only affects
+methods that provide an error estimate for the predicted steps: BS,
+RKCK, and DP.
 
 This keyword applies to all gradient paths except those in qtree. The
 defaults are BS method with maxstep.r = 0.1 bohr, gradeps.r = 1e-9,
 and maxerr.r = 1e-3.
+
+::
+
+  PRUNE_DISTANCE prune.r
+
+Prune gradient paths so that only one point is plotted every prune.r
+distance (units: bohr in crystals and angstrom in molecules, default:
+0.1 bohr). This value also controls the distance between the critical
+point and the initial point of the gradient paths originating from it
+in grdvec.
 
 ::
 
@@ -5968,11 +5997,12 @@ the optimization levels of the compiler. Therefore, I have disabled
 it by default.
 
 In the case of basin integrations, PREC controls the precision in
-the determination of the interatomic surface.
+the determination of the interatomic surface (bohr in crystal,
+angstrom in molecules).
 
 Default: GAULEG, nr.r = 50, aerr.r = 1d0, rerr.r = 1d-12. The default
 errprop is the field value for fields on a grid and the Laplacian for
-the rest.
+the rest. delta.r = 1e-5 bohr.
 
 ::
 
@@ -6471,11 +6501,6 @@ UNLOAD
 WRITE
   Write the crystal structure to an external file. See `Exporting the
   structure (WRITE)`_.
-
-WS
-  Calculate the Wigner-Seitz cell and give information about its
-  partition in tetrahedra. Mostly for debug. See `Other structural
-  tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY, EWALD)`_.
 
 XDM
   Calculate the XDM dispersion energy and derivatives. See `The

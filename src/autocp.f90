@@ -17,9 +17,6 @@
 
 !> Tools for automatic or manual critical point determination.
 module autocp
-  use varbas
-  use global
-  use param
   implicit none
 
   private 
@@ -48,26 +45,29 @@ module autocp
   integer, allocatable :: barstack(:,:,:), depstack(:)
   integer, parameter :: bardenom(2:4) = (/ 2, 6, 12 /)
 
+  ! number of discarded degenerate critical points
+  integer :: ndegenr
+
   ! clip the CPs and the seeds
   integer :: iclip = 0
   real*8 :: x0clip(3), x1clip(3), rclip
 
-  !
-  real*8 :: CP_eps_cp = 1d-1 !< distance to consider two CPs as different (Cartesian).
+  ! variables that control the CP search
+  real*8 :: CP_eps_cp = 1d-2 !< distance to consider two CPs as different (Cartesian).
   real*8 :: NUC_eps_cp = 1d-1 !< distance to consider a CP as different from a nucleus (Cartesian).
+  real*8 :: NUC_eps_cp_H = 2d-1 !< distance to consider a CP as different from a hydrogen (Cartesian).
   integer :: dograph = 1 !< attempt build the topological graph after CP search. 
 
 contains
   
   !> initializes the cp list.
   subroutine init_cplist(defer0)
-    use navigation
-    use fields
-    use struct
-    use struct_basic
-    use tools_io
-    use types
-
+    use varbas, only: cp, cpcel, ncpcel, rbetadef
+    use global, only: refden, atomeps
+    use fields, only: f, grd
+    use struct_basic, only: cr
+    use types, only: scalar_value
+    use varbas, only: ncp
     logical, intent(in), optional :: defer0 !< Defer the use of grd to the report
 
     integer :: i, j
@@ -145,20 +145,22 @@ contains
   !> Automatic search for all the critical points in the crystal unit cell.
   !> Uses the IWS, with barycentric subdivision.
   subroutine autocritic(line)
-    use navigation
-    use grid_tools
-    use struct_writers
-    use graphics
-    use surface
-    use struct
-    use struct_basic
-    use fields
-    use global
-    use tools_math
-    use tools_io
-    use tools
-    use types
-
+    use navigation, only: newton
+    use grid_tools, only: mode_nearest, mode_trilinear
+    use graphics, only: graphics_ball, graphics_close
+    use struct_writers, only: struct_write_3dmodel
+    use struct_basic, only: cr
+    use surface, only: minisurf_init, minisurf_clean, minisurf_spheretriang, minisurf_close
+    use fields, only: f, type_grid
+    use global, only: quiet, refden, cp_hdegen, eval_next, dunit, iunit, &
+       iunitname0, fileroot
+    use tools, only: uniqc
+    use tools_math, only: norm
+    use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
+       string, warning, tictac
+    use types, only: minisurf, realloc
+    use varbas, only: cp, mneqcp0, cpcel, ncpcel, ncp
+    use param, only: pi
     character*(*), intent(in) :: line
 
     integer, parameter :: styp_ws = 1      ! recursive subdivision of the WS cell
@@ -236,11 +238,14 @@ contains
     firstseed = .true.
     hadx1 = .false.
     iclip = 0
-    CP_eps_cp = 1d-1
+    CP_hdegen = 1d-8
+    CP_eps_cp = 1d-2
     if (f(refden)%type == type_grid) then
        NUC_eps_cp = 2d0 * maxval(cr%aa / f(refden)%n)
+       NUC_eps_cp_H = 2d0 * maxval(cr%aa / f(refden)%n)
     else
-       NUC_eps_cp = CP_eps_cp
+       NUC_eps_cp = 1d-1
+       NUC_eps_cp_H = 2d-1
     end if
     dograph = 1
 
@@ -265,8 +270,20 @@ contains
              call ferror('autocritic','bad AUTO/CPEPS syntax',faterr,line,syntax=.true.)
              return
           end if
+       elseif (equal(word,'epsdegen')) then
+          ok = eval_next(CP_hdegen,line,lp)
+          if (.not.ok) then
+             call ferror('autocritic','bad AUTO/CPEPS syntax',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'nuceps')) then
           ok = eval_next(NUC_eps_cp,line,lp)
+          if (.not.ok) then
+             call ferror('autocritic','bad AUTO/NUCEPS syntax',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'nucepsh')) then
+          ok = eval_next(NUC_eps_cp_H,line,lp)
           if (.not.ok) then
              call ferror('autocritic','bad AUTO/NUCEPS syntax',faterr,line,syntax=.true.)
              return
@@ -436,7 +453,7 @@ contains
        seed(i)%nseed = 0
        if (seed(i)%typ == styp_ws) then
           ! Determine the WS cell
-          call cr%wigner(seed(i)%x0,.true.,ntetrag=ntetrag,tetrag=tetrag)
+          call cr%wigner(seed(i)%x0,ntetrag=ntetrag,tetrag=tetrag)
           if (seed(i)%rad > 0) call scale_ws(seed(i)%rad,seed(i)%x0,ntetrag,tetrag)
           ! Recursively subdivide each tetrahedron
           do nt = 1, ntetrag     
@@ -590,6 +607,10 @@ contains
        string(CP_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A,X,A)') &
        string(NUC_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
+    write (uout,'("  Discard new CPs if a hydrogen was found at a distance less than: ",A,X,A)') &
+       string(NUC_eps_cp_H*dunit,'e',decimal=3), iunitname0(iunit)
+    write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
+       string(CP_hdegen,'e',decimal=3)
     if (len_trim(discexpr) > 0) &
        write (uout,'("  Discard CP expression: ",A)') trim(discexpr)
     write (uout,'("  Discard CPs if grad(f) is above: ",A)') string(gfnormeps,'e',decimal=3)
@@ -697,7 +718,7 @@ contains
        else
           ! sphere
           do i = 1, nn
-             if (cr%eql_distance(xseed(:,i),x0clip) > rclip) &
+             if (.not.cr%are_lclose(xseed(:,i),x0clip,rclip)) &
                 keep(i) = .false.
           end do
        end if
@@ -731,9 +752,9 @@ contains
        call struct_write_3dmodel(cr,str,"obj",(/1,1,1/),.true.,.false.,.false.,&
           .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),lug,lumtl)
        do i = 1, nn
-          call obj_ball(lug,xseed(:,i),(/100,100,255/),0.3d0)
+          call graphics_ball("obj",lug,xseed(:,i) + cr%molx0,(/100,100,255/),0.3d0)
        end do
-       call obj_close(lug,lumtl)
+       call graphics_close("obj",lug,lumtl)
     endif
 
     ! Initialize the CP search
@@ -751,6 +772,7 @@ contains
        if (cpdebug) &
           write (uout,'("  CP localization progress:")')
        nss = max(nn / 25,1)
+       ndegenr = 0
        !$omp parallel do private(ier,x0) schedule(dynamic)
        do i = 1, nn
           if (cpdebug) then
@@ -765,6 +787,18 @@ contains
           if (ier <= 0) call addcp(x0,discexpr)
        end do
        !$omp end parallel do
+
+       if (ndegenr > 0) then
+          call ferror('autocritic',string(ndegenr) // " degenerate critical points discarded.",warning)
+          write (uout,'("This is normal if your system has a vacuum (i.e. a molecule or a slab)")')
+          write (uout,'("Consider: ")')
+          write (uout,'("  - changing the threshold for degenerate critical points (EPSDEGEN)")')
+          write (uout,'("  - checking the sanity of the scalar field.")')
+          write (uout,'("  - using the DISCARD keyword to delete vacuum critical points.")')
+          if (cr%ismolecule) &
+             write (uout,'("  - reducing the size of the molecular cell")')
+          write (uout,*)
+       end if
 
        ! Sort the cp list, using the value of the reference field
        write (uout,'("+ Sorting the CPs")')
@@ -809,19 +843,16 @@ contains
 
   !> Report the results of the critical point search.
   subroutine cpreport(line)
-    use navigation
-    use fields
-    use struct
-    use struct_basic
-    use struct_writers
-    use global
-    use graphics
-    use tools_io
-    use types
-    
+    use navigation, only: gradient, prunepath
+    use fields, only: f
+    use struct, only: struct_write
+    use struct_basic, only: cr, crystal
+    use global, only: eval_next, refden, prunedist
+    use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
+    use varbas, only: ncpcel, cp, cpcel
+    use types, only: realloc
     character*(*), intent(in) :: line
 
-    real*8, parameter :: fprune = 0.1d0 ! pruning distance for gradient path
     integer, parameter :: mstep = 1000 ! maximum steps for gradient
 
     integer :: lp, n, lp2
@@ -869,10 +900,13 @@ contains
           
           ! build the crystal structure containing the crystal points
           call caux%init()
+          caux%ismolecule = cr%ismolecule
           caux%aa = cr%aa
           caux%bb = cr%bb
           caux%crys2car = cr%crys2car
           caux%car2crys = cr%car2crys
+          caux%n2_x2c = cr%n2_x2c
+          caux%n2_c2x = cr%n2_c2x
           call realloc(caux%at,ncpcel)
           caux%nneq = 0
           do i = 1, ncpcel
@@ -912,15 +946,15 @@ contains
                 end if
           
                 if (iup /= 0) then
-                   x = cpcel(i)%r + 0.5d0 * fprune * cpcel(i)%brvec
+                   x = cpcel(i)%r + 0.5d0 * prunedist * cpcel(i)%brvec
                    call gradient(f(refden),x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
-                   call prunepath(cr,nstep,xpath(:,1:nstep),fprune)
+                   call prunepath(cr,nstep,xpath(:,1:nstep),prunedist)
                    !$omp critical (add)
                    call addpath(nstep,xpath(:,1:nstep))
                    !$omp end critical (add)
-                   x = cpcel(i)%r - 0.5d0 * fprune * cpcel(i)%brvec
+                   x = cpcel(i)%r - 0.5d0 * prunedist * cpcel(i)%brvec
                    call gradient(f(refden),x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
-                   call prunepath(cr,nstep,xpath(:,1:nstep),fprune)
+                   call prunepath(cr,nstep,xpath(:,1:nstep),prunedist)
                    !$omp critical (add)
                    call addpath(nstep,xpath(:,1:nstep))
                    !$omp end critical (add)
@@ -930,7 +964,7 @@ contains
           end if
 
           ! fill the rest of the properties
-          call caux%struct_fill(.true.,.false.,0,.false.,.false.,.false.,.false.)
+          call caux%struct_fill(.true.,.false.,0,0,.false.,.false.,.false.)
           
           ! write the structure to the external file
           call struct_write(caux,line2)
@@ -943,6 +977,7 @@ contains
 
   contains
     subroutine addpath(nstep,xpath)
+      use types, only: realloc
       integer, intent(in) :: nstep
       real*8, intent(in) :: xpath(3,nstep)
 
@@ -963,10 +998,10 @@ contains
 
   !> Calculates the neighbor environment of each non-equivalent CP.
   subroutine critshell(shmax)
-    use global
-    use struct_basic
-    use tools_io
-
+    use global, only: iunit, iunitname0, dunit
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, ioj_center
+    use varbas, only: ncpcel, cp, cpcel, ncp
     integer, intent(in) :: shmax
 
     integer :: i, j, k, l, ln, lvec(3), ilo, ihi
@@ -1056,11 +1091,9 @@ contains
   
   !> Write the CP information to the checkpoint file.
   subroutine writechk()
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-
+    use global, only: fileroot
+    use tools_io, only: uout, fopen_write, fclose, string
+    use varbas, only: ncp, ncpcel, cp, cpcel
     character(len=:), allocatable :: cpfile
     integer :: lucp, i
 
@@ -1079,12 +1112,10 @@ contains
 
   !> Read the CP information from the checkpoint file.
   subroutine readchk()
-    use fields
-    use global
-    use struct_basic
-    use tools_io
+    use global, only: fileroot
+    use tools_io, only: uout, fopen_write, string, fclose
     use types, only: realloc
-  
+    use varbas, only: ncp, ncpcel, cp, cpcel
     integer :: lucp, i
 
     character(len=:), allocatable :: cpfile
@@ -1122,10 +1153,10 @@ contains
 
 
   subroutine atomic_connect_report()
-    use fields
-    use struct_basic
-    use tools_io
-
+    use fields, only: f
+    use tools_io, only: uout, string, ioj_center
+    use global, only: refden
+    use varbas, only: cp, ncp
     integer :: i, j, k, i1, i2, m1, m2
     integer :: ind
     integer :: connectm(0:ncp,0:ncp), ncon, icon(0:ncp)
@@ -1183,11 +1214,12 @@ contains
 
   ! write the short report about the non-equivalent cps
   subroutine cp_short_report()
-    use fields
-    use struct_basic
-    use tools_io
-    use types
-
+    use fields, only: f, grd
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
+    use types, only: scalar_value
+    use global, only: iunit, iunitname0, dunit, refden
+    use varbas, only: cp, ncp
     integer :: i, j
     integer :: numclass(0:3), multclass(0:3)
     character*(8) :: namecrit(0:6)
@@ -1265,9 +1297,6 @@ contains
   !> of simplex where a search is launched. Accumulates the seeds in
   !> xseed (number of seeds nn).
   subroutine barycentric(iniv,depthmax,nn,xseed)
-    use navigation
-    use struct_basic
-
     real*8, dimension(4,3), intent(in) :: iniv
     integer, intent(in) :: depthmax
     integer, intent(inout) :: nn
@@ -1376,7 +1405,6 @@ contains
   !> convex coordinates and integer arithmetic.
   recursive subroutine barycentric_divide(n,simp,depth)
     use tools_io, only: ferror, faterr
-
     integer, intent(in) :: n
     integer, intent(in) :: simp(:,:)
     integer, intent(in) :: depth
@@ -1562,9 +1590,8 @@ contains
   !> output to stdout. this routine directly writes the cp to the cp
   !> list if one is found.
   subroutine seed_from_simplex (simp, dim, nn, xseed)
-    use struct_basic
-    use types
-
+    use struct_basic, only: cr
+    use types, only: realloc
     real*8, intent(in) :: simp(4,3)
     integer, intent(in) :: dim
     integer, intent(inout) :: nn
@@ -1600,15 +1627,15 @@ contains
   !> is present, defer the calculation of the density and properties
   !> at the CP.
   subroutine addcp(x0,discexpr,itype,defer0)
-    use navigation
-    use fields
-    use struct
-    use struct_basic
-    use arithmetic
-    use tools_math
-    use tools_io
-    use types
-
+    use fields, only: f, fields_fcheck, fields_feval, grd
+    use struct_basic, only: cr
+    use arithmetic, only: eval
+    use tools_math, only: norm, rsindex
+    use tools_io, only: ferror, faterr, string
+    use types, only: scalar_value, realloc
+    use global, only: refden, CP_hdegen
+    use varbas, only: cp, ncp, cpcel, ncpcel, rbetadef, nearest_cp
+    use types, only: realloc
     real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
     character*(*), intent(in) :: discexpr !< Discard expression
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
@@ -1681,6 +1708,13 @@ contains
        goto 999
     end if
 
+    ! distance to hydrogens
+    if (cr%at(cr%atcel(nid)%idx)%z == 1) then
+       if (dist < NUC_eps_cp_H) then
+          goto 999
+       end if
+    end if
+
     ! check if it should be discarded
     if (len_trim(discexpr) > 0) then
        fval = eval(discexpr,.false.,ok,xp,fields_fcheck,fields_feval)
@@ -1725,7 +1759,7 @@ contains
 
     ! Type of critical point
     if (.not.present(itype)) then
-       call rsindex(res%hf,ehess,r,s)
+       call rsindex(res%hf,ehess,r,s,CP_hdegen)
        cp(n)%isdeg = (r /= 3)
        cp(n)%typ = s
        cp(n)%typind = (s+3)/2
@@ -1739,6 +1773,13 @@ contains
        cp(n)%typind = (itype+3)/2
        cp(n)%isnuc = .false.
        cp(n)%isnnm = (itype == f(refden)%typnuc)
+    end if
+    
+    ! discard degenerate critical points
+    if (cp(n)%isdeg.and..not.defer) then
+       ndegenr = ndegenr + 1
+       ncp = ncp - 1
+       goto 999
     end if
 
     ! Wait until reconstruction to calculate graph properties
@@ -1778,9 +1819,10 @@ contains
 
   ! sort the non-equivalent cp list
   subroutine sortcps()
-    use struct_basic
+    use struct_basic, only: cr
     use tools, only: mergesort
-
+    use types, only: cp_type
+    use varbas, only: cp, ncp, ncpcel, cpcel
     integer :: i, j, k, iperm(ncp), nin, nina
     integer :: perms, perm(2,ncp)
     integer :: num, mi
@@ -1862,9 +1904,9 @@ contains
   end subroutine sortcps
 
   subroutine cp_long_report()
-    use struct_basic
-    use tools_io
-
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
+    use varbas, only: ncpcel, cpcel
     integer :: i, j
     character :: neqlab
     character*(1) :: smallnamecrit(0:3)
@@ -1921,11 +1963,13 @@ contains
   end subroutine cp_long_report
 
   subroutine cp_vlong_report()
-    use struct_basic
-    use fields
-    use tools_io
-    use types
-
+    use fields, only: fields_propty
+    use struct_basic, only: cr
+    use tools_io, only: uout, string
+    use types, only: scalar_value
+    use global, only: iunitname0, iunit, refden
+    use varbas, only: ncp, cp
+    use param, only: bohrtoa
     integer :: i, j
     real*8 :: minden, maxbden, fness, xx(3)
     type(scalar_value) :: res
@@ -1936,7 +1980,7 @@ contains
     do i = 1, ncp
        write (uout,'("+ Critical point no. ",A)') string(i)
        if (.not.cr%ismolecule) then
-          write (uout,'("  Crystallogrpahic coordinates: ",3(A,X))') &
+          write (uout,'("  Crystallographic coordinates: ",3(A,X))') &
              (string(cp(i)%x(j),'f',decimal=10),j=1,3)
           write (uout,'("  Cartesian coordinates (",A,"): ",3(A,X))') &
              iunitname0(iunit), (string(cp(i)%r(j),'f',decimal=10),j=1,3)
@@ -1962,8 +2006,9 @@ contains
 
   !> Write to the stdout information about the graph.
   subroutine graph_short_report()
-    use tools_io
-
+    use tools_io, only: uout, string, ioj_center
+    use global, only: iunit, iunitname0, dunit
+    use varbas, only: ncp, cp
     integer :: i, j, k
     character*(10) :: nam(2)
     logical :: isbcp
@@ -2011,13 +2056,14 @@ contains
   !> unstable cps on each 2d manifold associated to every
   !> non-equivalent bcp and rcp.
   subroutine makegraph()
-    use fields
-    use navigation
-    use struct_basic
-    use tools_math
-    use tools_io
-    use types
-
+    use fields, only: f, grd
+    use navigation, only: gradient
+    use struct_basic, only: cr
+    use tools_math, only: norm, eig
+    use types, only: scalar_value
+    use varbas, only: ncp, cp, ncpcel, cpcel, nearest_cp
+    use global, only: refden
+    use param, only: pi
     integer :: i, j, k
     integer :: nstep
     real*8 :: xdif(3,2), v(3)
@@ -2150,9 +2196,8 @@ contains
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius
   !> rad. 
   subroutine scale_ws(rad,wso,ntetrag,tetrag)
-    use struct_basic
-    use tools_math
-
+    use struct_basic, only: cr
+    use tools_math, only: norm
     real*8, intent(in) :: rad
     real*8, intent(in) :: wso(3)
     integer, intent(inout) :: ntetrag

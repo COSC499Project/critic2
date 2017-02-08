@@ -28,8 +28,6 @@ module tricks
 contains
 
   subroutine trick(line0)
-    use tools_io
-    use struct_basic
     character*(*), intent(in) :: line0
 
     ! call trick_recalculate_xdm()
@@ -41,33 +39,27 @@ contains
 
   !> Test for the calculation of energies using a sphere plus grid approach.
   subroutine trick_grid_sphere()
-    use bisect
-    use rhoplot
-    use global
-    use varbas
-    use fields
-    use bader
-    use integration
-    use yt
-    use struct_basic
-    use grid_tools
-    use arithmetic
-    use tools_math
-    use tools_io
-    use types
-    use param
+    use rhoplot, only: rhoplot_cube
+    use global, only: refden
+    use fields, only: f, fused, type_grid, grd
+    use integration, only: int_reorder_gridout
+    use yt, only: yt_integrate, yt_weights
+    use struct_basic, only: cr
+    use grid_tools, only: grid_from_array3
+    use tools_math, only: select_lebedev, gauleg
+    use tools_io, only: string
+    use types, only: scalar_value, realloc
+    use param, only: fh, pi
 
     integer, parameter :: nleb = 770, nr = 50
-    integer, parameter :: nx = 100
 
-    character(len=:), allocatable :: saux
-    integer :: i, j, k, l, idx, idf, ids
+    integer :: i, j, k, l
     integer :: ix, iy, iz
-    real*8 :: rsph(cr%ncel), xsphf(cr%ncel), xsphs(cr%ncel)
+    real*8 :: rsph(cr%ncel)
     real*8 :: xleb(nleb), yleb(nleb), zleb(nleb), wleb(nleb)
-    real*8 :: rp(nr), rw(nr), lprop, x(3), x0(3), unit(3)
+    real*8 :: rp(nr), rw(nr), x(3), x0(3), unit(3)
     real*8 :: ff, fs, rsumf, rsums, ssumf, ssums
-    real*8 :: gsums, gsumf, d2, atp(cr%ncel), ntot
+    real*8 :: d2, atp(cr%ncel), ntot
     type(scalar_value) :: res, res2
     ! for yt
     integer :: nbasin, luw
@@ -95,7 +87,7 @@ contains
     call realloc(f,25)
     allocate(w(f(2)%n(1),f(2)%n(2),f(2)%n(3)))
     do i = 1, cr%ncel
-       call yt_weights(luw,i,w)
+       call yt_weights(luw=luw,idb=i,w=w)
        call grid_from_array3(w,f(10+i))
        fused(10+i) = .true.
        call fh%put(string(10+i),10+i)
@@ -186,13 +178,13 @@ contains
   end subroutine trick_grid_sphere
 
   subroutine trick_stephens_nnm_channel(line)
-    use struct_basic
-    use fields
-    use graphics
-    use global
-    use tools_math
-    use tools_io
-    use param
+    use struct_basic, only: cr
+    use fields, only: f, grd0
+    use graphics, only: graphics_open, graphics_ball, graphics_stick, graphics_close
+    use global, only: eval_next
+    use tools_math, only: norm, cross
+    use tools_io, only: faterr, ferror, uout, string
+    use param, only: bohrtoa, pi
     character*(*), intent(in) :: line
     
     ! parameters for input
@@ -330,38 +322,38 @@ contains
     end do
 
     ! write the obj file
-    call obj_open("tube.obj",luobj,lumtl)
+    call graphics_open("obj","tube.obj",luobj,lumtl)
     do i = 1, nline
        x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
-       call obj_ball(luobj,x,(/0,0,255/),0.2d0)
+       call graphics_ball("obj",luobj,x,(/0,0,255/),0.2d0)
     end do
     do i = 1, nang
-       call obj_stick(luobj,x0,xlimit(:,i,1),(/0,0,0/),0.1d0)
-       call obj_stick(luobj,x1,xlimit(:,i,nline),(/0,0,0/),0.1d0)
+       call graphics_stick("obj",luobj,x0,xlimit(:,i,1),(/0,0,0/),0.1d0)
+       call graphics_stick("obj",luobj,x1,xlimit(:,i,nline),(/0,0,0/),0.1d0)
        do j = 1, nline-1
-          call obj_stick(luobj,xlimit(:,i,j),xlimit(:,i,j+1),(/0,0,0/),0.05d0)
+          call graphics_stick("obj",luobj,xlimit(:,i,j),xlimit(:,i,j+1),(/0,0,0/),0.05d0)
        end do
     end do
     do i = 1, nline
        do j = 1, nang-1
-          call obj_stick(luobj,xlimit(:,j,i),xlimit(:,j+1,i),(/0,0,0/),0.05d0)
+          call graphics_stick("obj",luobj,xlimit(:,j,i),xlimit(:,j+1,i),(/0,0,0/),0.05d0)
        end do
-       call obj_stick(luobj,xlimit(:,1,i),xlimit(:,nang,i),(/0,0,0/),0.05d0)
+       call graphics_stick("obj",luobj,xlimit(:,1,i),xlimit(:,nang,i),(/0,0,0/),0.05d0)
     end do
-    call obj_close(luobj,lumtl)
+    call graphics_close("obj",luobj,lumtl)
 
   end subroutine trick_stephens_nnm_channel
 
   !> Calculate the cell integral of the reference field using 
   !> Franchini et al.'s Becke-style mesh
   subroutine trick_cell_integral()
-    use fields
-    use struct_basic
-    use meshmod
-    use global
-    use types
-    use tools_io
-    use param
+    use fields, only: f
+    use struct_basic, only: cr
+    use meshmod, only: genmesh, fillmesh
+    use global, only: refden
+    use types, only: molmesh
+    use tools_io, only: uout, string
+    use param, only: im_rho
 
     type(molmesh) :: m
     integer :: prop(1), id(1)

@@ -53,27 +53,36 @@ module struct_writers
 contains
 
   !> Write a xyz/gjf/cml file containing a finite piece of the crystal
-  !> structure. fmt can be one of xyz, gjf, or cml. ix is the number of
-  !> unit cells to plot.  If doborder is .true., add all atoms at the
-  !> border. If molmotif is .true., complete molecules with atoms in
-  !> adjacent cells. If docell, add sticks for the unit cell limits. If
-  !> rsph (bohr) is positive, then use all atoms in a sphere around xsph
-  !> (cryst.). If rcub (bohr) is positive, use all atoms in a cube
-  !> around xcub (cryst.). The luout option only applies to cml formats.
-  !> If it is present, do not close the file and return the logical unit.
-  subroutine struct_write_mol(c,file,fmt,ix,doborder,molmotif,doburst,dopairs,rsph,xsph,rcub,xcub,luout)
-    use fragmentmod
-    use struct_basic
-    use graphics
-    use tools_io
-    use types
-    use param
-
+  !> structure. fmt can be one of xyz, gjf, or cml. ix is the number
+  !> of unit cells to plot.  If doborder is .true., add all atoms at
+  !> the border. If onemotif is .true., write all molecules in the
+  !> unit cell.  If molmotif is .true., complete molecules with atoms
+  !> in adjacent cells. If docell, add sticks for the unit cell
+  !> limits. If environ is true, write all molecules up to a distance
+  !> renv (bohr) from the origin. If lnmer, partition the resulting
+  !> list of molecules into n-mers, up to nth order. If rsph (bohr) is
+  !> positive, then use all atoms in a sphere around xsph (cryst.). If
+  !> rcub (bohr) is positive, use all atoms in a cube around xcub
+  !> (cryst.). If luout is present, return the LU in that argument
+  !> and do not close the file.
+  subroutine struct_write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
+     environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
+    use fragmentmod, only: fragment_merge_array, fragment_cmass, fragment_init
+    use struct_basic, only: crystal
+    use global, only: dunit
+    use graphics, only: writecml, writexyz, writegjf
+    use tools_math, only: norm, nchoosek, comb
+    use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
+       equal
+    use types, only: fragment, realloc
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
     integer, intent(in) :: ix(3)
-    logical, intent(in) :: doborder, molmotif, doburst, dopairs
+    logical, intent(in) :: doborder, onemotif, molmotif, environ
+    real*8, intent(in) :: renv
+    logical, intent(in) :: lnmer
+    integer, intent(in) :: nmer
     real*8, intent(in) :: rsph, xsph(3)
     real*8, intent(in) :: rcub, xcub(3)
     integer, intent(out), optional :: luout
@@ -81,122 +90,265 @@ contains
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
-    integer :: i, j, nmol
-    character(len=:), allocatable :: wroot, file0
-    logical :: didburst, didpairs
+    integer :: i, j, k, l, m, nmol, icel, lvec(3), ncm
+    integer :: ncomb, nlimi, nlimj
+    integer, allocatable :: icomb(:), origmol(:)
+    character(len=:), allocatable :: wroot, file0, aux
+    logical :: doagain
+    real*8, allocatable :: cmlist(:,:)
+    real*8 :: xcm(3), dist
+
+    ! calculate the motifs if necessary
+    if (onemotif .or. environ) &
+       call c%checkflags(.false.,init0=.true.,ast0=.true.)
 
     ! determine the fragments
-    didburst = .false.
-    didpairs = .false.
-    if (rcub > 0) then
-       fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
-    elseif (rsph > 0) then
-       fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
-    elseif (doburst.or.dopairs) then
-       fr = c%listatoms_cells(ix,doborder)
-       call c%listmolecules(fr,nmol,fr0,isdiscrete)
-       didburst = doburst
-       didpairs = dopairs
-    elseif (molmotif) then
-       fr = c%listatoms_cells(ix,doborder)
-       call c%listmolecules(fr,nmol,fr0,isdiscrete)
+    if (onemotif) then
+       fr = fragment_merge_array(c%mol(1:c%nmol))
+       allocate(fr0(c%nmol))
+       fr0 = c%mol
+       nmol = c%nmol
+    elseif (environ) then
+       ! calculate the centers of mass for all fragments in the molecular motif
+       allocate(cmlist(3,c%nmol),fr0(c%nmol),origmol(c%nmol))
+       nmol = c%nmol
+       fr0 = c%mol
+       do i = 1, c%nmol
+          cmlist(:,i) = fragment_cmass(c%mol(i))
+          origmol(i) = i
+       end do
+       ncm = c%nmol
+
+       doagain = .true.
+       icel = 0
+       do while(doagain)
+          doagain = .false.
+          icel = icel + 1
+          do k = 1, 6
+             if (k == 1 .or. k == 2) then
+                nlimi = icel
+                nlimj = icel
+             elseif (k == 3 .or. k == 4) then
+                nlimi = icel
+                nlimj = icel-1
+             else
+                nlimi = icel-1
+                nlimj = icel-1
+             end if
+             do i = -nlimi, nlimi
+                do j = -nlimj, nlimj
+                   lvec = icelcomb(k,i,j,icel)
+                   do l = 1, c%nmol
+                      xcm = c%c2x(cmlist(:,l)) + lvec
+                      xcm = c%x2c(xcm)
+                      dist = norm(xcm)
+                      if (dist <= renv) then
+                         ncm = ncm + 1
+                         if (ncm > size(cmlist,2)) then
+                            call realloc(cmlist,3,2*ncm)
+                            call realloc(origmol,2*ncm)
+                            call realloc(fr0,2*ncm)
+                         end if
+                         cmlist(:,ncm) = xcm
+                         fr0(ncm) = c%mol(l)
+                         do m = 1, fr0(ncm)%nat
+                            fr0(ncm)%at(m)%x = fr0(ncm)%at(m)%x + lvec
+                            fr0(ncm)%at(m)%r = c%x2c(fr0(ncm)%at(m)%x)
+                            fr0(ncm)%at(m)%lvec = fr0(ncm)%at(m)%lvec + lvec
+                         end do
+                         origmol(ncm) = l
+                         doagain = .true.
+                      end if
+                   end do
+                end do
+             end do
+          end do
+       end do
        fr = fragment_merge_array(fr0)
+       nmol = ncm
     else
-       fr = c%listatoms_cells(ix,doborder)
-    endif
+       if (rcub > 0) then
+          fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
+       elseif (rsph > 0) then
+          fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
+       else
+          fr = c%listatoms_cells(ix,doborder)
+       endif
+       if (molmotif) then
+          call c%listmolecules(fr,nmol,fr0,isdiscrete)
+          fr = fragment_merge_array(fr0)
+       end if
+    end if
+
+    if (lnmer .and..not.allocated(fr0)) &
+       call ferror('struct_write_mol','ONEMOTIF, MOLMOTIF, or ENVIRON are necessary with NMER',faterr)
+
+    ! If environ, report the identities of all the molecules in the environment
+    if (environ) then
+       write (uout,'("+ List of fragments in the molecular environment")')
+       write (uout,'("  Number of fragments: ",A)') string(nmol)
+       write (uout,'("  Fragment number Id with nat atoms at center-of-mass comes from")')
+       write (uout,'("  from fragment idmol in the Wigner-Seitz cell translated by")')
+       write (uout,'("  lattice vector lvec.")')
+       write (uout,'("# Id nat               Center of mass          idmol     lvec")')
+       do i = 1, nmol
+          if (c%ismolecule) then
+             xcm = cmlist(:,i) * dunit
+          else
+             xcm = c%c2x(cmlist(:,i))
+          end if
+          write (uout,'(99(2X,A))') string(i,3,ioj_left), string(fr0(i)%nat,4,ioj_left),&
+             (string(xcm(j),'f',10,6,3),j=1,3), string(origmol(i)), &
+             (string(nint(fr0(i)%at(1)%x(j)-c%mol(origmol(i))%at(1)%x(j)),3,ioj_right),j=1,3)
+       end do
+       write (uout,*)
+    end if
 
     ! if this is a molecule, translate to the proper origin
     if (c%ismolecule) then
        do i = 1, fr%nat
           fr%at(i)%r = fr%at(i)%r + c%molx0
        end do
-    end if
-
-    if (.not.didburst.and..not.didburst) then
-       ! normal write 
-       if (equal(fmt,"xyz")) then
-          call writexyz(file,fr)
-       elseif (equal(fmt,"gjf")) then
-          call writegjf(file,fr)
-       elseif (equal(fmt,"cml")) then
-          if (c%ismolecule) then
-             call writecml(file,fr,luout=luout)
-          else
-             call writecml(file,fr,c%crys2car,luout=luout)
-          end if
-       else
-          call ferror("struct_write_mol","Unknown format",faterr)
-       endif
-    else
-       if (didburst) then
-          ! burst into single-molecule files
-          wroot = file(:index(file,'.',.true.)-1)
+       if (allocated(fr0)) then
           do i = 1, nmol
-             file0 = wroot // "_" // string(i) // "." // fmt
-             if (equal(fmt,"xyz")) then
-                call writexyz(file0,fr0(i))
-             elseif (equal(fmt,"gjf")) then
-                call writegjf(file0,fr0(i))
-             elseif (equal(fmt,"cml")) then
-                if (c%ismolecule) then
-                   call writecml(file,fr,luout=luout)
-                else
-                   call writecml(file,fr,c%crys2car,luout=luout)
-                end if
-             else
-                call ferror("struct_write_mol","Unknown format",faterr)
-             endif
-          end do
-       end if
-       if (didpairs) then
-          ! double-molecule files
-          wroot = file(:index(file,'.',.true.)-1)
-          do i = 1, nmol
-             do j = i+1, nmol
-                file0 = wroot // "_" // string(i) // "_" // string(j) // "." // fmt
-                fr = fragment_merge_array((/fr0(i),fr0(j)/))
-                if (equal(fmt,"xyz")) then
-                   call writexyz(file0,fr)
-                elseif (equal(fmt,"gjf")) then
-                   call writegjf(file0,fr)
-                elseif (equal(fmt,"cml")) then
-                   if (c%ismolecule) then
-                      call writecml(file,fr,luout=luout)
-                   else
-                      call writecml(file,fr,c%crys2car,luout=luout)
-                   end if
-                else
-                   call ferror("struct_write_mol","Unknown format",faterr)
-                endif
+             do j = 1, fr0(i)%nat
+                fr0(i)%at(j)%r = fr0(i)%at(j)%r + c%molx0
              end do
           end do
        end if
     end if
+
+    if (.not.lnmer) then
+       ! normal write 
+       call dowrite(file,fr)
+    else
+       wroot = file(:index(file,'.',.true.)-1)
+       do i = 1, nmer
+          if (i == 1) then
+             write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol), string(i)
+             if (nmer == 1) then
+                nlimj = nmol
+             else
+                nlimj = c%nmol
+             end if
+             ! monomers
+             do j = 1, nlimj
+                file0 = trim(wroot) // "_" // string(j) // "." // fmt
+                call dowrite(file0,fr0(j))
+             end do
+          elseif (i == nmer) then
+             ! n-mers
+             write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol * nchoosek(nmol,i-1)), string(i)
+             allocate(icomb(i-1))
+             do l = 1, c%nmol
+                ncomb = nchoosek(nmol,i-1)
+                do j = 1, ncomb
+                   call comb(nmol,i-1,j,icomb)
+                   file0 = trim(wroot) // "_" // string(l)
+                   fr = fr0(l)
+                   do k = 1, i-1
+                      aux = trim(file0) // "_" // string(icomb(k))
+                      file0 = aux
+                      fr = fragment_merge_array((/fr,fr0(icomb(k))/))
+                   end do
+                   aux = trim(file0) // "." // fmt
+                   file0 = aux
+                   call dowrite(file0,fr)
+                end do
+             end do
+             deallocate(icomb)
+          else
+             ! everything in between
+             ncomb = nchoosek(nmol,i)
+             write (uout,'("+ Writing ",A," ",A,"-mers")') string(ncomb), string(i)
+             allocate(icomb(i))
+             do j = 1, ncomb
+                call comb(nmol,i,j,icomb)
+                file0 = wroot 
+                call fragment_init(fr)
+                do k = 1, i
+                   aux = trim(file0) // "_" // string(icomb(k))
+                   file0 = aux
+                   fr = fragment_merge_array((/fr,fr0(icomb(k))/))
+                end do
+                aux = trim(file0) // "." // fmt
+                file0 = aux
+                call dowrite(file0,fr)
+             end do
+             deallocate(icomb)
+          end if
+       end do
+    end if
+
+  contains
+    subroutine dowrite(fileo,fro)
+      character*(*) :: fileo
+      type(fragment) :: fro
+      
+      if (equal(fmt,"xyz")) then
+         call writexyz(fileo,fro)
+      elseif (equal(fmt,"gjf")) then
+         call writegjf(fileo,fro)
+      elseif (equal(fmt,"cml")) then
+         if (c%ismolecule) then
+            call writecml(fileo,fro,luout=luout)
+         else
+            call writecml(fileo,fro,c%crys2car,luout=luout)
+         end if
+      else
+         call ferror("struct_write_mol","Unknown format",faterr)
+      endif
+
+    end subroutine dowrite
+    function icelcomb(idx,i,j,icel)
+      integer, intent(in) :: idx, i, j, icel
+      integer :: icelcomb(3)
+
+      icelcomb = 0
+      if (idx == 1) then
+         icelcomb = (/i,j,icel/)
+      elseif (idx == 2) then
+         icelcomb = (/i,j,-icel/)
+      elseif (idx == 3) then
+         icelcomb = (/i,icel,j/)
+      elseif (idx == 4) then
+         icelcomb = (/i,-icel,j/)
+      elseif (idx == 5) then
+         icelcomb = (/icel,i,j/)
+      elseif (idx == 6) then
+         icelcomb = (/-icel,i,j/)
+      endif
+
+    end function icelcomb
   end subroutine struct_write_mol
 
-  !> Write an obj file containing the crystal structure. fmt can be
-  !> one of obj, ply, or off. ix is the number of unit cells to plot.
-  !> If doborder is .true., add all atoms at the border. If molmotif is
-  !> .true., complete molecules with atoms in adjacent cells. If
-  !> docell, add sticks for the unit cell limits. If rsph (bohr) is positive,
-  !> then use all atoms in a sphere around xsph (cryst.). If rcub (bohr) is
-  !> positive, use all atoms in a cube around xcub (cryst.). If lu0 and
-  !> lumtl0 are present, then return the logical units for the obj and
-  !> the mtl files and do not close the files.
-  subroutine struct_write_3dmodel(c,file,fmt,ix,doborder,molmotif,doburst,&
+  !> Write an obj/ply/off file containing the crystal structure. fmt
+  !> can be one of obj, ply, or off. ix is the number of unit cells to
+  !> plot. If doborder is .true., add all atoms at the border. If
+  !> onemotif is .true., write all molecules in the unit cell. If
+  !> molmotif is .true., complete molecules with atoms in adjacent
+  !> cells. If docell, add sticks for the unit cell
+  !> limits. If domolcell, add sticks tfor the molecular cell. If rsph
+  !> (bohr) is positive, then use all atoms in a sphere around xsph
+  !> (cryst.). If rcub (bohr) is positive, use all atoms in a cube
+  !> around xcub (cryst.). If lu0 and lumtl0 are present, then return
+  !> the logical units for the obj and the mtl files and do not close
+  !> the files.
+  subroutine struct_write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
      docell,domolcell,rsph,xsph,rcub,xcub,lu0,lumtl0)
-    use graphics
-    use struct_basic
-    use tools_math
-    use types
-    use tools_io
-    use param
-
+    use graphics, only: graphics_open, graphics_ball, graphics_stick, graphics_close
+    use fragmentmod, only: fragment_merge_array
+    use struct_basic, only: crystal
+    use tools_math, only: norm
+    use types, only: fragment
+    use tools_io, only: equal
+    use param, only: maxzat, atmcov, jmlcol
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
     integer, intent(in) :: ix(3)
-    logical, intent(in) :: doborder, molmotif, doburst, docell, domolcell
+    logical, intent(in) :: doborder, onemotif, molmotif
+    logical, intent(in) :: docell, domolcell
     real*8, intent(in) :: rsph, xsph(3)
     real*8, intent(in) :: rcub, xcub(3)
     integer, intent(out), optional :: lu0, lumtl0
@@ -207,8 +359,7 @@ contains
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
-    integer :: k, nmol
-    character(len=:), allocatable :: wroot, file0
+    integer :: nmol
 
     real*8, parameter :: rfac = 1.4d0
     real*8, parameter :: x0cell(3,2,12) = reshape((/&
@@ -226,17 +377,21 @@ contains
        1d0, 1d0, 1d0,   1d0, 1d0, 0d0/),shape(x0cell))
 
     ! open and get the atom list
-    nmol = 1
-    if (rcub > 0) then
-       fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
-    elseif (rsph > 0) then
-       fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
-    elseif (doburst .or. molmotif) then
-       fr = c%listatoms_cells(ix,doborder)
-       call c%listmolecules(fr,nmol,fr0,isdiscrete)
+    if (onemotif) then
+       fr = fragment_merge_array(c%mol(1:c%nmol))
     else
-       fr = c%listatoms_cells(ix,doborder)
-    endif
+       if (rcub > 0) then
+          fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
+       elseif (rsph > 0) then
+          fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
+       else
+          fr = c%listatoms_cells(ix,doborder)
+       endif
+       if (molmotif) then
+          call c%listmolecules(fr,nmol,fr0,isdiscrete)
+          fr = fragment_merge_array(fr0)
+       end if
+    end if
 
     ! if this is a molecule, translate to the proper origin
     if (c%ismolecule) then
@@ -245,83 +400,41 @@ contains
        end do
     end if
 
-    if (.not.doburst) then
-       file0 = file
-       if (.not.molmotif) then
-          allocate(fr0(1))
-          fr0(1) = fr
-       end if
-    else
-       wroot = file(:index(file,'.',.true.)-1)
-    end if
-
-    if (doburst) then
-       file0 = wroot // "_" // string(k) // "." // fmt
-    end if
-
     lumtl = 0
-    if (equal(fmt,"obj")) then
-       call obj_open(file0,lu,lumtl)
-    elseif (equal(fmt,"ply")) then
-       call ply_open(file0,lu)
-    elseif (equal(fmt,"off")) then
-       call off_open(file0,lu)
-    endif
+    call graphics_open(fmt,file,lu,lumtl)
 
-    do k = 1, nmol
-       ! add the balls
-       do i = 1, fr0(k)%nat
-          if (fr0(k)%at(i)%z > maxzat) then
-             rr = 0.21d0
-          else
-             rr = 0.6d0*atmcov(fr0(k)%at(i)%z)
-          endif
-          if (equal(fmt,"obj")) then
-             call obj_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
-          elseif (equal(fmt,"ply")) then
-             call ply_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
-          elseif (equal(fmt,"off")) then
-             call off_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
+    ! add the balls
+    do i = 1, fr%nat
+       if (fr%at(i)%z > maxzat) then
+          rr = 0.21d0
+       else
+          rr = 0.6d0*atmcov(fr%at(i)%z)
+       endif
+       call graphics_ball(fmt,lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
+    end do
+
+    ! add the sticks
+    do i = 1, fr%nat
+       do j = i+1, fr%nat
+          if (fr%at(i)%z > maxzat .or. fr%at(j)%z > maxzat) cycle
+          xd = fr%at(i)%r - fr%at(j)%r
+          d = norm(xd)
+          if (d < (atmcov(fr%at(i)%z) + atmcov(fr%at(j)%z)) * rfac) then
+             xd = fr%at(i)%r + 0.5d0 * (fr%at(j)%r - fr%at(i)%r)
+             call graphics_stick(fmt,lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
+             call graphics_stick(fmt,lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
           end if
        end do
-
-       ! add the sticks
-       do i = 1, fr0(k)%nat
-          do j = i+1, fr0(k)%nat
-             if (fr0(k)%at(i)%z > maxzat .or. fr0(k)%at(j)%z > maxzat) cycle
-             xd = fr0(k)%at(i)%r - fr0(k)%at(j)%r
-             d = norm(xd)
-             if (d < (atmcov(fr0(k)%at(i)%z) + atmcov(fr0(k)%at(j)%z)) * rfac) then
-                xd = fr0(k)%at(i)%r + 0.5d0 * (fr0(k)%at(j)%r - fr0(k)%at(i)%r)
-                if (equal(fmt,"obj")) then
-                   call obj_stick(lu,fr0(k)%at(i)%r,xd,JMLcol(:,fr0(k)%at(i)%z),0.05d0)
-                   call obj_stick(lu,fr0(k)%at(j)%r,xd,JMLcol(:,fr0(k)%at(j)%z),0.05d0)
-                elseif (equal(fmt,"ply")) then
-                   call ply_stick(lu,fr0(k)%at(i)%r,xd,JMLcol(:,fr0(k)%at(i)%z),0.05d0)
-                   call ply_stick(lu,fr0(k)%at(j)%r,xd,JMLcol(:,fr0(k)%at(j)%z),0.05d0)
-                elseif (equal(fmt,"off")) then
-                   call off_stick(lu,fr0(k)%at(i)%r,xd,JMLcol(:,fr0(k)%at(i)%z),0.05d0)
-                   call off_stick(lu,fr0(k)%at(j)%r,xd,JMLcol(:,fr0(k)%at(j)%z),0.05d0)
-                end if
-             end if
-          end do
-       end do
-
-       ! add the cell
-       if (docell) then
-          do i = 1, 12
-             x0 = c%x2c(x0cell(:,1,i)) + c%molx0
-             x1 = c%x2c(x0cell(:,2,i)) + c%molx0
-             if (equal(fmt,"obj")) then
-                call obj_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-             elseif (equal(fmt,"ply")) then
-                call ply_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-             elseif (equal(fmt,"off")) then
-                call off_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-             end if
-          end do
-       end if
     end do
+
+    ! add the cell
+    if (docell) then
+       do i = 1, 12
+          x0 = c%x2c(x0cell(:,1,i)) + c%molx0
+          x1 = c%x2c(x0cell(:,2,i)) + c%molx0
+          call graphics_stick(fmt,lu,x0,x1,(/255,0,0/),0.03d0)
+       end do
+    end if
 
     ! add the molecular cell
     if (domolcell .and. c%ismolecule) then
@@ -336,13 +449,7 @@ contains
           end do
           x0 = c%x2c(x0) + c%molx0
           x1 = c%x2c(x1) + c%molx0
-          if (equal(fmt,"obj")) then
-             call obj_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-          elseif (equal(fmt,"ply")) then
-             call ply_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-          elseif (equal(fmt,"off")) then
-             call off_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-          end if
+          call graphics_stick(fmt,lu,x0,x1,(/0,0,255/),0.03d0)
        end do
     end if
 
@@ -351,13 +458,7 @@ contains
        lu0 = lu
        lumtl0 = lumtl
     else
-       if (equal(fmt,"obj")) then
-          call obj_close(lu,lumtl)
-       elseif (equal(fmt,"ply")) then
-          call ply_close(lu)
-       elseif (equal(fmt,"off")) then
-          call off_close(lu)
-       end if
+       call graphics_close(fmt,lu,lumtl)
     end if
 
     if (allocated(fr0)) deallocate(fr0)
@@ -366,9 +467,9 @@ contains
 
   !> Write a quantum espresso input template
   subroutine struct_write_espresso(file,c)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, lower, fclose
+    use param, only: maxzat0, atmass
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -427,9 +528,9 @@ contains
 
   !> Write a VASP POSCAR template
   subroutine struct_write_vasp(file,c,verbose)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, string, uout, fclose
+    use param, only: bohrtoa, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -489,9 +590,9 @@ contains
 
   !> Write an abinit input template
   subroutine struct_write_abinit(file,c)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, string, fclose
+    use param, only: pi, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -574,10 +675,9 @@ contains
 
   !> Write an elk input template
   subroutine struct_write_elk(file,c)
-    use struct_basic
-    use tools_io
-    use param
-
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, fclose
+    use param, only: maxzat0
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
@@ -625,10 +725,9 @@ contains
 
   !> Write a Gaussian template input (periodic).
   subroutine struct_write_gaussian(file,c)
-    use struct_basic
-    use tools_io
-    use param
-
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, string, nameguess, ioj_left, fclose
+    use param, only: bohrtoa
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
@@ -664,10 +763,9 @@ contains
 
   !> Write a tessel input template
   subroutine struct_write_tessel(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot
+    use tools_io, only: fopen_write, fclose
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -718,9 +816,8 @@ contains
 
   !> Write a critic2 input template
   subroutine struct_write_critic(file,c)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, fclose
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -743,10 +840,10 @@ contains
 
   !> Write a simple cif file
   subroutine struct_write_cif(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot
+    use tools_io, only: fopen_write, fclose, string, nameguess
+    use param, only: bohrtoa
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -787,10 +884,10 @@ contains
 
   !> Write an escher octave script
   subroutine struct_write_escher(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use param, only: pi, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -879,11 +976,10 @@ contains
 
   !> Write a gulp input script
   subroutine struct_write_gulp(file,c,dodreiding)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose
+    use tools_math, only: norm
+    use param, only: bohrtoa, atmcov, pi
 
     character*(*), intent(in) :: file
     type(crystal), intent(inout) :: c
@@ -1027,11 +1123,10 @@ contains
 
   !> Write a lammps data file
   subroutine struct_write_lammps(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, ferror, faterr, fclose
+    use tools_math, only: crys2car_from_cellpar
+    use param, only: bohrtoa, maxzat0, atmass
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -1095,12 +1190,9 @@ contains
 
   !> Write a siesta fdf data file
   subroutine struct_write_siesta_fdf(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
-
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, lower, fclose
+    use param, only: bohrtoa, maxzat0
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
@@ -1186,11 +1278,9 @@ contains
 
   !> Write a siesta STRUCT_IN data file
   subroutine struct_write_siesta_in(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, uout, nameguess, string, fclose
+    use param, only: bohrtoa, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -1247,11 +1337,9 @@ contains
 
   !> Write a DFTB+ human-friendly structured data format (hsd) file
   subroutine struct_write_dftbp_hsd(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use param, only: maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -1372,11 +1460,9 @@ contains
 
   !> Write a DFTB+ human-friendly gen structure file
   subroutine struct_write_dftbp_gen(file,c,lu0,ltyp0)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, string, fclose
+    use param, only: bohrtoa, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c

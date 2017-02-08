@@ -845,4 +845,74 @@ cell geometry are written, too.
 Calculate the critical points in HF hexamers and write a CML file with
 the atoms and the CP list. 
 
+* cps_large
+** Source: Gaussian wfn/wfx, quantum espresso
+** System: a buckycatcher from the S12L (4_COMPLEX2), a buckycatcher from the S30L (12_di), a small nanotube, insulin, and a helicene crystal.
+** Description
 
+Calculations of the full topology in very large systems. See
+visualization_cps and the manual for information on how to view the
+cml files with avogadro. 
+
+Most of the times the CP search requires some threshold tweaking to
+get the complete topology in the system. Usually, by performing a
+non-default seeding or by changing the distance criteria to discard
+calculated CPs. In this context, the CHK keyword is very useful. When
+the CHK keyword is used, all found critical points are written to a
+checkpoint file. In subsequent runs, the checkpoint file is read and
+new CPs are added to it. 
+
+** 12_di.cri
+
+A buckycatcher from the S30L set. By placing 3 seeds between each atom
+pair, all critical points are found.
+
+** 4_COMPLEX.cri
+
+A buckycatcher from the S12L set. By placing 3 seeds between each atom
+pair, all critical points are found.
+
+** tube_6_4.cri
+
+A small section of a (6,4) carbon nanotube. The points at the center
+of the tube are almost degenerate, so the EPSDEGEN keyword needs to be
+used to get them, along with a restriction on the encompassing unit
+cell to prevent the very similar spurious critical points in the
+vacuum region.
+
+** insulin.cri
+
+The human insulin hormone. This protein is a very large system,
+containing 778 atoms, and it may take a while to run (~1 hour or more,
+depending on the number of available processors). The full topology is
+found by placing 3 seeds between each atom pair. 
+
+** helicene-07.cri
+
+A helicene crystal. Given the molecular nature of this system, the
+seeding strategy is changed from the default (a subdivision of the
+Wigner-Seitz celll) to a search over atomic pairs, in a manner similar
+to what is done in molecules. All CPs are found.
+
+
+* ghost_cps
+** Source: Gaussian wfn/wfx
+** System: pyridine
+** Description
+
+This example shows how to calculate the topology of arbitrary scalar
+functions, for which no analytical derivatives are available. Two
+scalar properties (the ELF and the LOL) in pyridine are loaded and
+the complete set of CPs found. The derivatives necessary for this task
+are calcualted numerically (at a higher cost). A non-default seeding
+strategy is required to found all critical points.
+
+** pyridine_elf.cri
+
+This example shows how to find the complete topology of the ELF in the
+pyridine molecule.
+
+** pyridine_lol.cri
+
+This example shows how to find the complete topology of the LOL in the
+pyridine molecule.

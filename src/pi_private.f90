@@ -20,7 +20,7 @@
 
 !> Interface to aiPI (pi7) densities.
 module pi_private
-  use types, only: grid1
+  implicit none
 
   private
 
@@ -78,10 +78,9 @@ contains
 
   !> From PI: read an ion description file.
   subroutine pi_read_ion(fichero,f,ni)
-    use tools_io
-    use types
-    use param
-    implicit none
+    use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
+    use types, only: field
+    use param, only: fact, zero
 
     character*(*)  fichero
     type(field)    f
@@ -269,8 +268,6 @@ contains
 
   !xx! PRIVATE functions and subroutines
   subroutine buscapar (line,chpar,nchpar,ipar,nipar)
-    use tools_io
-    implicit none
     
     integer, parameter :: mpar=3
     integer :: ipar(mpar)
@@ -358,8 +355,6 @@ contains
   end subroutine buscapar
 
   logical function entero (palabra,ipal)
-    use tools_io
-    implicit none
     
     character*(*)     palabra
     character*(1)     cero,nueve,ch
@@ -379,11 +374,8 @@ contains
 
   !> Fills the interpolation grids for ion densities.
   subroutine fillinterpol(f)
-    use global
-    use tools_io
-    use param
-    use types
-    implicit none
+    use global, only: cutrad
+    use types, only: field
 
     type(field), intent(inout) :: f
 
@@ -431,10 +423,9 @@ contains
 
   !> Calculates radial density and its radial derivatives for an atom.
   subroutine rhoex1(f, ni, rion0, rhoval, firstder, secondder)
-    use tools_math
-    use types
-    use param
-    implicit none
+    use tools_math, only: ep
+    use types, only: field
+    use param, only: pi, zero, two
 
     type(field), intent(inout) :: f
     integer, intent(in) :: ni
@@ -483,14 +474,14 @@ contains
 
   end subroutine rhoex1
 
-  !> Determine the density and derivatives at a given target point (cartesian).
-  !> It is possible to use the 'approximate' method, by interpolating on a grid.
+  !> Determine the density and derivatives at a given target point
+  !> (cartesian).  It is possible to use the 'approximate' method, by
+  !> interpolating on a grid.  This routine is thread-safe.
   subroutine pi_rho2 (f,xpos,rho,grad,h)
-    use grid1_tools
-    use tools_math
-    use param
-    use types
-    implicit none
+    use grid1_tools, only: grid1_interp
+    use tools_math, only: ep, norm
+    use param, only: pi, one
+    use types, only: field
 
     type(field), intent(in) :: f
     real*8, intent(in) :: xpos(3)

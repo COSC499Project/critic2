@@ -27,6 +27,7 @@ module tools_io
   private :: string_real8
   private :: string_real4
   private :: string_char
+  private :: string_logical
   public :: equal
   public :: getline
   public :: getline_raw
@@ -67,6 +68,7 @@ module tools_io
      module procedure string_real8
      module procedure string_real4
      module procedure string_char
+     module procedure string_logical
   end interface string
 
   ! character parameters
@@ -94,8 +96,8 @@ contains
 
   !> Connect input files to units with standard defaults.
   subroutine stdargs(optv,ghome,uroot)
-    use iso_fortran_env
-    use param
+    use iso_fortran_env, only: input_unit, output_unit
+    use param, only: dirsep
     
     character(len=:), allocatable, intent(out) :: optv !< Dash-options passed to the program
     character(len=:), allocatable, intent(out) :: ghome !< critic_home passed with -r
@@ -445,12 +447,12 @@ contains
 
   end function string_real4
 
-  !Build a string from another string. length is the length of the
-  !output string. If the length given by the user is not enough to
-  !contain the original string, then it is ignored. Justify selects
-  !the justification of the integer in the field (left, center, and
-  !right). padspace, pad with this number of spaces. If padspace > 0,
-  !pad in the left, if < 0, in the right.
+  !> Build a string from another string. length is the length of the
+  !> output string. If the length given by the user is not enough to
+  !> contain the original string, then it is ignored. Justify selects
+  !> the justification of the integer in the field (left, center, and
+  !> right). padspace, pad with this number of spaces. If padspace > 0,
+  !> pad in the left, if < 0, in the right.
   function string_char(a,length,justify,padspace) result(s)
     character(len=:), allocatable :: s
     character(len=*), intent(in) :: a
@@ -502,7 +504,21 @@ contains
 
   end function string_char
 
-  !> Compare two null-terminated strings for equality.
+  !> Build a string from a logical value. Returns "Yes"
+  !> if input is true or "No" if it is false.
+  function string_logical(a) result(s)
+    character(len=:), allocatable :: s
+    logical, intent(in) :: a
+
+    if (a) then
+       s = "Yes"
+    else
+       s = "No"
+    end if
+
+  end function string_logical
+
+  !> Compare two strings for equality.
   logical function equal (s,t)
     
     character*(*), intent(in) :: s !< First string
@@ -638,7 +654,7 @@ contains
   !> made of one or two letters corresponding to a legal atomic symbol
   !> followed by any other additional characters.
   function zatguess(atname)
-    use param
+    use param, only: maxzat0
     integer :: zatguess !< Ouptut atomic number
     character*(*), intent(in) :: atname !< Input atomic symbol (case insensitive)
 
@@ -695,7 +711,7 @@ contains
   !> If nounderscore is true, use blanks instead of underscores to pad
   !> the symbol.
   function nameguess (zat,nounderscore)
-    use param
+    use param, only: maxzat0
     
     integer, intent(in) :: zat !< Input atomic number
     logical, intent(in), optional :: nounderscore !< Use blanks instead of underscore to fill
@@ -1021,7 +1037,7 @@ contains
 
   !> Read an assignment from the input line
   function isassignment(var, expr, line)
-    use param
+    use param, only: constlist, funclist
 
     character*(*), intent(in) :: line !< Input line
     character(len=:), allocatable, intent(out) :: var !< Output variable name (left hand side)
@@ -1076,7 +1092,7 @@ contains
   !> Initialize file system and connect standard units. 
   !> Use this before falloc and fdealloc.
   subroutine ioinit ()
-    use iso_fortran_env
+    use iso_fortran_env, only: error_unit, input_unit, output_unit
 
     alloc = .false.
     alloc(error_unit) = .true.
@@ -1089,7 +1105,7 @@ contains
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
   function fopen_read(file,form,abspath0) result(lu)
-    use param
+    use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
@@ -1099,8 +1115,9 @@ contains
     character(len=:), allocatable :: ofile
     logical :: abspath
 
+    abspath = .false.
     ofile = trim(adjustl(filepath)) // dirsep // file
-    if (ofile(1:1) == dirsep) abspath = .true.
+    if (file(1:1) == dirsep) abspath = .true.
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
@@ -1118,7 +1135,7 @@ contains
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
   function fopen_write(file,form,abspath0) result(lu)
-    use param
+    use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
@@ -1128,8 +1145,9 @@ contains
     character(len=:), allocatable :: ofile
     logical :: abspath
 
+    abspath = .false.
     ofile = trim(adjustl(filepath)) // dirsep // file
-    if (ofile(1:1) == dirsep) abspath = .true.
+    if (file(1:1) == dirsep) abspath = .true.
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
@@ -1144,20 +1162,22 @@ contains
   end function fopen_write
 
   !> Open a file for appending
-  function fopen_append(file,form,abspath) result(lu)
-    use param
+  function fopen_append(file,form,abspath0) result(lu)
+    use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
-    logical, intent(in), optional :: abspath
+    logical, intent(in), optional :: abspath0
     integer :: lu
     
     integer :: ios
     character(len=:), allocatable :: ofile
+    logical :: abspath
 
-    ofile = filepath // dirsep // file
-    if (present(abspath)) then
-       if (abspath) ofile = file
-    end if
+    abspath = .false.
+    ofile = trim(adjustl(filepath)) // dirsep // file
+    if (file(1:1) == dirsep) abspath = .true.
+    if (present(abspath0)) abspath = abspath0
+    if (abspath) ofile = file
 
     lu = falloc()
     if (present(form)) then

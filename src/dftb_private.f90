@@ -47,9 +47,9 @@ contains
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
   subroutine dftb_read(f,filexml,filebin,filehsd,zcel)
-    use tools_io
-    use types
-    use param
+    use types, only: field, dftbatom, realloc
+    use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
+    use param, only: tpi, maxzat0
     
     type(field), intent(out) :: f !< Output field
     character*(*), intent(in) :: filexml !< The detailed.xml file
@@ -191,8 +191,9 @@ contains
 
   !> Calculate the density and derivatives of a DFTB+ field (f) up to
   !> the nder degree (max = 2). xpos is in Cartesian coordinates. In
-  !> output, the density (rho), the gradient (grad), the Hessian
-  !> (h), and the G(r) kinetic energy density (gkin).
+  !> output, the density (rho), the gradient (grad), the Hessian (h),
+  !> and the G(r) kinetic energy density (gkin).  This routine is
+  !> thread-safe.
   subroutine dftb_rho2(f,xpos,nder,rho,grad,h,gkin)
     use grid1_tools
     use tools_math

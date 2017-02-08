@@ -17,7 +17,7 @@
 
 ! Mathematical and physical constants, color specifications and factorials.
 module param
-  use hashtype
+  use hashtype, only: hash
   implicit none
 
   public
@@ -30,11 +30,12 @@ module param
   real*8, parameter :: sqpi     = sqrt(pi) !< sqrt(pi)
   real*8, parameter :: sqfp     = sqrt(4d0*pi) !< sqrt(4pi)
   real*8, parameter :: tpi      = 2d0 * pi !< 2pi
+  real*8, parameter :: tpi2     = tpi*tpi !< (2pi)^2
   real*8, parameter :: fourpi   = 4d0 * pi !< 4pi
   real*8, parameter :: rad      = pi / 180d0 !< pi / 180
   real*8, parameter :: cte      = 2.71828182845904523536d0 !< e
-  real*8, parameter :: ctsq2    = 1.41421356237309504880d0 !< sqrt(2)
-  real*8, parameter :: ctsq3    = 1.73205080756887729352d0 !< sqrt(3)
+  real*8, parameter :: ctsq2    = sqrt(2d0) !< sqrt(2)
+  real*8, parameter :: ctsq3    = sqrt(3d0) !< sqrt(3)
   real*8, parameter :: cteuler  = 0.57721566490153286061d0 !< gamma
   real*8, parameter :: ctgold   = 1.61803398874989484820d0 !< golden ratio (1+sqrt(5))/2
   real*8, parameter :: bohrtoa  =  0.52917720859d0 !< bohr to angstrom conversion factor
@@ -160,7 +161,7 @@ module param
      000,220,220, 230,010,010, 140,255,140, & ! 115-117 Uup, Lv, Uuh
      112,112,255, &                           ! 118 Uuh
      072,159,004, 255,217,061, 149,136,255, & ! 119-121 ncp, bcp, rcp
-     255,102,087, 065,000,168&                ! 122-123 ccp, xcp
+     255,102,087, 044,255,000&                ! 122-123 ccp, xcp
      /),shape(JMLcol)) !< jmol color definitions
 
   ! jmol colors, slightly darker
@@ -206,7 +207,7 @@ module param
      000,160,160, 170,000,000, 080,195,080, & ! 115-117 Uup, Lv, Uuh
      112,112,255, &                           ! 118 Uuh
      072,159,004, 255,217,061, 149,136,255, & ! 119-121 ncp, bcp, rcp
-     255,102,087, 065,000,168&                ! 122-123 ccp, xcp
+     255,102,087, 044,255,000&                ! 122-123 ccp, xcp
      /),shape(JMLcol2)) !< jmol color definitions, slightly darker
 
   ! covalent radii in pm, from tessel

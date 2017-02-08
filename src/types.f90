@@ -34,6 +34,8 @@ module types
 
   ! overloaded functions
   interface realloc
+     module procedure realloc_pointpropable
+     module procedure realloc_integrable
      module procedure realloc_field
      module procedure realloc_atom
      module procedure realloc_celatom
@@ -54,6 +56,7 @@ module types
      module procedure realloc2cmplx4
      module procedure realloc4cmplx4
      module procedure realloc1cmplx8
+     module procedure realloc5cmplx8
   end interface
 
   !> Radial grid type.
@@ -188,7 +191,7 @@ module types
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix
      real*8 :: x2c(3,3) !< Crystallographic to Cartesian matrix
      integer :: nwan(3) !< Number of wannier vectors
-     real*8, allocatable :: fwan(:,:,:,:,:) !< Wannier xsf
+     complex*8, allocatable :: fwan(:,:,:,:,:) !< Wannier xsf
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)
@@ -257,6 +260,7 @@ module types
      integer :: wfntyp
      integer, allocatable :: icenter(:)
      integer, allocatable :: itype(:)
+     real*8, allocatable :: d2ran(:)
      real*8, allocatable :: e(:)
      real*8, allocatable :: occ(:)
      real*8, allocatable :: cmo(:,:)
@@ -316,6 +320,7 @@ module types
      character*(10) :: prop_name
      character*(2048) :: expr
      integer :: lmax
+     real*8 :: x0(3)
   end type integrable
 
   !> Information about an point-property field
@@ -362,9 +367,54 @@ module types
 
 contains
   
+  !> Adapt the size of an allocatable 1D type(pointpropable) array
+  subroutine realloc_pointpropable(a,nnew)
+    use tools_io, only: ferror, faterr
+
+    type(pointpropable), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(pointpropable), allocatable :: temp(:)
+    integer :: l1, u1
+
+    if (.not.allocated(a)) &
+
+       call ferror('realloc_pointpropable','array not allocated',faterr)
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    if (u1 == nnew) return
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_pointpropable
+
+  !> Adapt the size of an allocatable 1D type(integrable) array
+  subroutine realloc_integrable(a,nnew)
+    use tools_io, only: ferror, faterr
+
+    type(integrable), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(integrable), allocatable :: temp(:)
+    integer :: l1, u1
+
+    if (.not.allocated(a)) &
+       call ferror('realloc_integrable','array not allocated',faterr)
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    if (u1 == nnew) return
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_integrable
+
   !> Adapt the size of an allocatable 1D type(field) array
   subroutine realloc_field(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(field), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -386,7 +436,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_atom(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(atom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -414,7 +464,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(celatom) array
   subroutine realloc_celatom(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(celatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -435,7 +485,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(celatom) array
   subroutine realloc_anyatom(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(anyatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -456,7 +506,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_dftbatom(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(dftbatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -477,7 +527,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(fragment) array
   subroutine realloc_fragment(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(fragment), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -498,7 +548,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_cp(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(cp_type), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -817,5 +867,33 @@ contains
     call move_alloc(temp,a)
 
   end subroutine realloc1cmplx8
+
+  !> Adapt the size of an allocatable 5D complex*8 array
+  subroutine realloc5cmplx8(a,n1,n2,n3,n4,n5)
+    use tools_io, only: ferror, faterr
+
+    complex*8, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, real*8, 3D
+    integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
+    
+    complex*8, allocatable :: temp(:,:,:,:,:)
+    integer :: nold(5)
+    
+    if (.not.allocated(a)) &
+       call ferror('realloc5r','array not allocated',faterr)
+    nold(1) = size(a,1)
+    nold(2) = size(a,2)
+    nold(3) = size(a,3)
+    nold(4) = size(a,4)
+    nold(5) = size(a,5)
+    if (nold(1) == n1 .and. nold(2) == n2 .and. nold(3) == n3 .and.&
+        nold(4) == n4 .and. nold(5) == n5) return
+    allocate(temp(n1,n2,n3,n4,n5))
+    
+    temp = 0d0
+    temp(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)),1:min(n5,nold(5))) = &
+       a(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)),1:min(n5,nold(5)))
+    call move_alloc(temp,a)
+
+  end subroutine realloc5cmplx8
 
 end module types

@@ -17,9 +17,6 @@
 
 !> Integration by recursive division of the IWS.
 module qtree
-  use qtree_tetrawork
-  use qtree_utils
-  use qtree_basic
   use global, only: INT_lebedev
   implicit none
   
@@ -36,15 +33,26 @@ contains
 
   !> Main driver for the QTREE integration.
   subroutine qtree_integration(lvl, plvl)
-    use CUI
-    use keast
+    use qtree_tetrawork, only: paint_inside_spheres, tetrah_subdivide, integ_corner_sum
+    use qtree_utils, only: open_difftess, close_difftess, small_writetess, getkeast
+    use qtree_basic, only: qtreeidx, qtreei, qtreer, nterm, ngrd_term, ngrd_int, nlocate,&
+       nlocate_sloppy, korder, maxl, nnuc, intcorner_deferred, kxyz, kw, nt_orig, minlen,&
+       maxlen, periodic, leqv, tcontact, tcontact_void, r_betaint, lustick, atprop, &
+       tvol, savefgr, savelapgr, ndiff, ngrd1, ngrd2, bvec, perm3, cmat, torig, lrotm,&
+       eps_tetrah_contact, cindex, leqvf, qtree_initialize, qtree_checksymmetry,&
+       qtree_cleanup
+    use CUI, only: cubpack_info
+    use keast, only: keast_rule, keast_order_num
+    use integration, only: int_output
+    use varbas, only: cp, ncpcel, cpcel
+    use fields, only: integ_prop, nprops
+    use global, only: quiet, plot_mode, color_allocate, docontacts, ws_use, setsph_lvl,&
+       autosph, prop_mode, gradient_mode, qtree_ode_mode, stepsize, ode_abserr, integ_scheme,&
+       integ_mode, minl, sphfactor, int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
+       ws_scale, qtreefac, fileroot, plotsticks, vcutoff, mneq
+    use struct_basic, only: cr
+    use tools_io, only: uout, faterr, ferror, warning, string, fopen_write, tictac, fclose
     use bisect, only: sphereintegrals_lebedev, sphereintegrals_gauleg
-    use integration
-    use varbas
-    use fields
-    use global
-    use struct_basic
-    use tools_io
 
     integer, intent(in) :: lvl
     integer, intent(in) :: plvl
@@ -58,22 +66,20 @@ contains
     logical :: ok
     real*8 :: xx(3)
     character*50 :: roottess
-    real*8 :: psum(Nprops), sphereprop(mneq,Nprops), auxs
-    real*8 :: ssum(Nprops)
+    real*8 :: sphereprop(mneq,Nprops)
     real*8 :: abserr
     integer :: neval, meaneval, vin(3), vino(3)
     character(10) :: pname
     logical :: maskprop(Nprops)
     real*8 :: xface_orig(3,3), xface_end(3,3), vtotal, memsum
     real*8 :: rface_orig(3,3), rface_end(3,3), face_diff(3)
-    integer :: nalloc, ralloc, iaux
+    integer :: nalloc, ralloc
     integer(qtreeidx) :: siz
     ! data arrays
     integer(qtreei), allocatable :: trm(:,:)
     real(qtreer), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, allocatable :: acum_atprop(:,:)
     ! for the output
-    integer :: nout
     integer, allocatable :: icp(:)
     real*8, allocatable :: xattr(:,:), outprop(:,:)
     character*30 :: reason(nprops)
@@ -749,6 +755,9 @@ contains
   !> Set sphere sizes according to user's input or, alternatively, calculate them 
   !> by analyzing the system at a smaller level (lvl).
   subroutine qtree_setsph1(lvl,verbose)
+    use qtree_tetrawork
+    use qtree_utils
+    use qtree_basic
     use varbas
     use fields
     use global
@@ -950,6 +959,9 @@ contains
   !> Set sphere sizes according to user's input or, alternatively, calculate them 
   !> by analyzing the system at a smaller level (lvl).
   subroutine qtree_setsph2(verbose)
+    use qtree_tetrawork
+    use qtree_utils
+    use qtree_basic
     use varbas
     use fields
     use surface
@@ -1097,6 +1109,9 @@ contains
   end subroutine qtree_setsph2
 
   subroutine qtree_setsphfactor(line)
+    use qtree_tetrawork
+    use qtree_utils
+    use qtree_basic
     use struct_basic
     use global
     use tools_io

@@ -215,8 +215,6 @@ contains
   !> returns the index for the last element. The comparison is
   !> performed in cartesian coordinates.
   subroutine uniqc(v, nini, nfin, eps)
-    use tools_io, only: ferror, faterr
-    
     integer, intent(in) :: nini !< Starting index
     integer, intent(inout) :: nfin !< End index
     real*8, intent(inout), dimension(3,*) :: v !< The initial and final array
@@ -224,24 +222,37 @@ contains
   
     real*8 :: eps2, x(3), dist2
     integer :: i, j, nfin0
-    logical :: found
+    logical :: found(nini:nfin)
   
     if (nfin < nini) return
   
     eps2 = eps * eps
   
-    nfin0 = nini-1
+    found = .false.
+    !$omp parallel do private(x,dist2)
     do i = nini, nfin
-       found = .false.
-       do j = nini, nfin0
-          x = v(:,i) - v(:,j)
+       !$omp flush(found)
+       if (found(i)) cycle
+       do j = i+1, nfin
+          !$omp flush(found)
+          if (found(j)) cycle
+          x = abs(v(:,i) - v(:,j))
+          if (any(x > eps)) cycle
           dist2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
           if (dist2 < eps2) then
-             found = .true.
+             !$omp critical (write)
+             found(j) = .true.
+             !$omp end critical (write)
              exit
           end if
        end do
-       if (.not.found) then
+    end do
+    !$omp end parallel do
+
+    ! rearrange
+    nfin0 = nini-1
+    do i = nini, nfin
+       if (.not.found(i)) then
           nfin0 = nfin0 + 1
           v(:,nfin0) = v(:,i)
        end if
@@ -249,42 +260,6 @@ contains
     nfin = nfin0
   
   end subroutine uniqc
-
-  !xx! crystal work
-
-  !>.equalcrysv -- determines if to crystallographic positions are
-  !> equivalent by means of a lattice translation. v1 and v2 are given
-  !> in crystallographic coordinates.
-  function equalcrysv(v1,v2)
-
-    logical :: equalcrysv
-    real*8, intent(in) :: v1(3) !< First vector
-    real*8, intent(in) :: v2(3) !< Second vector
-
-    real*8, parameter :: pusheps = 1d-14
-    real*8, parameter :: TOLx = 1d-5
-    
-    real*8  :: del(3)
-    integer :: i
-
-    do i = 1, 3
-       del(i) = v1(i) - v2(i)
-       if (del(i) .gt. -pusheps) then
-          del(i) = del(i) - int(del(i)+pusheps)
-       else 
-          del(i) = del(i) - int(del(i)+pusheps) + 1d0
-       end if
-    end do
-
-    if ((del(1) .lt. TOLx .or. del(1) .gt. 1d0-TOLx) .and.&
-        (del(2) .lt. TOLx .or. del(2) .gt. 1d0-TOLx) .and.&
-        (del(3) .lt. TOLx .or. del(3) .gt. 1d0-TOLx)) then
-       equalcrysv = .true.
-    else
-       equalcrysv = .false.
-    end if
-
-  end function equalcrysv
 
   !xx! arrays
 
@@ -294,8 +269,6 @@ contains
   !> for performance reasons, the first 2 passes are taken
   !> out of the standard loop, and use dedicated coding.
   subroutine mergesort(xvalt, irngt)
-
-    use tools_io
 
     real*8, dimension (:), intent (in) :: xvalt !< array to order
     integer, dimension (:), intent (out) :: irngt !< ordered index
@@ -460,8 +433,6 @@ contains
   !> for performance reasons, the first 2 passes are taken
   !> out of the standard loop, and use dedicated coding.
   subroutine imergesort(xvalt, irngt)
-
-    use tools_io
 
     integer, dimension (:), intent (in) :: xvalt !< array to order
     integer, dimension (:), intent (out) :: irngt !< ordered index

@@ -40,13 +40,11 @@ contains
   !> when the gradient is less than gfnormeps. ier is the exit code:
   !> 0 (success), 1 (singular Hessian), and 2 (too many iterations).
   subroutine newton (r,gfnormeps,ier)
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_io
-    use tools_math
-    use types
+    use fields, only: f, grd
+    use global, only: refden
+    use struct_basic, only: cr
+    use tools_math, only: detsym
+    use types, only: scalar_value
 
     real*8, dimension(3), intent(inout) :: r
     integer, intent(out) :: ier
@@ -55,7 +53,6 @@ contains
     real*8 :: r1(3), xx(3), er
     integer :: iw(3)
     integer :: it
-    logical :: ok
     type(scalar_value) :: res
 
     integer, parameter :: maxit = 200
@@ -101,15 +98,13 @@ contains
   !> through one of up2r or up2rho.
   subroutine gradient (fid, xpoint, iup, nstep, mstep, ier, extinf, &
     ax, arho, agrad, ah, up2r, xref, up2rho, up2beta, upflag)
-    use fields
-    use varbas
-    use global
-    use struct_basic
+    use fields, only: grd
+    use varbas, only: ncpcel, cpcel, cp, rbetadef
+    use global, only: nav_step, nav_gradeps
+    use struct_basic, only: cr
+    use tools_io, only: ferror, faterr
+    use types, only: field, scalar_value
     use tools_math, only: eigns
-    use tools_io
-    use types
-    use param
-
     type(field), intent(inout) :: fid
     real*8, dimension(3), intent(inout) :: xpoint
     integer, intent(in) :: iup
@@ -311,13 +306,12 @@ contains
   !> the angle of two successive steps is almost 180, shrink if it is
   !> less than 90 degrees.
   function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
-    use fields
-    use global
-    use struct_basic
-    use tools_math
-    use param
-    use types
-
+    use fields, only: grd
+    use global, only: nav_stepper, nav_stepper_heun, nav_stepper_rkck, nav_stepper_dp,&
+       nav_stepper_bs, nav_stepper_euler, nav_maxerr
+    use tools_math, only: norm
+    use types, only: field, scalar_value
+    use param, only: vsmall
     logical :: adaptive_stepper
     type(field), intent(inout) :: fid
     real*8, intent(inout) :: xpoint(3)
@@ -326,7 +320,7 @@ contains
     type(scalar_value), intent(inout) :: res
 
     integer :: ier, iup
-    real*8 :: grdt(3), ogrdtemp(3), ogrdt(3)
+    real*8 :: grdt(3), ogrdt(3)
     real*8 :: xtemp(3), escalar, xerrv(3)
     real*8 :: nerr
     logical :: ok, first
@@ -424,10 +418,9 @@ contains
 
   !> Heun stepper.
   subroutine stepper_heun(fid,xpoint,grdt,h0,xout,xerr,res)
-    use types
-    use fields
-    use global
-    use param
+    use fields, only: grd
+    use types, only: field, scalar_value
+    use param, only: vsmall
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
@@ -446,10 +439,9 @@ contains
 
   !> Bogacki-Shampine embedded 2(3) method, fsal
   subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
-    use types
-    use fields
-    use global
-    use param
+    use types, only: field, scalar_value
+    use fields, only: grd
+    use param, only: vsmall
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
@@ -482,10 +474,9 @@ contains
 
   !> Runge-Kutta-Cash-Karp embedded 4(5)-order, local extrapolation.
   subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
-    use fields
-    use global
-    use types
-    use param
+    use fields, only: grd
+    use types, only: field, scalar_value
+    use param, only: vsmall
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), grdt(3), h0
@@ -528,10 +519,9 @@ contains
 
   !> Doermand-Prince embedded 4(5)-order, local extrapolation.
   subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
-    use fields
-    use global
-    use types
-    use param
+    use fields, only: grd
+    use types, only: field, scalar_value
+    use param, only: vsmall
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), grdt(3), h0
@@ -590,7 +580,7 @@ contains
   !> reduced number of points is returned in n, and the fractional
   !> coordinates in x(:,1:n).
   subroutine prunepath(c,n,x,fprune)
-    use struct_basic
+    use struct_basic, only: crystal
     
     type(crystal), intent(in) :: c
     integer, intent(inout) :: n
@@ -598,14 +588,13 @@ contains
     real*8, intent(in) :: fprune
 
     integer :: i, nn
-    real*8 :: x0(3), d
+    real*8 :: x0(3)
 
     ! prune the path
     x0 = x(:,1)
     nn = 1
     do i = 1, n
-       d = c%distance(x(:,i),x0)
-       if (d > fprune) then
+       if (.not.c%are_close(x(:,i),x0,fprune)) then
           nn = nn + 1
           x(:,nn) = x(:,i)
           x0 = x(:,i)

@@ -109,8 +109,12 @@ module global
   ! default border for a molecular unit cell
   real*8, parameter :: rborder_def = 10d0 / bohrtoa
 
-  ! guess and symmetry option (0 = no, 1 = cen, 2 = full)
+  ! guess and symmetry option (-1 = only for small systems, 0 = no, 1 = cen, 2 = full)
   integer :: doguess
+
+  ! A crystal is considered small if it has less than this number of
+  ! atoms in the unit cell.
+  integer, parameter :: crsmall = 500
 
   ! reference scalar field
   integer :: refden
@@ -125,6 +129,10 @@ module global
   integer, parameter :: NAV_stepper_dp    = 3 !< Dormand-prince embedded 4(5)-order, local extrapolation (7 eval), with error estimate
   integer, parameter :: NAV_stepper_bs    = 4 !< Bogacki-Shampine embedded 2(3)-order method, (5-1=4 eval, fsal), with error estimate
   integer, parameter :: NAV_stepper_heun  = 5 !< Heun stepper (2 eval), poor-man's adaptive step
+  real*8 :: prunedist
+
+  ! critical points
+  real*8 :: CP_hdegen = 1d-8 !< a CP is degenerate if any Hessian element is less than this value
 
   ! radial integration
   integer :: INT_radquad_type !< type of radial integration
@@ -177,16 +185,16 @@ contains
 
   !> Initialize basic variables at the beginning of the run.
   !> Also sets default values by calling global_set_defaults.
-  subroutine global_init(ghome)
-    use tools_io
-    use config
-    implicit none
+  subroutine global_init(ghome,datadir)
+    use tools_io, only: string, ferror, warning, uout
+    use param, only: dirsep
 
-    character*(*) :: ghome
+    character*(*) :: ghome, datadir
 
     integer :: isenv
     logical :: lchk
 
+    character(len=:), allocatable :: msg1, msg2, msg3, msg4
     integer, parameter :: maxlenpath = 1024
 
     ! read the -r option
@@ -194,6 +202,7 @@ contains
        critic_home = string(ghome) // dirsep // "dat"
        inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
        if (lchk) goto 99
+       write (uout,'("  File not found: ",A)') trim(critic_home)// dirsep // "cif_core.dic"
     endif
 
     ! read env variable CRITIC_HOME
@@ -203,22 +212,28 @@ contains
        critic_home = trim(critic_home) // dirsep // "dat"
        inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
        if (lchk) goto 99
+       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home)// dirsep // "cif_core.dic"
+    else
+       msg1 = "(!) 1. CRITIC_HOME environment variable not set"
     end if
 
     ! then the install path
     critic_home = trim(adjustl(datadir))
     inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
     if (lchk) goto 99
+    msg2 = "(!) 2. Not found (install path): " // trim(critic_home)// dirsep // "cif_core.dic"
 
     ! then the current directory
     critic_home = "."
     inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
     if (lchk) goto 99
+    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home)// dirsep // "cif_core.dic"
 
     ! argh!
-    call ferror("grda_init","The environment variable CRITIC_HOME is not set",warning)
+    call ferror("grda_init","Could not find data files.",warning)
+    write (uout,'(A/A/A)') msg1, msg2, msg3
     write (uout,'("(!) The cif dict file, the density files, and the structure library")')
-    write (uout,'("(!) will not be available. critic_home set to pwd.")')
+    write (uout,'("(!) will not be available.")')
     critic_home = "."
 
 99  continue
@@ -235,7 +250,7 @@ contains
   !> Set the default values for all the global variables
   subroutine global_set_defaults()
 
-    doguess = 2
+    doguess = -1
     refden = 0
     precisecube = .true.
 
@@ -250,6 +265,7 @@ contains
     NAV_step = 0.1d0
     NAV_maxerr = 1d-3
     NAV_gradeps = 1d-9
+    prunedist = 0.1d0
 
     ! integration
     INT_radquad_type = INT_gauleg
@@ -340,10 +356,13 @@ contains
   end subroutine help_me
 
   !> Print out the compilation details and the hardwired paths
-  subroutine config_write()
-    use tools_io
-    use config 
-
+  subroutine config_write(package,version,atarget,adate,f77,fflags,fc,&
+     fcflags,ldflags,enable_debug,datadir)
+    use param, only: dirsep
+    use tools_io, only: uout
+    character*(*), intent(in) :: package, version, atarget, adate
+    character*(*), intent(in) :: f77, fflags, fc, fcflags
+    character*(*), intent(in) :: ldflags, enable_debug, datadir
     logical :: lchk
 
     write (uout,'("+ ",A,", commit ",A,"")') package, version
@@ -364,10 +383,9 @@ contains
 
   !> Parse the command line and set a global variable
   subroutine critic_setvariables(line,lp)
-    use arithmetic
-    use tools_io
-    use param
-  
+    use arithmetic, only: eval, setvariable
+    use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
+       faterr, string, uout, isassignment, getword
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
@@ -378,7 +396,7 @@ contains
     logical :: iok
 
     word = lgetword(line,lp)
-    if (equal(word,'nosymm')) then
+    if (equal(word,'nosymm') .or. equal(word,'nosym')) then
        doguess = 0
        call check_no_extra_word(ok)
     elseif (equal(word,'symm')) then
@@ -406,6 +424,7 @@ contains
           else if (equal(word,'maxstep')) then
              ok = isreal(NAV_step,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXSTEP',faterr,line,syntax=.true.)
+             NAV_step = NAV_step / dunit
           else if (equal(word,'maxerr')) then
              ok = isreal(NAV_maxerr,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXERR',faterr,line,syntax=.true.)
@@ -418,6 +437,10 @@ contains
              exit
           end if
        end do
+    else if (equal(word,'prune_distance')) then
+       ok = isreal(prunedist,line,lp)
+       if (.not.ok) call ferror('critic_setvariables','Wrong PRUNE_DISTANCE',faterr,line,syntax=.true.)
+       prunedist = prunedist / dunit
     else if (equal (word,'int_radial')) then
        do while(.true.)
           word = lgetword(line,lp)
@@ -450,6 +473,7 @@ contains
           elseif (equal(word,'prec')) then
              ok = isreal(INT_iasprec,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL prec',faterr,line,syntax=.true.)
+             INT_iasprec = INT_iasprec / dunit
           elseif (len_trim(word) > 0) then
              call ferror('critic_setvariables','Unknown keyword in INT_RADIAL',faterr,line,syntax=.true.)
           else
@@ -490,6 +514,7 @@ contains
        else
           call check_no_extra_word(ok)
        end if
+       stepsize = stepsize / dunit
     elseif (equal(word,'ode_abserr')) then
        ok = isreal(ode_abserr,line,lp)
        if (.not. ok) then
@@ -736,8 +761,8 @@ contains
 
   !> Clear the value of a variable
   subroutine critic_clearvariable(line)
-    use arithmetic
-    use tools_io
+    use arithmetic, only: clearallvariables, clearvariable
+    use tools_io, only: getword, lower, equal
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
@@ -759,8 +784,8 @@ contains
 
   !> Evaluate next expression of word in line and return a real number.
   function eval_next_real(res,line,lp0)
-    use arithmetic
-    use tools_io
+    use arithmetic, only: eval
+    use tools_io, only: isexpression_or_word, string
 
     logical :: eval_next_real
     character*(*), intent(in) :: line !< Input line

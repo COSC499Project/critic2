@@ -22,34 +22,44 @@
 !                 \___|_|  |_|\__|_|\___|_____|
 !                                     
 program critic
-  use tricks
-  use stm
-  use xdm
-  use ewald
-  use hirshfeld
-  use qtree
-  use bisect
-  use integration
-  use flux
-  use autocp
-  use nci
-  use rhoplot
-  use fields
-  use varbas
-  use grd_atomic
-  use struct
-  use struct_basic
-  use wfn_private
-  use pi_private
-  use spgs
-  use global
-  use config
-  use graphics
-  use arithmetic
-  use types
-  use tools
-  use tools_io
-  use param
+  use tricks, only: trick
+  use stm, only: stm_driver
+  use xdm, only: xdm_driver
+  use ewald, only: ewald_energy
+  use hirshfeld, only: hirsh_props_grid
+  use qtree, only: qtree_integration, qtree_setsphfactor
+  use bisect, only: basinplot, bundleplot, sphereintegrals, integrals
+  use integration, only: intgrid_driver
+  use flux, only: fluxprint
+  use autocp, only: init_cplist, autocritic, cpreport
+  use nci, only: nciplot
+  use rhoplot, only: rhoplot_point, rhoplot_line, rhoplot_plane, rhoplot_cube,&
+     rhoplot_grdvec
+  use fields, only: fieldname_to_idx, goodfield, f, fused, type_grid, nprops,&
+     integ_prop, itype_fval, itype_lapval, fields_init, fields_end, &
+     fields_load, fields_unload, setfield, fieldinfo, benchmark, &
+     fields_integrable, fields_pointprop, testrmt, listfields, listfieldalias,&
+     fields_integrable_report
+  use varbas, only: varbas_end, varbas_identify
+  use grd_atomic, only: grda_init, grda_end
+  use struct, only: struct_crystal_input, struct_newcell, struct_molcell,&
+     struct_clearsym, struct_charges, struct_write, struct_powder, struct_rdf,&
+     struct_compare, struct_environ, struct_packing
+  use struct_basic, only: cr
+  use wfn_private, only: wfn_end
+  use pi_private, only: pi_end
+  use spgs, only: spgs_init
+  use global, only: fileroot, quiet, refden, eval_next, gradient_mode,&
+     int_radquad_errprop_default, int_radquad_errprop, global_init,&
+     initial_banner, help_me, config_write, critic_clearvariable,&
+     critic_setvariables,global_set_defaults
+  use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
+     fcflags, ldflags, enable_debug, package
+  use graphics, only: graphics_init
+  use arithmetic, only: listvariables
+  use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
+     ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac
+  use param, only: param_init
   implicit none
 
   ! command-line arguments
@@ -60,7 +70,7 @@ program critic
   character(len=:), allocatable :: line
   !
   integer :: level, plevel
-  integer :: i, id, nn
+  integer :: i, j, k, id, nn
   logical :: ll1, ok
   real*8 :: rdum
 
@@ -72,7 +82,7 @@ program critic
   call stdargs(optv,ghome,fileroot)
 
   ! set default values and initialize the rest of the modules
-  call global_init(ghome)
+  call global_init(ghome,datadir)
   call cr%init()
   call fields_init()
   call spgs_init()
@@ -89,7 +99,8 @@ program critic
   ! header, interface, date
   if (.not.quiet) then
      call initial_banner()
-     call config_write()
+     call config_write(package,version,atarget,adate,f77,fflags,fc,&
+        fcflags,ldflags,enable_debug,datadir)
      call tictac('CRITIC2')
      write (uout,*)
      ucopy = uout
@@ -139,6 +150,10 @@ program critic
         
      ! clearsym/clearsymm
      elseif (equal(word,'clearsym') .or. equal(word,'clearsymm')) then
+        if (.not. cr%isinit) then
+           call ferror('critic2','need crystal before clearsym',faterr,line,syntax=.true.)
+           cycle
+        end if
         call struct_clearsym() 
         call check_no_extra_word(ok)
         if (.not.ok) cycle
@@ -487,21 +502,6 @@ program critic
         write (uout,'("* Ewald electrostatic energy (Hartree) = ",A/)') &
            string(rdum,'e',decimal=12)
 
-     ! ws
-     elseif (equal(word,'ws')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before ws',faterr,line,syntax=.true.)
-           cycle
-        end if
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-        if (cr%ismolecule) then
-           call ferror("critic2","WS can not be used with molecules",faterr,syntax=.true.)
-           cycle
-        end if
-           
-        call cr%wigner((/0d0,0d0,0d0/),.true.)
-
      ! environ
      elseif (equal(word,'environ')) then
         if (.not. cr%isinit) then
@@ -664,10 +664,14 @@ program critic
      elseif (equal(word,'trick')) then
         call trick(line(lp:))
         
-     ! ! temp, for testing
-     ! elseif (equal(word,'temp')) then
-     !    call cr%classify()
-     !    
+     ! temp, for testing
+     elseif (equal(word,'temp')) then
+        ! write (*,*) f(1)%f(1,1,1), f(2)%f(1,1,1)
+        ! do i = 1, 54
+        ! write (*,*) f(1)%f(i,i,i), f(2)%f(i,i,i)
+        ! end do
+        ! stop 1
+
      ! end
      elseif (equal(word,'end')) then
         call check_no_extra_word(ok)
@@ -704,16 +708,17 @@ program critic
 contains
   !> Set field number id as reference
   subroutine set_reference(id)
-    implicit none
 
     integer, intent(in) :: id
 
     ! header and change refden
-    refden = id
-    write (uout,'("* Field number ",A," is now REFERENCE."/)') string(refden)
+    write (uout,'("* Field number ",A," is now REFERENCE."/)') string(id)
 
     ! initialize CP list, defer the calculation of nuclei properties to the report
-    call init_cplist(.true.)
+    if (refden /= id .or. id == 0) then
+       refden = id
+       call init_cplist(.true.)
+    end if
 
     ! define second integrable property as the valence charge.
     nprops = max(2,nprops)
@@ -729,9 +734,6 @@ contains
     integ_prop(3)%fid = id
     integ_prop(3)%prop_name = "Lap"
 
-    ! report
-    call fields_integrable_report()
-
     ! reset defaults for qtree
     if (f(refden)%type == type_grid) then
        gradient_mode = 1
@@ -740,6 +742,9 @@ contains
        gradient_mode = 2
        if (INT_radquad_errprop_default) INT_radquad_errprop = 3
     end if
+
+    ! report
+    call fields_integrable_report()
 
   end subroutine set_reference
 

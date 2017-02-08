@@ -85,18 +85,19 @@ expression.r # prints the value of the expression to the output.
   MOLECULE LIBRARY label.s
 * LIBRARY {CRYSTAL|MOLECULE} path.s
 * UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}
-* NOSYMM|SYMM [0|1|2]
+* NOSYMM|NOSYM|SYMM [-1|0|1|2]
 * MOLCELL [border.r]
 * CLEARSYM/CLEARSYMM
 * Q/QAT {nat1.i|at1.s} q1.r {nat2.i|at2.s} q2.r ...
 * ZPSP {nat1.i|at1.s} q1.r {nat2.i|at2.s} q2.r ...
 * NOCORE
 * WRITE file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
-        [CUBE side.r [x0.r y0.r z0.r]] 
-        [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i] 
+        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+        [MOLMOTIF] [ONEMOTIF] [ENVIRON dist.r]
+        [NMER nmer.i]
   WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]] 
-        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] [BURST] 
-        [PAIRS] [CELL] [MOLCELL] [ix.i iy.i iz.i] 
+        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i] 
+        [MOLMOTIF] [ONEMOTIF] [CELL] [MOLCELL] 
   WRITE file.scf.in
   WRITE file.tess
   WRITE file.cri|file.incritic 
@@ -150,12 +151,12 @@ expression.r # prints the value of the expression to the output.
 * POINT x.r y.r z.r [ALL] [FIELD {id.s/"expr"}]
 * LINE x0.r y0.r z0.r x1.r y1.r z1.r npts.i [FILE file.s] [FIELD id.s/"expr"]
        [GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
-* PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r nx.i ny.i [FILE file.s] [FIELD id.s/"expr"]
+* PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r nx.i ny.i 
+   	[SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
+        [FILE file.s] [FIELD id.s/"expr"]
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
         [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i rini.r rend.r}]
 	[COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
-  PLANE {ATOM|ATOMS} at1.i at2.i at3.i [{SCALE sx.r sy.r}| 
-        {SIZE zx.r zy.r}] nx.i ny.i ...
 * CUBE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i nz.i [FILE file.s] [FIELD id.s/"expr"]
        [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] [HEADER]
   CUBE x0.r y0.r z0.r x1.r y1.r z1.r bpp.r ...
@@ -163,8 +164,8 @@ expression.r # prints the value of the expression to the output.
   CUBE GRID ...
   CUBE ... FILE CHGCAR
   CUBE ... FILE bleh.cube
-* AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] 
-       [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
+* AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] [NUCEPSH nepsh.r]
+       [EPSDEGEN edeg.r] [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
   AUTO ... [SEED ...] [SEED ...] ...
@@ -178,12 +179,13 @@ expression.r # prints the value of the expression to the output.
   AUTO SEED LINE [X0 x0.r y0.r z0.r] [X1 x0.r y0.r z0.r] [NPTS n.i]
   AUTO SEED POINT  [X0 x0.r y0.r z0.r]
 * CPREPORT {SHORT|LONG|VERYLONG|SHELLS [n.i]}
-  CPREPORT file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]]
-           [CUBE side.r [x0.r y0.r z0.r]]
-           [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i]
-  CPREPORT file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
-           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] [BURST]
-           [CELL] [MOLCELL] [ix.i iy.i iz.i]
+  CPREPORT file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
+           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+           [MOLMOTIF] [ONEMOTIF] [ENVIRON dist.r]
+           [NMER nmer.i]
+  CPREPORT file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]] 
+           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i] 
+           [MOLMOTIF] [ONEMOTIF] [CELL] [MOLCELL] 
   CPREPORT file.scf.in
   CPREPORT file.tess
   CPREPORT file.cri|file.incritic
@@ -203,10 +205,9 @@ expression.r # prints the value of the expression to the output.
 * GRDVEC
    {FILES|ROOT|ONAME} rootname.s
    PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r
-         [SCALE sx.r sy.r]
-   PLANE {CP|ATOM} cp1.i [LVEC x.i y.i z.i] cp2.i [LVEC x.i y.i z.i]
-         cp3.i [LVEC x.i y.i z.i] [SCALE sx.r sy.r]
-         [SIZE zx.r zy.r]
+   SCALE sx.r sy.r
+   EXTENDX zx0.r zx1.r
+   EXTENDY zy0.r zy1.r
    OUTCP sx.r sy.r
    HMAX hmax.r
    ORIG x.r y.r z.r atr.i up.i down.i
@@ -231,7 +232,6 @@ expression.r # prints the value of the expression to the output.
     GRAPH igraph.i 
     COLOR r.i g.i b.i
     TEXT|TESSEL|TESS|OBJ|PLY|OFF|CML
-    PRUNE prune.r
     SHELLS ishl.i
     NOSYM
   ENDFLUXPRINT/END
@@ -286,8 +286,10 @@ expression.r # prints the value of the expression to the output.
   + COLOR_ALLOCATE {0|1}
   + SETSPH_LVL lvl.i
   + VCUTOFF vcutoff.r
-* YT [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r] [DISCARD expr.s]
-* BADER [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r] [DISCARD expr.s]
+* YT [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF]] [RATOM ratom.r]
+     [DISCARD expr.s]
+* BADER [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF]] [RATOM ratom.r]
+     [DISCARD expr.s]
 * NCIPLOT 
     ONAME root.s
     CUTOFFS rhocut.r dimcut.r
@@ -320,8 +322,7 @@ expression.r # prints the value of the expression to the output.
 * ROOT {root.s}
 * HIRSHFELD
 * EWALD
-* WS
-* ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r]
+* ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r] [AT at.s/iat.i] [BY by.s/iby.i]
 * PACKING [VDW] [PREC prec.r]
 * IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL|file.xyz]
     x y z [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL]
@@ -344,6 +345,7 @@ expression.r # prints the value of the expression to the output.
 * COUNT id.s eps.r
 * TESTRMT
 * ODE_MODE [METHOD {EULER|HEUN|BS|RKCK|DP}] [MAXSTEP maxstep.r] [MAXERR maxerr.r] [GRADEPS gradeps.r]
+* PRUNE_DISTANCE prune.r
 * INT_RADIAL [TYPE {GAULEG|QAGS|QNG|QAG}] [NR nr.i] [ABSERR err.r]
   [RELERR err.r] [ERRPROP prop.i] [PREC prec.r] [NOBETA]
 * MESHTYPE {BECKE|FRANCHINI {1|2|3|4|5}}

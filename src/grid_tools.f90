@@ -28,6 +28,7 @@ module grid_tools
   public :: grid_read_vasp
   public :: grid_read_qub
   public :: grid_read_xsf
+  public :: grid_read_wanbin
   public :: grid_read_elk
   public :: grinterp
   private :: grinterp_nearest
@@ -312,8 +313,8 @@ contains
 
   !> Build a grid field from a three-dimensional array
   subroutine grid_from_array3(g,f)
-    use tools_io
-    use types
+    use tools_io, only: ferror, faterr
+    use types, only: field
 
     real*8, intent(in) :: g(:,:,:)
     type(field), intent(out) :: f
@@ -333,8 +334,8 @@ contains
 
   !> Read a grid in gaussian CUBE format
   subroutine grid_read_cube(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use types, only: field
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -375,13 +376,13 @@ contains
 
   !> Read a grid in siesta RHO format
   subroutine grid_read_siesta(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, faterr, ferror, fclose
+    use types, only: field
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
 
-    integer :: luc, nspin, istat, j
+    integer :: luc, nspin, istat
     integer :: i, iy, iz, n(3)
     real*8 :: r(3,3)
     real*4, allocatable :: g(:)
@@ -421,15 +422,15 @@ contains
 
   !> Read a grid in abinit format
   subroutine grid_read_abinit(file,f)
-    use types
-    use tools_io
-    use abinit_private
+    use types, only: field
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use abinit_private, only: hdr_type, hdr_io
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
 
     integer :: luc
-    integer :: fform0, istat, n(3), j
+    integer :: fform0, istat, n(3)
     type(hdr_type) :: hdr
     real*8, allocatable :: g(:,:,:)
 
@@ -458,8 +459,8 @@ contains
 
   !> Read a grid in VASP format
   subroutine grid_read_vasp(file,f,omega)
-    use types
-    use tools_io
+    use types, only: field
+    use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -498,8 +499,8 @@ contains
 
   !> Read a grid in aimpac qub format
   subroutine grid_read_qub(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use types, only: field
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -528,28 +529,22 @@ contains
   end subroutine grid_read_qub
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
-  subroutine grid_read_xsf(file,f,nwan,nin,omega,ispin)
-    use tools_io
-    use types
+  subroutine grid_read_xsf(file,f)
+    use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
+       fclose
+    use types, only: field, realloc
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(inout) :: f
-    integer, intent(in), optional :: nwan
-    integer, intent(in), optional :: nin(3)
-    real*8, intent(in), optional :: omega
-    integer, intent(in), optional :: ispin
 
     integer :: luc
-    integer :: istat, n(3), lp, i, j, k, ix, jx, kx
+    integer :: istat, n(3), lp, i, j, k
     character(len=:), allocatable :: line, word
-    logical :: found, ok, ok2, iswan
+    logical :: found, ok
     real*8, dimension(3) :: x0, x1, x2, x3
     real*8 :: pmat(3,3)
 
-    real*8, allocatable :: ggloc(:,:,:), otherloc(:,:,:)
-    character*5, parameter :: spinname(2) = (/'alpha','beta '/)
-
-    iswan = (present(nwan).and.present(nin).and.present(omega).and.present(ispin))
+    real*8, allocatable :: ggloc(:,:,:)
 
     ! open file for reading
     luc = fopen_read(file)
@@ -588,19 +583,7 @@ contains
     read (luc,*,iostat=istat) n 
     if (istat /= 0) &
        call ferror('grid_read_xsf','Error reading n1, n2, n3',faterr,file)
-    if (iswan) then
-       if (any(nint(real(n,8)/nin) /= (n/nin))) &
-          call ferror('grid_read_xsf','Wannier supercell not congruent with grid size',faterr,file)
-       if (nwan > 1) then
-          if (any(f%n * nin /= n)) &
-             call ferror('grid_read_xsf','Wannier grid sizes not equal',faterr,file)
-       else
-          f%n = n / nin
-       end if
-    else
-       f%n = n - 1
-       iswan = .false.
-    endif
+    f%n = n - 1
 
     ! origin and edge vectors
     read (luc,*,iostat=istat) x0, x1, x2, x3
@@ -617,73 +600,79 @@ contains
        call ferror('grid_read_xsf','Error reading grid',faterr,file)
 
     allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
-    if (.not.iswan) then
-       f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
-       deallocate(ggloc)
-    else
-       ! re-order the grid from wannier90
-       allocate(otherloc(n(1),n(2),n(3)))
-       do i = 1, n(1)
-          ix = mod(i,n(1))+1
-          do j = 1, n(2)
-             jx = mod(j,n(2))+1
-             do k = 1, n(3)
-                kx = mod(k,n(3))+1
-                otherloc(i,j,k) = ggloc(ix,jx,kx)
-             end do
-          end do
-       end do
-       deallocate(ggloc)
-       call move_alloc(otherloc,ggloc)
-
-       ! save the wannier function
-       if (nwan == 1 .and. allocated(f%fwan)) &
-          call ferror('grid_read_xsf','nwan = 1 but fwan already allocated',faterr)
-       if (nwan == 1) then
-          if (ispin == 0) then
-             allocate(f%fwan(n(1),n(2),n(3),1,1))
-          else
-             allocate(f%fwan(n(1),n(2),n(3),1,2))
-          end if
-       end if
-       if (nwan > size(f%fwan,4)) call realloc(f%fwan,n(1),n(2),n(3),nwan,size(f%fwan,5))
-       if (ispin == 0) then
-          f%fwan(:,:,:,nwan,1) = ggloc
-       else
-          f%fwan(:,:,:,nwan,ispin) = ggloc
-       end if
-
-       ! convert to density contribution
-       if (ispin == 0) then
-          ggloc = ggloc**2 * 2d0 / omega
-       else
-          ggloc = ggloc**2 / omega
-       end if
-
-       ! add to the density
-       if (nwan == 1) then
-          f%nwan = nin
-          f%f = 0d0
-       end if
-       do i = 1, nin(1)
-          do j = 1, nin(2)
-             do k = 1, nin(3)
-                f%f = f%f + ggloc((i-1)*f%n(1)+1:i*f%n(1),(j-1)*f%n(2)+1:j*f%n(2),(k-1)*f%n(3)+1:k*f%n(3))
-             end do
-          end do
-       end do
-       deallocate(ggloc)
-    endif
+    f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
+    deallocate(ggloc)
     n = f%n
 
     call fclose(luc)
 
   end subroutine grid_read_xsf
 
+  !> Read a collection of Wannier functions in binary format
+  subroutine grid_read_wanbin(file,f,omega)
+    use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
+       fclose
+    use types, only: field, realloc
+
+    character*(*), intent(in) :: file !< Input file
+    type(field), intent(inout) :: f
+    real*8, intent(in) :: omega
+
+    integer :: luc
+    integer :: n(3), nwan(3), ns(3), nbnd, nspin
+    integer :: ispin, ibnd
+    integer :: i, j, k
+    real*8 :: fspin
+
+    ! open file for reading
+    luc = fopen_read(file,form="unformatted")
+
+    ! number of grid points and wannier functions
+    read (luc) n, nwan, nbnd, nspin
+
+    if (nspin == 1) then
+       fspin = 2d0
+    else
+       fspin = 1d0
+       call ferror('grid_read_wanbin','nspin = 2 not implemented yet',faterr)
+    end if
+
+    ! allocate space for the wannier functions in memory
+    f%n = n
+    f%nwan = nwan
+    ns = n * nwan
+    if (allocated(f%f)) deallocate(f%f)
+    allocate(f%f(f%n(1),f%n(2),f%n(3)))
+    if (allocated(f%fwan)) deallocate(f%fwan)
+    allocate(f%fwan(ns(1),ns(2),ns(3),nbnd,nspin))
+
+    f%f = 0d0
+    do ispin = 1, nspin
+       do ibnd = 1, nbnd
+          read (luc) f%fwan(:,:,:,ibnd,ispin)
+          do i = 1, nwan(1)
+             do j = 1, nwan(2)
+                do k = 1, nwan(3)
+                   f%f = f%f + real(f%fwan((i-1)*n(1)+1:i*n(1),(j-1)*n(2)+1:j*n(2),(k-1)*n(3)+1:k*n(3),ibnd,ispin),8)**2 + &
+                      aimag(f%fwan((i-1)*n(1)+1:i*n(1),(j-1)*n(2)+1:j*n(2),(k-1)*n(3)+1:k*n(3),ibnd,ispin))**2
+                end do
+             end do
+          end do
+       end do
+    end do
+    f%f = f%f * fspin / omega
+
+    ! wrap up
+    call fclose(luc)
+    f%init = .true.
+    f%mode = mode_default
+
+  end subroutine grid_read_wanbin
+
   !> Read a grid in elk format -- only first 3d grid in first 3d block
   subroutine grid_read_elk(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use types, only: field
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -721,10 +710,10 @@ contains
   end subroutine grid_read_elk
 
   !> Interpolate the function value, first and second derivative at
-  !> point x0 (crystallographic coords.) using the grid g.
+  !> point x0 (crystallographic coords.) using the grid g.  This
+  !> routine is thread-safe.
   subroutine grinterp(f,xi,y,yp,ypp) 
-    use types
-
+    use types, only: field
     type(field), intent(inout) :: f !< Grid to interpolate
     real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
@@ -761,9 +750,9 @@ contains
   !> (or the would-be nearest, it is nearest only in orthogonal
   !> grids). f is the grid field to interpolate. xi is the point in
   !> crystallographic coordinates. y is the interpolated value at xi.
+  !> This routine is thread-safe.
   subroutine grinterp_nearest(f,x0,y)
-    use types
-
+    use types, only: field
     type(field), intent(in) :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
@@ -779,10 +768,10 @@ contains
 
   !> Interpolate using a trilinear interpolant. f is the grid field to
   !> interpolate. xi is the point in crystallographic coordinates. y
-  !> and yp are the value and gradient at xi.
+  !> and yp are the value and gradient at xi.  This routine is
+  !> thread-safe.
   subroutine grinterp_trilinear(f,x0,y,yp)
-    use types
-
+    use types, only: field
     type(field), intent(in) :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
@@ -834,11 +823,10 @@ contains
   !> spline prediction. This is a modified version of the abinit
   !> density interpolation subroutine. f is the grid field to
   !> interpolate. xi is the point in crystallographic coordinates. y,
-  !> yp, and ypp are the value, gradient, and Hessian at xi.
+  !> yp, and ypp are the value, gradient, and Hessian at xi.  This
+  !> routine is thread-safe.
   subroutine grinterp_trispline(f,x0,y,yp,ypp)
-    use types
-    use tools_io
-
+    use types, only: field
     type(field), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
@@ -1102,19 +1090,17 @@ contains
 
   end subroutine grinterp_trispline
 
-  !> Tricubic interpolation based on:
-  !> Lekien and Marsden, Int. J. Numer. Meth. Engng, 63 (2005) 455-471.  
-  !> This interpolation is C^1 and local (the interpolant uses
-  !> information of the grid points close to the point).  This
-  !> subroutine has been adapted from the likely code, by David
-  !> Kirkby, University of California, Irvine
-  !> (https://github.com/deepzot/likely). f is the grid field to
-  !> interpolate. xi is the point in crystallographic coordinates. y,
-  !> yp, and ypp are the value, gradient, and Hessian at xi.
+  !> Tricubic interpolation based on: Lekien and Marsden,
+  !> Int. J. Numer. Meth. Engng, 63 (2005) 455-471.  This
+  !> interpolation is C^1 and local (the interpolant uses information
+  !> of the grid points close to the point).  This subroutine has been
+  !> adapted from the likely code, by David Kirkby, University of
+  !> California, Irvine (https://github.com/deepzot/likely). f is the
+  !> grid field to interpolate. xi is the point in crystallographic
+  !> coordinates. y, yp, and ypp are the value, gradient, and Hessian
+  !> at xi.  This routine is thread-safe.
   subroutine grinterp_tricubic(f,xi,y,yp,ypp)
-    use types
-    use tools_io
-
+    use types, only: field
     type(field), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: xi(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
@@ -1123,8 +1109,9 @@ contains
 
     integer :: idx(3), iidx(3), i, j, k, l
     real*8 :: g(-1:2,-1:2,-1:2), x(3)
-    real*8 :: z0, z1, z2, y0, y1, y2, x0, x1, x2
     real*8 :: a(64), b(64)
+    real*8, dimension(0:3) :: aa, bb, bbx, bbxx, aax, aay, aaxy
+    real*8, dimension(0:3) :: aaxx, aayy
 
     ! initialize
     y = 0d0
@@ -1231,45 +1218,42 @@ contains
     x = (x * f%n - (idx-1))
 
     l = 1 ! packed coefficient vector index
-    z0 = 1d0 ! z^k
-    z1 = 0d0 ! k*z^(k-1)
-    z2 = 0d0 ! k*(k-1)*z^(k-2)
     do k = 0, 3
-       y0 = 1d0 ! y^j
-       y1 = 0d0 ! j*y^(j-1)
-       y2 = 0d0 ! j*(j-1)*y^(j-2)
        do j = 0, 3
-          ! x-value and coefficients -> Horner's rule plus derivatives
-          x0 = a(l) + x(1) * (a(l+1) + x(1) * (a(l+2) + x(1) * a(l+3)))
-          x1 = a(l+1) + x(1) * (2d0 * a(l+2) +  x(1) * 3d0 * a(l+3))
-          x2 = 2d0 * a(l+2) + 6d0 * x(1) * a(l+3)
-    
-          ! value of the function
-          y = y + x0 * y0 * z0
-    
-          ! first derivatives
-          yp(1) = yp(1) + x1 * y0 * z0
-          yp(2) = yp(2) + x0 * y1 * z0
-          yp(3) = yp(3) + x0 * y0 * z1
-    
-          ! second derivatives
-          ypp(1,1) = ypp(1,1) + x2 * y0 * z0
-          ypp(1,2) = ypp(1,2) + x1 * y1 * z0
-          ypp(1,3) = ypp(1,3) + x1 * y0 * z1
-          ypp(2,2) = ypp(2,2) + x0 * y2 * z0
-          ypp(2,3) = ypp(2,3) + x0 * y1 * z1
-          ypp(3,3) = ypp(3,3) + x0 * y0 * z2
-    
+          ! horner's rule on x
+          bb(j) = a(l) + x(1) * (a(l+1) + x(1) * (a(l+2) + x(1) * a(l+3)))
+          bbx(j) = a(l+1) + x(1) * (2d0 * a(l+2) +  x(1) * 3d0 * a(l+3))
+          bbxx(j) = 2d0 * a(l+2) + 6d0 * x(1) * a(l+3)
+
           ! advance
-          y2 = (j+1) * y1
-          y1 = (j+1) * y0
-          y0 = y0 * x(2)
           l = l + 4
        end do
-       z2 = (k+1) * z1
-       z1 = (k+1) * z0
-       z0 = z0 * x(3)
+       ! horner's rule on y
+       aa(k) = bb(0) + x(2) * (bb(1) + x(2) * (bb(2) + x(2) * bb(3)))
+
+       aax(k) = bbx(0) + x(2) * (bbx(1) + x(2) * (bbx(2) + x(2) * bbx(3)))
+       aay(k) = bb(1) + x(2) * (2d0 * bb(2) + x(2) * 3d0 * bb(3))
+       aaxy(k) = bbx(1) + x(2) * (2d0 * bbx(2) + x(2) * 3d0 * bbx(3))
+
+       aaxx(k) = bbxx(0) + x(2) * (bbxx(1) + x(2) * (bbxx(2) + x(2) * bbxx(3)))
+       aayy(k) = 2d0 * bb(2) + 6d0 * x(2) * bb(3)
     end do
+
+    ! field value
+    y = aa(0) + x(3) * (aa(1) + x(3) * (aa(2) + x(3) * aa(3)))
+
+    ! gradient
+    yp(1) = aax(0) + x(3) * (aax(1) + x(3) * (aax(2) + x(3) * aax(3)))
+    yp(2) = aay(0) + x(3) * (aay(1) + x(3) * (aay(2) + x(3) * aay(3)))
+    yp(3) = aa(1) + x(3) * (2d0 * aa(2) + x(3) * 3d0 * aa(3))
+
+    ! hessian
+    ypp(1,1) = aaxx(0) + x(3) * (aaxx(1) + x(3) * (aaxx(2) + x(3) * aaxx(3)))
+    ypp(1,2) = aaxy(0) + x(3) * (aaxy(1) + x(3) * (aaxy(2) + x(3) * aaxy(3)))
+    ypp(1,3) = aax(1) + x(3) * (2d0 * aax(2) + x(3) * 3d0 * aax(3))
+    ypp(2,2) = aayy(0) + x(3) * (aayy(1) + x(3) * (aayy(2) + x(3) * aayy(3)))
+    ypp(2,3) = aay(1) + x(3) * (2d0 * aay(2) + x(3) * 3d0 * aay(3))
+    ypp(3,3) = 2d0 * aa(2) + 6d0 * x(3) * aa(3)
 
     ! transform back to fractional coordinates and fill the Hessian
     do i = 1, 3
@@ -1285,7 +1269,7 @@ contains
   !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in 
   !> orthogonal grids).
   function grid_near(f,x)
-    use types
+    use types, only: field
 
     type(field), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
@@ -1297,7 +1281,7 @@ contains
 
   !> Floor grid point of a point x in crystallographic coords.
   function grid_floor(f,x)
-    use types
+    use types, only: field
 
     type(field), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
@@ -1311,8 +1295,7 @@ contains
   !> modified version of the corresponding subroutine in abinit.
   subroutine init_trispline(f)
     use tools_io
-    use types
-
+    use types, only: field
     type(field), intent(inout) :: f !< Input grid
 
     integer :: istat
@@ -1423,11 +1406,10 @@ contains
   !> Given the electron density in the isrho slot, calculate the laplacian 
   !> in islap using FFT.
   subroutine grid_laplacian(frho,flap)
-    use tools_io
-    use tools_math
-    use param
-    use types
-
+    use tools_io, only: ferror, faterr
+    use tools_math, only: cross, det
+    use param, only: pi
+    use types, only: field
     type(field), intent(in) :: frho
     type(field), intent(out) :: flap
 
@@ -1513,11 +1495,10 @@ contains
 
   !> Calculate the gradient norm of a scalar field using FFT.
   subroutine grid_gradrho(frho,fgrho)
-    use tools_io
-    use tools_math
-    use types
-    use param
-
+    use tools_io, only: faterr, ferror
+    use tools_math, only: det, cross
+    use types, only: field
+    use param, only: pi
     type(field), intent(in) :: frho
     type(field), intent(out) :: fgrho
 
@@ -1595,12 +1576,8 @@ contains
   !> weight, 2: rho_promolecular 3: rho_core. frho serves as a
   !> template; only the frho%n is used except if itype == 1.
   subroutine grid_rhoat(frho,frhoat,itype,fr)
-    use grd_atomic
-    use tools_io
-    use tools_math
-    use types
-    use param
-
+    use grd_atomic, only: grda_promolecular
+    use types, only: field, fragment
     type(field), intent(in) :: frho
     type(field), intent(inout) :: frhoat
     integer, intent(in) :: itype ! 1: hirsh weight, 2: rho_promolecular 3: rho_core
@@ -1654,11 +1631,10 @@ contains
   !> Given the electron density in the isrho slot, calculate the
   !> diagonal component ix (x=1,y=2,z=3) of the Hessian using FFT.
   subroutine grid_hxx(frho,fxx,ix)
-    use tools_io
-    use tools_math
-    use param
-    use types
-
+    use tools_io, only: ferror, faterr
+    use tools_math, only: det, cross
+    use param, only: pi
+    use types, only: field
     type(field), intent(in) :: frho
     type(field), intent(out) :: fxx
     integer, intent(in) :: ix

@@ -24,6 +24,7 @@
 
 ! abinit tools
 module abinit_private
+  implicit none
 
   public :: hdr_type, hdr_io ! abinit
 
@@ -841,8 +842,7 @@ contains
 
   !> The wrtout subroutine from abinit.
   subroutine wrtout(message)
-    use tools_io
-
+    use tools_io, only: uout
     !Arguments ------------------------------------
     !scalars
     character(len=500),intent(inout) :: message

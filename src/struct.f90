@@ -20,7 +20,6 @@
 
 ! Geometry of the crystal: variables and tools.
 module struct
-  use types
   implicit none
 
   private
@@ -41,11 +40,17 @@ contains
   !xx! top-level routines
   !> Parse the input of the crystal keyword
   subroutine struct_crystal_input(c,line,mol,allownofile,verbose) 
-    use struct_readers
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use struct_readers, only: struct_read_cif, struct_read_res, struct_read_cube,&
+       struct_read_wien, struct_read_wien, struct_read_potcar, struct_read_vasp,&
+       struct_read_abinit, struct_read_elk, struct_read_qeout, struct_read_qein,&
+       struct_read_library, struct_read_mol, struct_read_siesta, struct_read_dftbp,&
+       parse_crystal_env, parse_molecule_env
+    use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
+       iunitname0, iunitname, dunit0, dunit, rborder_def, eval_next
+    use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
+       string, uin
+    use param, only: dirsep, maxzat0
 
     character*(*), intent(in) :: line
     logical, intent(in) :: mol
@@ -297,18 +302,17 @@ contains
        return
     end if
 
-    call c%struct_fill(.true.,.true.,doguess,.false.,.false.,.true.,.false.)
+    call c%struct_fill(.true.,.true.,doguess,-1,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
   end subroutine struct_crystal_input
 
   ! use the P1 space group
   subroutine struct_clearsym()
-    use struct_basic
-    use types
-    use tools_io
-    use param
-
+    use struct_basic, only: cr
+    use types, only: atom, realloc
+    use tools_io, only: uout
+    use param, only: eyet
     type(atom) :: aux(cr%nneq)
     integer :: i
 
@@ -333,15 +337,15 @@ contains
 
     write (uout,'("* CLEARSYM: clear all symmetry operations and rebuild the atom list.")')
     write (uout,'("            The new crystal description follows"/)')
-    call cr%struct_fill(.true.,.true.,0,.false.,.false.,.true.,.false.)
+    call cr%struct_fill(.true.,.true.,0,-1,.false.,.true.,.false.)
     call cr%struct_report()
 
   end subroutine struct_clearsym
 
   subroutine struct_charges(line,oksyn)
-    use struct_basic
-    use global
-    use tools_io
+    use struct_basic, only: cr
+    use global, only: eval_next
+    use tools_io, only: lgetword, equal, ferror, faterr, getword, zatguess
 
     character*(*), intent(in) :: line
     logical, intent(out) :: oksyn
@@ -409,20 +413,23 @@ contains
 
   ! Write the crystal structure to a file
   subroutine struct_write(c,line)
-    use struct_writers
-    use struct_basic
-    use global
-    use tools_io
-    use param
-
+    use struct_writers, only: struct_write_mol, struct_write_3dmodel, struct_write_gaussian,&
+       struct_write_espresso, struct_write_vasp, struct_write_abinit, struct_write_elk,&
+       struct_write_tessel, struct_write_critic, struct_write_cif, struct_write_escher,&
+       struct_write_gulp, struct_write_lammps, struct_write_siesta_fdf, struct_write_siesta_in,&
+       struct_write_dftbp_hsd, struct_write_dftbp_gen
+    use struct_basic, only: crystal
+    use global, only: eval_next, dunit
+    use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
+       string
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, wext, file, wroot
-    integer :: lp, ix(3), lp2, iaux
+    integer :: lp, ix(3), lp2, iaux, nmer
     logical :: doborder, molmotif, dodreiding, docell, domolcell, ok
-    logical :: doburst, dopairs
-    real*8 :: rsph, xsph(3), rcub, xcub(3)
+    logical :: onemotif, environ, lnmer
+    real*8 :: rsph, xsph(3), rcub, xcub(3), renv
 
     lp = 1
     file = getword(line,lp)
@@ -433,11 +440,13 @@ contains
         equal(wext,'obj').or.equal(wext,'ply').or.equal(wext,'off')) then
        ! xyz, gjf, cml, obj, ply, off
        doborder = .false.
+       lnmer = .false.
+       onemotif = .false.
        molmotif = .false.
+       environ = .false.
        docell = .false.
        domolcell = .false.
-       doburst = .false.
-       dopairs = .false.
+       nmer = 1
        ix = 1
        rsph = -1d0
        xsph = 0d0
@@ -448,12 +457,21 @@ contains
           lp2 = 1
           if (equal(word,'border')) then
              doborder = .true.
+          elseif (equal(word,'onemotif')) then
+             onemotif = .true.
           elseif (equal(word,'molmotif')) then
              molmotif = .true.
-          elseif (equal(word,'burst')) then
-             doburst = .true.
-          elseif (equal(word,'pairs')) then
-             dopairs = .true.
+          elseif (equal(word,'environ')) then
+             environ = .true.
+             ok = eval_next(renv,line,lp)
+             if (.not.ok) &
+                call ferror('struct_write','incorrect ENVIRON',faterr,line,syntax=.true.)
+             renv = renv / dunit
+          elseif (equal(word,'nmer')) then
+             lnmer = .true.
+             ok = eval_next(nmer,line,lp)
+             if (.not.ok) &
+                call ferror('struct_write','incorrect NMER',faterr,line,syntax=.true.)
           elseif (equal(word,'cell')) then
              docell = .true.
           elseif (equal(word,'molcell')) then
@@ -512,7 +530,7 @@ contains
           end if
        end do
 
-       if (.not.doburst.and..not.dopairs) then
+       if (.not.lnmer) then
           write (uout,'("* WRITE ",A," file: ",A)') trim(wext), string(file)
        else
           write (uout,'("* WRITE ",A," files: ",A,"_*.",A)') trim(wext), &
@@ -520,10 +538,10 @@ contains
        end if
 
        if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
-          call struct_write_mol(c,file,wext,ix,doborder,molmotif,doburst,&
-             dopairs,rsph,xsph,rcub,xcub)
+          call struct_write_mol(c,file,wext,ix,doborder,onemotif,molmotif,&
+             environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub)
        else
-          call struct_write_3dmodel(c,file,wext,ix,doborder,molmotif,doburst,&
+          call struct_write_3dmodel(c,file,wext,ix,doborder,onemotif,molmotif,&
              docell,domolcell,rsph,xsph,rcub,xcub)
        end if
     elseif (equal(wext,'gau')) then
@@ -649,11 +667,11 @@ contains
   !> Calculate the powder diffraction pattern for the current
   !structure.
   subroutine struct_powder(line,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot, eval_next
+    use tools_io, only: ferror, faterr, uout, lgetword, equal, getword, &
+       fopen_write, string, ioj_center, string, fclose
+    use param, only: pi
     character*(*), intent(in) :: line
     type(crystal), intent(in) :: c
 
@@ -785,11 +803,10 @@ contains
   !> Calculate the radial distribution function for the current
   !> structure.
   subroutine struct_rdf(line,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot, eval_next
+    use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
+       ioj_center, getword, string, fclose
     character*(*), intent(in) :: line
     type(crystal), intent(in) :: c
 
@@ -881,10 +898,10 @@ contains
   !> similarity based on cross-correlation functions proposed in
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   subroutine struct_compare(line)
-    use global
-    use tools_math
-    use tools_io
-    use struct_basic
+    use struct_basic, only: crystal, cr
+    use global, only: doguess, eval_next
+    use tools_math, only: crosscorr_triangle
+    use tools_io, only: getword, equal, faterr, ferror, uout, string
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
@@ -1043,14 +1060,13 @@ contains
   !> Calculate the atomic environment of a point or all the 
   !> non-equivalent atoms in the unit cell.
   subroutine struct_environ(line)
-    use struct_basic
-    use global
-    use tools_io
-    use tools
-    use param
+    use struct_basic, only: cr
+    use global, only: eval_next, dunit, iunit, iunitname0
+    use tools_io, only: string, lgetword, equal, ferror, faterr, string, uout,&
+       ioj_right, ioj_center, zatguess, isinteger
     character*(*), intent(in) :: line
 
-    integer :: lp
+    integer :: lp, lp2
     integer :: nn, i, j, k, l
     real*8 :: x0(3), xout(3), x0in(3)
     logical :: doatoms, ok
@@ -1058,9 +1074,18 @@ contains
     integer, allocatable :: nneig(:), wat(:)
     real*8, allocatable :: dist(:), xenv(:,:,:)
 
+    integer :: iat, iby, iat_mode, iby_mode
+    integer, parameter :: inone = 0
+    integer, parameter :: iznuc = 1
+    integer, parameter :: iid = 2
+
     nn = 10
     x0 = 0d0
     doatoms = .true.
+    iat = 0
+    iat_mode = inone
+    iby = 0
+    iby_mode = inone
 
     ! parse input
     lp = 1
@@ -1084,6 +1109,32 @@ contains
           x0in = x0
           if (cr%ismolecule) &
              x0 = cr%c2x(x0 / dunit - cr%molx0)
+       elseif (equal(word,"at")) then
+          lp2 = lp
+          word = lgetword(line,lp)
+          iat = zatguess(word)
+          if (iat < 0) then
+             lp = lp2
+             ok = isinteger(iat,line,lp)
+             if (.not.ok) &
+                call ferror('struct_environ','Syntax error in ENVIRON/AT',faterr,line,syntax=.true.)
+             iat_mode = iid
+          else
+             iat_mode = iznuc
+          end if
+       elseif (equal(word,"by")) then
+          lp2 = lp
+          word = lgetword(line,lp)
+          iby = zatguess(word)
+          if (iby < 0) then
+             lp = lp2
+             ok = isinteger(iby,line,lp)
+             if (.not.ok) &
+                call ferror('struct_environ','Syntax error in ENVIRON/BY',faterr,line,syntax=.true.)
+             iby_mode = iid
+          else
+             iby_mode = iznuc
+          end if
        elseif (len_trim(word) > 0) then
           call ferror('struct_environ','Unknown extra keyword',faterr,line,syntax=.true.)
           return
@@ -1104,8 +1155,18 @@ contains
              iunitname0(iunit), iunitname0(iunit)
        end if
        do i = 1, cr%nneq
+          if (iat_mode == iid) then
+             if (iat /= i) cycle
+          elseif (iat_mode == iznuc) then
+             if (iat /= cr%at(i)%z) cycle
+          end if
           call cr%pointshell(cr%at(i)%x,nn,nneig,wat,dist,xenv)
           do j = 1, nn
+             if (iby_mode == iid) then
+                if (iby /= wat(j)) cycle
+             elseif (iby_mode == iznuc) then
+                if (iby /= cr%at(wat(j))%z) cycle
+             end if
              xout = xenv(:,1,j)
              if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
              if (j == 1) then
@@ -1135,6 +1196,11 @@ contains
              iunitname0(iunit), iunitname0(iunit)
        end if
        do j = 1, nn
+          if (iby_mode == iid) then
+             if (iby /= wat(j)) cycle
+          elseif (iby_mode == iznuc) then
+             if (iby /= cr%at(wat(j))%z) cycle
+          end if
           xout = xenv(:,1,j)
           if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
           if (wat(j) /= 0) then
@@ -1152,6 +1218,11 @@ contains
           iunitname0(iunit)
        do j = 1, nn
           if (wat(j) == 0) cycle
+          if (iby_mode == iid) then
+             if (iby /= wat(j)) cycle
+          elseif (iby_mode == iznuc) then
+             if (iby /= cr%at(wat(j))%z) cycle
+          end if
           do k = 1, nneig(j)
              xout = xenv(:,k,j)
              if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
@@ -1170,10 +1241,10 @@ contains
 
   !> Calculate the packing ratio of the crystal.
   subroutine struct_packing(line)
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: cr
+    use global, only: eval_next
+    use tools_io, only: ferror, faterr, uout, lgetword, equal, string
+    use param, only: atmvdw
 
     character*(*), intent(in) :: line
 
@@ -1268,10 +1339,10 @@ contains
 
   !> Build a new crystal from the current crystal by cell transformation
   subroutine struct_newcell(line)
-    use struct_basic
-    use global
-    use tools_math
-    use tools_io
+    use struct_basic, only: cr
+    use global, only: eval_next
+    use tools_math, only: matinv
+    use tools_io, only: ferror, faterr, lgetword, equal
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
@@ -1351,9 +1422,9 @@ contains
 
   !> Try to determine the molecular cell from the crystal geometry
   subroutine struct_molcell(line)
-    use struct_basic
-    use global
-    use tools_io
+    use struct_basic, only: cr
+    use global, only: rborder_def, eval_next, dunit
+    use tools_io, only: ferror, faterr, uout, string
 
     character*(*), intent(in) :: line
     integer :: i, j, lp

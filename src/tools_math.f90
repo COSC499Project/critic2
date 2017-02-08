@@ -28,10 +28,13 @@ module tools_math
   public :: eig, eigns, rsindex
   public :: gauleg, select_lebedev
   public :: gcd, ep
-  public :: cross, mixed, norm
+  public :: cross, mixed, norm, mnorm2
   public :: det, detsym, matinv
   public :: erf, erfc
   public :: der1i, der2ii, der2ij
+  public :: plane_scale_extend
+  public :: comb
+  public :: nchoosek
   public :: good_lebedev
   public :: genrlm_real
   public :: genylm
@@ -49,7 +52,7 @@ contains
   !> proposed here:
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   function crosscorr_triangle(h,f,g,l) result(dfg)
-    use tools_io
+    use tools_io, only: ferror, faterr
     real*8, intent(in) :: h, l
     real*8, intent(in) :: f(:), g(:)
     real*8 :: dfg
@@ -88,7 +91,7 @@ contains
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor.
   function crys2car_from_cellpar(aal,bbl) result(mat)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     real*8, intent(in) :: aal(3),bbl(3)
     real*8 :: mat(3,3)
@@ -144,6 +147,7 @@ contains
 
   end function car2crys_from_cellpar
 
+  !> Factorial of an integer (returns real)
   function factorial(n) result(f)
     use param, only: mfact, fact
     use tools_io, only: ferror, faterr
@@ -180,7 +184,7 @@ contains
   !> S21 = sqrt(3)*y*z ; S22 = sqrt(3)*x*y
   !>
   subroutine genrlm_real(lmax,r,tp,rrlm)
-    use param
+    use param, only: pi, img
 
     integer, intent(in) :: lmax !< maximum angular momentum
     real*8, intent(in) :: r !< distance to origin
@@ -321,7 +325,7 @@ contains
   !> derivative. On output, grad and hess are the gradient and the
   !> hessian of f(r)*Ylm.
   subroutine ylmderiv(yl,r,l,m,c,cp,cpp,grad,hess)
-    use param
+    use param, only: half
 
     complex*16, dimension(:), intent(in) :: yl
     real*8, intent(in) :: r
@@ -483,7 +487,7 @@ contains
 
   !> Compute greatest common divisor of array of integers n
   !> num is the number of elements of n to be included.
-  function gcd (n,num)
+  function gcd(n,num)
     use tools_io, only: ferror, faterr
     
     integer, dimension(:) :: n !< Input array of numbers
@@ -559,13 +563,16 @@ contains
     if (ifail /= 0) call ferror('eigns','Error in diagonalization',faterr)
   end subroutine eigns
 
-  !> Given a point x0 (cartesian), calculate the rank and
-  !> signature of the hessian of f. Adapted to the determination of CP type. 
-  subroutine rsindex(mat,ehess,r,s)
+  !> Given a point x0 (cartesian), calculate the rank and signature of
+  !> the hessian of f. Adapted to the determination of CP type.  If
+  !> the Hessian elements are less than eps (in absolute value), it is
+  !> considered zero.
+  subroutine rsindex(mat,ehess,r,s,eps)
 
     real*8, intent(inout)  :: mat(3,3)
     real*8, intent(out) :: ehess(3)
     integer, intent(out) :: r, s
+    real*8, intent(in) :: eps
 
     integer :: nhplus, nhminus, i
 
@@ -574,8 +581,8 @@ contains
     nhplus = 0
     nhminus = 0
     do i = 1, 3
-       if (ehess(i) > 0d0) nhplus = nhplus+1
-       if (ehess(i) < 0d0) nhminus = nhminus+1
+       if (ehess(i) > eps) nhplus = nhplus+1
+       if (ehess(i) < -eps) nhminus = nhminus+1
     end do
     r = nhplus+nhminus
     s = nhplus-nhminus
@@ -609,6 +616,7 @@ contains
 
   end function mixed
 
+  !> Norm of a 3d vector
   function norm(v)
 
     real*8, intent(in) :: v(3)
@@ -617,6 +625,20 @@ contains
     norm = sqrt(v(1)*v(1)+v(2)*v(2)+v(3)*v(3))
     
   end function norm
+
+  !> Norm-2 of a 3x3 matrix
+  function mnorm2(a)
+
+    real*8, intent(in) :: a(3,3)
+    real*8 :: mnorm2
+    
+    real*8 :: b(3,3), eval(3)
+
+    b = matmul(transpose(a),a)
+    call eig(b,eval)
+    mnorm2 = sqrt(maxval(eval))
+    
+  end function mnorm2
 
   !> Determinant of a real 3x3 symmetric matrix
   function detsym(m)
@@ -764,9 +786,9 @@ contains
   end function erfc
 
   !> Function derivative using finite differences and Richardson's
-  !> extrapolation formula.
+  !> extrapolation formula. This routine is thread-safe.
   function der1i (dir, x, h, errcnv, pool, fld, grd0, periodic)
-    use types
+    use types, only: field
 
     real*8 :: der1i
     real*8, intent(in) :: dir(3)
@@ -843,8 +865,10 @@ contains
 
   end function der1i
 
+  !> Function second derivative using finite differences and
+  !> Richardson's extrapolation formula. This routine is thread-safe.
   function der2ii (dir, x, h, errcnv, pool, fld, grd0, periodic)
-    use types
+    use types, only: field
     real*8 :: der2ii
     real*8, intent(in) :: dir(3)
     real*8, intent(in) :: x(3), h, errcnv
@@ -928,8 +952,10 @@ contains
     return
   end function der2ii
 
+  !> Function mixed second derivative using finite differences and
+  !> Richardson's extrapolation formula. This routine is thread-safe.
   function der2ij (dir1, dir2, x, h1, h2, errcnv, fld, grd0, periodic)
-    use types
+    use types, only: field
     real*8 :: der2ij
     real*8, intent(in) :: dir1(3), dir2(3)
     real*8, intent(in) :: x(3), h1, h2, errcnv
@@ -989,6 +1015,114 @@ contains
     enddo
   end function der2ij
   
+  !> Scale or extend the plane defined by points x0, x1, x2 (Cartesian)
+  !> with scale factors sxi, syi (default: 1) and extend factors
+  !> zx0i, zx1i in the x direction (default: 0) and zy0i, zy1i in the
+  !> y direction (default: 0).
+  subroutine plane_scale_extend(x0,x1,x2,sxi,syi,zx0i,zx1i,zy0i,zy1i)
+    use tools_io, only: ferror, faterr
+    use param, only: VSMALL
+    real*8, intent(inout) :: x0(3), x1(3), x2(3)
+    real*8, intent(in), optional :: sxi, syi, zx0i, zx1i, zy0i, zy1i
+    
+    real*8 :: sx, sy, zx0, zx1, zy0, zy1
+    real*8 :: ax(3), ay(3), ax0(3), ax1(3), ay0(3), ay1(3), dx, dy
+
+    sx = 1d0
+    sy = 1d0
+    zx0 = 0d0
+    zx1 = 0d0
+    zy0 = 0d0
+    zy1 = 0d0
+    if (present(sxi)) sx = sxi
+    if (present(syi)) sy = syi
+    if (present(zx0i)) zx0 = zx0i
+    if (present(zx1i)) zx1 = zx1i
+    if (present(zy0i)) zy0 = zy0i
+    if (present(zy1i)) zy1 = zy1i
+    
+    ax = (x1-x0)
+    ay = (x2-x0)
+    dx = norm(ax)
+    dy = norm(ay)
+    if (dx < VSMALL .or. dy < VSMALL) &
+       call ferror('plane_scale_extend','zero-area plane',faterr)
+
+    ax0 = -(ax/dx) * (0.5d0 * (sx-1d0) * dx + zx0)
+    ax1 =  (ax/dx) * (0.5d0 * (sx-1d0) * dx + zx1)
+    ay0 = -(ay/dy) * (0.5d0 * (sy-1d0) * dy + zy0)
+    ay1 =  (ay/dy) * (0.5d0 * (sy-1d0) * dy + zy1)
+
+    x0 = x0 + ax0 + ay0
+    x1 = x1 + ax1 + ay0
+    x2 = x2 + ax0 + ay1
+
+  end subroutine plane_scale_extend
+
+  !> Generate the combination of n objects taken p at a time that
+  !> corresponds to a given index in the lexicographic order. Buckles
+  !> and Lybanon's algorithm (toms/515, B.P. Buckles and M.  Lybanon,
+  !> ACM TOMS 3 (1977) 180-182).
+  subroutine comb(n, p, l, c)                                       
+    ! THIS SUBROUTINE FINDS THE COMBINATION SET OF N THINGS
+    ! TAKEN P AT A TIME FOR A GIVEN LEXICOGRAPHICAL INDEX.
+    ! N - NUMBER OF THINGS IN THE SET
+    ! P - NUMBER OF THINGS IN EACH COMBINATION
+    ! L - LEXICOGRAPHICAL INDEX OF COMBINATION SOUGHT
+    ! C - OUTPUT ARRAY CONTAINING THE COMBINATION SET
+    ! THE FOLLOWING RELATIONSHIPS MUST EXIST AMONG THE INPUT
+    ! VARIABLES.  L MUST BE GREATER THAN OR EQUAL TO 1 AND LESS
+    ! THAN OR EQUAL TO THE MAXIMUM LEXICOGRAPHICAL INDEX.
+    ! P MUST BE LESS THAN OR EQUAL TO N AND GREATER THAN ZERO.
+    INTEGER N, P, L, C(P), K, R, P1, I
+
+    ! SPECIAL CASE CODE IF P = 1
+    if (p <= 1) then
+       C(1) = L
+       return
+    endif
+
+    ! INITIALIZE LOWER BOUND INDEX AT ZERO
+    K = 0
+    ! LOOP TO SELECT ELEMENTS IN ASCENDING ORDER
+    P1 = P - 1
+    C(1) = 0
+    do I=1,P1
+       ! SET LOWER BOUND ELEMENT NUMBER FOR NEXT ELEMENT VALUE
+       if (I.NE.1) C(I) = C(I-1)
+       ! LOOP TO CHECK VALIDITY OF EACH ELEMENT VALUE
+       do while (k < l)
+          C(I) = C(I) + 1
+          R = nchoosek(N-C(I),P-I)
+          K = K + R
+       end do
+       K = K - R
+    end do
+    C(P) = C(P1) + L - K
+
+  end subroutine comb
+
+  !> Returns m choose n. Same source as comb.
+  integer function nchoosek(M, N)
+    ! ACM ALGORITHM 160 TRANSLATED TO FORTRAN.  CALCULATES THE
+    ! NUMBER OF COMBINATIONS OF M THINGS TAKEN N AT A TIME.
+    INTEGER M, N, P, I, N1, R
+    N1 = N
+    P = M - N1
+    IF (N1 < P) then
+       P = N1
+       N1 = M - P
+    end IF
+    R = N1 + 1
+    IF (P.EQ.0) R = 1
+    IF (P >= 2) then
+       do I=2,P
+          R = (R*(N1+I))/I
+       end DO
+    end IF
+    nchoosek = R
+   end function nchoosek
+
   !> Find the Gauss-Legendre nodes and weights for an interval.
   subroutine gauleg (x1,x2,x,w,n)
     use param, only: pi
