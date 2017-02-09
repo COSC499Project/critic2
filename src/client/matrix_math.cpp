@@ -40,6 +40,146 @@ struct OrthoProjInfo
   float zFar;
 };
 
+struct Quaternion
+{
+  float x, y, z, w;
+  Quaternion(float _x, float _y, float _z, float _q);
+  void Normalize();
+  Quaternion Conjugate();
+  void ToDegrees(float * result);
+};
+
+Quaternion::Quaternion(float _x, float _y, float _z, float _w){
+  x = _x; 
+  y = _y;
+  z = _z;
+  w = _w;
+}
+
+void Quaternion::Normalize(){
+  float Length = sqrtf(x*x + y*y + z*z + w*w);
+  x /= Length;
+  y /= Length;
+  z /= Length;
+  w /= Length;
+}
+
+Quaternion Quaternion::Conjugate(){
+  Quaternion ret(-x, -y, -z, w);
+  return ret;
+}
+
+Quaternion operator*(const Quaternion& l, const Quaternion& r){
+  const float w = (l.w * r.w) - (l.x * r.x) - (l.y * r.y) - (l.z * r.z);
+  const float x = (l.x * r.w) + (l.w * r.x) + (l.y * r.z) - (l.z * r.y);
+  const float y = (l.y * r.w) + (l.w * r.y) + (l.z * r.x) - (l.x * r.z);
+  const float z = (l.z * r.w) + (l.w * r.z) + (l.x * r.y) - (l.y * r.x);
+  Quaternion ret(x, y, z, w);
+  return ret;
+}
+
+Quaternion operator*(const Quaternion& q, const float * v){
+  const float w = - (q.x * v[0]) - (q.y * v[1]) - (q.z * v[2]);
+  const float x =   (q.w * v[0]) - (q.y * v[2]) - (q.z * v[1]);
+  const float y =   (q.w * v[1]) - (q.z * v[0]) - (q.x * v[2]);
+  const float z =   (q.w * v[2]) - (q.x * v[1]) - (q.y * v[0]);
+  Quaternion ret(x, y, z, w);
+  return ret;
+}
+
+void Quaternion::ToDegrees(float * f){
+  f[0] = atan2(x*z + y*w, x*w - y*z);
+  f[1] = acos(-x*x - y*y -z*z -w*w);
+  f[2] = atan2(x*z - y*w, x*w + y*z);
+}
+
+struct Vector3f
+{
+  float x;
+  float y;
+  float z;
+  Vector3f(){}
+  Vector3f(float _x, float _y, float _z){
+    x = _x;
+    y = _y;
+    z = _y;
+  }
+
+  Vector3f(const float * pFloat){
+    x = pFloat[0];
+    y = pFloat[0];
+    z = pFloat[0];
+  }
+
+  Vector3f (float f){
+    x = y = z= f;
+  }
+
+  Vector3f& operator += (const Vector3f& r){
+    x += r.x;
+    y += r.y;
+    z += r.z;
+    return *this;
+  }
+
+  Vector3f& operator -= (const Vector3f& r){
+    x -= r.x;
+    y -= r.y;
+    z -= r.z;
+    return *this;
+  }
+
+  Vector3f& operator *= (const Vector3f& r){
+    x *= r.x;
+    y *= r.y;
+    z *= r.z;
+    return *this;
+  }
+
+  operator const float*() const{
+    return &(x);
+  }
+
+  Vector3f Cross(const Vector3f &v) const;
+  Vector3f& Normalize();
+  void Rotate(float Angle, const Vector3f& Axis);
+  void Print() const {
+    printf("(%.02f, %.02f, %.02f)\n", x, y ,z);
+  }
+};
+
+Vector3f Vector3f::Cross(const Vector3f& v) const {
+  const float _x = y * v.z - z * v.y;
+  const float _y = z * v.x - x * v.z;
+  const float _z = x * v.y - y * v.x;
+  return Vector3f(_x, _y, _z);
+}
+
+Vector3f& Vector3f::Normalize(){
+  const float Length = sqrtf(x*x + y*y + z*z);
+  x /= Length;
+  y /= Length;
+  z /= Length;
+  return *this;
+}
+
+void Vector3f::Rotate(float Angle, const Vector3f& Axe){
+  const float SinHalfAngle = sinf(ToRadian(Angle/2));
+  const float CosHalfAngle = cosf(ToRadian(Angle/2));
+
+  const float Rx = Axe.x * SinHalfAngle;
+  const float Ry = Axe.y * SinHalfAngle;
+  const float Rz = Axe.z * SinHalfAngle;
+  const float Rw = CosHalfAngle;
+  Quaternion RotationQ(Rx, Ry, Rz, Rw);
+  Quaternion ConjugateQ = RotationQ.Conjugate();
+  Quaternion W = RotationQ * (*this) * ConjugateQ;
+
+  x = W.x;
+  y = W.y;
+  z = W.z;
+}
+
 class Matrix4f
 {
 public:
@@ -70,6 +210,7 @@ public:
   
   void InitScaleTransform(float sx, float sy, float sz);
   void InitRotateTransform(float rx, float ry, float rz);
+  void InitRotateTransform(const Quaternion& quat);
   void InitTranslateTransform(float x, float y, float z);
   void InitCameraTransform(const float Target[3], const float Up[3]);
   void InitPersProjTransform(const PersProjInfo& p);
@@ -108,6 +249,33 @@ void Matrix4f::InitRotateTransform(float RotateX, float RotateY, float RotateZ)
     rz.m[3][0] = 0.0f   ; rz.m[3][1] = 0.0f    ; rz.m[3][2] = 0.0f; rz.m[3][3] = 1.0f;
 
     *this = rz * ry * rx;
+}
+
+void Matrix4f::InitRotateTransform(const Quaternion& quat)
+{
+  float yy2 = 2.0f * quat.y * quat.y;
+  float xy2 = 2.0f * quat.x * quat.y;
+  float xz2 = 2.0f * quat.x * quat.z;
+  float yz2 = 2.0f * quat.y * quat.z;
+  float zz2 = 2.0f * quat.z * quat.z;
+  float wz2 = 2.0f * quat.w * quat.z;
+  float wy2 = 2.0f * quat.w * quat.y;
+  float wx2 = 2.0f * quat.w * quat.x;
+  float xx2 = 2.0f * quat.x * quat.x;
+  m[0][0] = -yy2 - zz2 + 1.0f;
+  m[0][1] = xy2 + wz2;
+  m[0][2] = xz2 - wy2;
+  m[0][3] = 0;
+  m[1][0] = xy2 - wz2;
+  m[1][1] = -xx2 - zz2 + 1.0f;
+  m[1][2] = yz2 + wx2;
+  m[1][3] = 0;
+  m[2][0] = xz2 + wy2;
+  m[2][1] = yz2 - wx2;
+  m[2][2] = -xx2 - yy2 + 1.0f;
+  m[2][3] = 0.0f;
+  m[3][0] = m[3][1] = m[3][2] = 0;
+  m[3][3] = 1.0f;
 }
 
 void Matrix4f::InitTranslateTransform(float x, float y, float z)

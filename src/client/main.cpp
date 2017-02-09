@@ -320,9 +320,13 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   } else if (q[1] < 0 && q[0] > 0) {
     Zang = 360 - ToDegree(asin(y/h));
   }
+
+  const float Rx = sinf(ToRadian(Xang/2));
+  const float Ry = sinf(ToRadian(Yang/2));
+  const float Rz = sinf(ToRadian(Zang/2));
  
 
-  printf("%.02f, %.02f, %.02f\n", -Xang, Yang, Zang);
+ // printf("%.02f, %.02f, %.02f\n", -Xang, Yang, Zang);
 
   p->Scale(0.1f, 0.1f, d);
   p->Translate(mid[0], mid[1], mid[2]); 
