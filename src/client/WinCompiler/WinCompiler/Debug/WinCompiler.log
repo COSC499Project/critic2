@@ -12,11 +12,11 @@ c:\499drive\critic2\src\client\main.cpp(183): warning C4100: 'window': unreferen
 c:\499drive\critic2\src\client\main.cpp(255): warning C4100: 'vertexLocation': unreferenced formal parameter
 c:\499drive\critic2\src\client\main.cpp(291): warning C4018: '<': signed/unsigned mismatch
 c:\499drive\critic2\src\client\main.cpp(303): warning C4018: '<': signed/unsigned mismatch
+c:\499drive\critic2\src\client\main.cpp(463): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
 c:\499drive\critic2\src\client\main.cpp(464): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(465): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(568): warning C4305: 'argument': truncation from 'double' to 'float'
-c:\499drive\critic2\src\client\main.cpp(579): warning C4305: 'argument': truncation from 'double' to 'float'
-c:\499drive\critic2\src\client\main.cpp(461): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
+c:\499drive\critic2\src\client\main.cpp(567): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\499drive\critic2\src\client\main.cpp(578): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\499drive\critic2\src\client\main.cpp(460): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
 c:\499drive\critic2\src\client\main.cpp(65): warning C4505: 'LightingShader': unreferenced local function has been removed
   WinCompiler.vcxproj -> C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.exe
   WinCompiler.vcxproj -> C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.pdb (Partial PDB)

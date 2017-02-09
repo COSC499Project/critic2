@@ -243,11 +243,11 @@ void loadAtoms() {
 ///and desired color Intesity (brightness)
 const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
 	if (atomicNumber == 1) {
-		return new GLfloat[4]{ 0.f, 0.f, 0.f, colorIntesity};
+		return new GLfloat[4]{ 1.f, 1.f, 1.f, colorIntesity}; //white 
 	}else if(atomicNumber == 8) {
-		return new GLfloat[4]{ 1.0f,0.0f, 0.0f, colorIntesity };
+		return new GLfloat[4]{ 1.0f,0.0f, 0.0f, colorIntesity }; //red
 	} else  {
-		return new GLfloat[4]{ 0.8f,0.8f, 0.8f, colorIntesity };
+		return new GLfloat[4]{ 0.8f,0.8f, 0.8f, colorIntesity }; //brown
 	}
 }
 
@@ -259,7 +259,7 @@ float* getScreenPositionOfVertex(float *vertexLocation) {
 
 GLuint gWorldLocation; //made global to make Drawing via methods easer
 GLuint mColorLocation;
-void drawAtomInstance(int identifyer, float posVector[3],const GLfloat color[4], Pipeline p) {
+void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], Pipeline p) {
 	float inc = 0.0f;
 	if (loadedAtoms[identifyer].selected) { //selection is color based
 		inc = 0.2f;
@@ -377,25 +377,24 @@ int main(int, char**)
 	loadedAtoms = new atom[loadedAtomsAmount];
 	loadedAtoms[0].atomicNumber = 1;
 	loadedAtoms[0].indentifyingNumber = 1;
-	float * pos = new float[3];
-	pos[0] = 0.f;
-	pos[1] = -1.f;
-	pos[2] = 0.f;
-	loadedAtoms[0].atomPosition = pos;
+	loadedAtoms[0].atomPosition[0] = 0.f;
+	loadedAtoms[0].atomPosition[1] = -1.f;
+	loadedAtoms[0].atomPosition[2] = 0.f;
+
 
 	loadedAtoms[1].atomicNumber = 1;
 	loadedAtoms[1].indentifyingNumber = 2;
-	pos[0] = -1.29f;
-	pos[1] = 1.16f;
-	pos[2] = 0.f;
-	loadedAtoms[1].atomPosition = pos;
+	loadedAtoms[1].atomPosition[0] = -1.29f;
+	loadedAtoms[1].atomPosition[1] = 1.16f;
+	loadedAtoms[1].atomPosition[2] = 0.f;
+
 
 	loadedAtoms[2].atomicNumber = 8;
 	loadedAtoms[2].indentifyingNumber = 3;
-	pos[0] = 0.f;
-	pos[1] = .715f;
-	pos[2] = 0.f;
-	loadedAtoms[2].atomPosition = pos;
+	loadedAtoms[2].atomPosition[0] = 0.f;
+	loadedAtoms[2].atomPosition[1] = .715f;
+	loadedAtoms[2].atomPosition[2] = 0.f;
+
 #pragma endregion
 
     // Load sphere mesh
