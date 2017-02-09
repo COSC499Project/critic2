@@ -225,16 +225,18 @@ void loadAtomObject() {
 }
 
 struct atom{
+	string name = "";
 	bool selected = false;
 	int atomicNumber;
 	int indentifyingNumber;
 	float* atomPosition = new float[3];
 };
 
-int loadedAtomsAmount;
+int loadedAtomsAmount = 0;
 atom *loadedAtoms;
 
 //TODO call this to load all atoms from the critic2 interface
+//the atoms should be loaded into the above array
 void loadAtoms() {
 	
 }
@@ -243,9 +245,9 @@ void loadAtoms() {
 ///and desired color Intesity (brightness)
 const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
 	if (atomicNumber == 1) {
-		return new GLfloat[4]{ 1.f, 1.f, 1.f, colorIntesity}; //white 
+		return new GLfloat[4]{ .8f, .8f, .8f, colorIntesity}; //white 
 	}else if(atomicNumber == 8) {
-		return new GLfloat[4]{ 1.0f,0.0f, 0.0f, colorIntesity }; //red
+		return new GLfloat[4]{ .8f,0.0f, 0.0f, colorIntesity }; //red
 	} else  {
 		return new GLfloat[4]{ 0.8f,0.8f, 0.8f, colorIntesity }; //brown
 	}
@@ -257,14 +259,33 @@ float* getScreenPositionOfVertex(float *vertexLocation) {
 	return NULL;
 }
 
+/*highlighting types
+dim color
+float inc = 1.f;
+if (loadedAtoms[identifyer].selected) { //selection is color based
+inc = .5f;
+}
+const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
+
+increase color
+float inc = 1.f;
+if (loadedAtoms[identifyer].selected) { //selection is color based
+inc = 1.5f;
+}
+const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
+
+*/
+
 GLuint gWorldLocation; //made global to make Drawing via methods easer
 GLuint mColorLocation;
 void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], Pipeline p) {
+	//selection start
 	float inc = 1.f;
 	if (loadedAtoms[identifyer].selected) { //selection is color based
-		inc = .5f;
+		inc = 1.5f;
 	}
 	const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
+	//selection end
 
 	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
 	if (scaleAmount < 4.0f) {
@@ -284,6 +305,10 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	glUniform4fv(mColorLocation, 1, (const GLfloat *)&n_Color);
 	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
 	
+	//TODO draw atom ID number
+	
+
+
 }
 
 ///draws all atoms in the loadedAtoms struct
@@ -299,9 +324,14 @@ void drawAllAtoms(Pipeline p) {
 
 
 void drawTreeViewer() {
+	ImGui::SetNextWindowSize(ImVec2(300,500),ImGuiSetCond_Appearing);
+	ImGui::Begin("tree view",false);
 	//TODO tree nodes
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-		string nodeName = "Atomic #:";		
+		string nodeName = "";
+		nodeName += "Elem Name: ";
+		nodeName += loadedAtoms[x].name;
+		nodeName += "Atomic #:";
 		nodeName += to_string(loadedAtoms[x].atomicNumber);
 		nodeName += "  ID: ";
 		nodeName += to_string(loadedAtoms[x].indentifyingNumber);
@@ -312,7 +342,7 @@ void drawTreeViewer() {
 			loadedAtoms[x].selected = false;
 		}
 	}
-
+	ImGui::End();
 }
 
 
@@ -527,6 +557,9 @@ int main(int, char**)
     
         glEnableVertexAttribArray(0);
 		drawAllAtoms(p);
+
+		
+
 		/* old atom drawing
         p.Scale(0.25f, 0.25f, 0.25f);
         p.Translate(0.f, -1.f, 0.f); 
@@ -563,6 +596,7 @@ int main(int, char**)
         glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
 		*/
 
+		/*
         p.Scale(0.1f, 0.1f, .5f);
         p.Translate(0.f, -.275, 0.f); 
         p.Rotate(-90.f, 0.f, 0.f);
@@ -584,7 +618,7 @@ int main(int, char**)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
         glUniform4fv(mColorLocation, 1, (const GLfloat *)&grey);
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
-
+		*/
 
         const float p1[3] = {-1, 2, 0};
         const float p2[3] = {1, 2, 0};
