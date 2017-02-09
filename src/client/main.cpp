@@ -1,4 +1,4 @@
-// ImGui - standalone example application for Glfw + OpenGL 3, using programmable pipeline
+
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 
 #include <imgui.h>
@@ -223,9 +223,110 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
 
+  float q[3] = {(p1[0]-p2[0]), (p1[1]-p2[1]), (p1[2]-p2[2])};
+
+  // TODO don't need to calculate this every frame, just store it somewhere
+  // X rotation
+  /*
+  float a = d/2.0f;
+  float a_sq = a * a;
+  float b_sq = ((q1[1] * q1[1]) + (q1[2] * q1[2]));
+  float c_sq = ((q1[1] * q1[1]) + ((q1[2] - a) * (q1[2] - a)));
+  float b = sqrt(b_sq);
+  float c = sqrt(c_sq);
+  float Xang;
+  if (b == 0){
+    Xang = 0;
+  } else {
+    Xang = ToDegree(acos((c_sq - a_sq - b_sq)/(-2.0f * a * b)));
+  }
+  if (q1[2] < 0){
+    Xang = 360 - Xang;
+  }
+
+  // Y rotation
+  b_sq = ((q1[0] * q1[0]) + (q1[2] * q1[2]));
+  c_sq = ((q1[0] * q1[0]) + ((q1[2] - a) * (q1[2] - a)));
+  b = sqrt(b_sq);
+  c = sqrt(c_sq);
+  float Yang;
+  if (b == 0){
+    Yang = 0;
+  } else {
+    Yang = ToDegree(acos((c_sq - a_sq - b_sq)/(-2.0f * a * b)));
+  }
+  if (q1[2] < 0){
+    Yang = 360 - Yang;
+  }
+
+  // Z rotation
+  float Zang;
+  if (q1[0] == 0){
+    Zang = 0;
+  } else {
+    Zang = ToDegree(atan(q1[1]/q1[0]));
+  }
+  if (q1[1] < 0 && q1[0] < 0){
+    Zang = 180 +  Zang;
+  } else if (q1[1] < 0 && q1[0] > 0){
+    Zang = 270 - Zang;
+  } else if (q1[1] > 0 && q1[0] < 0){
+    Zang = 90 - Zang;
+  }
+  */
+
+  float h = sqrt((q[1] * q[1]) + (q[2] * q[2]));
+  float y = abs(q[1]);
+  float Xang;
+  if (h == 0 || y == 0){
+    Xang = 0;
+  } else if (q[1] > 0 && q[2] > 0) {
+    Xang = ToDegree(asin(y/h));
+  } else if (q[1] > 0 && q[2] < 0) {
+    Xang = 180 - ToDegree(asin(y/h));
+  } else if (q[1] < 0 && q[2] < 0) {
+    Xang = 180 + ToDegree(asin(y/h));
+  } else if (q[1] < 0 && q[2] > 0) {
+    Xang = 360 - ToDegree(asin(y/h));
+  }
+    
+  h = sqrt((q[0] * q[0]) + (q[2] * q[2]));
+  float x = abs(q[0]);
+  float Yang;
+  if (h == 0 || x == 0){
+    Yang = 0;
+  } else if (q[0] > 0 && q[2] > 0) {
+    Yang = ToDegree(asin(x/h));
+  } else if (q[0] > 0 && q[2] < 0) {
+    Yang = 180 - ToDegree(asin(x/h));
+  } else if (q[0] < 0 && q[2] < 0) {
+    Yang = 180 + ToDegree(asin(x/h));
+  } else if (q[0] < 0 && q[2] > 0) {
+    Yang = 360 - ToDegree(asin(x/h));
+  }
+ 
+
+  h = sqrt((q[0] * q[0]) + (q[1] * q[1]));
+  y = abs(q[1]);
+  float Zang;
+  if (h == 0 || y == 0){
+    Zang = 0;
+  } else if (q[1] > 0 && q[0] > 0) {
+    Zang = ToDegree(asin(y/h));
+  } else if (q[1] > 0 && q[0] < 0) {
+    Zang = 180 - ToDegree(asin(y/h));
+  } else if (q[1] < 0 && q[0] < 0) {
+    Zang = 180 + ToDegree(asin(y/h));
+  } else if (q[1] < 0 && q[0] > 0) {
+    Zang = 360 - ToDegree(asin(y/h));
+  }
+ 
+
+  printf("%.02f, %.02f, %.02f\n", -Xang, Yang, Zang);
+
   p->Scale(0.1f, 0.1f, d);
   p->Translate(mid[0], mid[1], mid[2]); 
-  p->Rotate(0.f, 0.f, 0.f);
+  p->Rotate(Xang, Yang, Zang);
 
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, 
@@ -473,8 +574,22 @@ int main(int, char**)
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
 
 */
-        const float p1[3] = {-1, 0, 0};
-        const float p2[3] = {1, 0, 0};
+        static float p1[3] = {-1, 0, 0};
+        static float p2[3] = {1, 0, 0};
+
+        bool win = true;
+        {
+          ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiSetCond_FirstUseEver);
+          ImGui::Begin("test", &win);
+          ImGui::DragFloat("p1 x: ", &p1[0], 0.01f);
+          ImGui::DragFloat("p1 y: ", &p1[1], 0.01f);
+          ImGui::DragFloat("p1 z: ", &p1[2], 0.01f);
+          ImGui::DragFloat("p2 x: ", &p2[0], 0.01f);
+          ImGui::DragFloat("p2 y: ", &p2[1], 0.01f);
+          ImGui::DragFloat("p2 z: ", &p2[2], 0.01f);
+
+          ImGui::End();
+        }
 //        DrawBond(gWorldLocation, mColorLocation, &p, CylVB, CylIB, p1, p2);
         DrawBondLighted(&p, CylVB, CylIB, p1, p2);
 
