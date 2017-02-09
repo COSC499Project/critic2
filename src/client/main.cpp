@@ -80,32 +80,29 @@ static GLuint LightingShader()
   const char * vs = "#version 330 \n \
     uniform mat4 gWorld; \n \
     uniform mat4 gWVP; \n \
-    uniform vec4 vColor; \n \
     layout (location = 0) in vec3 inPosition; \n \
     layout (location = 1) in vec3 inNormal; \n \
     smooth out vec3 vNormal; \n \
-    out vec4 Color; \n \
     void main() { \n \
       gl_Position = gWVP * vec4(inPosition, 1.0); \n \
-      vec4 vRes = gWVP * vec4(inNormal, 0.0); \n \
-      vNormal =vRes.xyz;\n \
-      Color = vColor;\n \
+      vNormal = (gWorld * vec4(inNormal, 0.0)).xyz; \n \
       }";
 
   const char * fs = "#version 330 \n \
     smooth in vec3 vNormal; \n \
-    in vec4 Color; \n \
+    uniform vec4 vColor; \n \
     out vec4 outputColor; \n \
     uniform vec3 lColor; \n \
     uniform vec3 lDirection; \n \
     uniform float fAmbientIntensity; \n \
     void main() { \n \
       float fDiffuseIntensity = max(0.0, dot(normalize(vNormal), lDirection)); \n \
-      outputColor = Color; \n \
+      outputColor = vColor; \n \
       }";
 
 //outputColor = vColor * vec4(lColor * (fAmbientIntensity+fDiffuseIntensity), 1.0);
 
+//      outputColor = vColor;
 
   AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
   AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
@@ -207,7 +204,7 @@ void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
 
   p->Scale(0.1f, 0.1f, d);
   p->Translate(mid[0], mid[1], mid[2]); 
-  p->Rotate(0.f, 0.f, 0.f);
+  p->Rotate(0.f, 90.f, 90.f);
 
   glUniformMatrix4fv(WorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetTrans());
   glBindBuffer(GL_ARRAY_BUFFER, CylVB);
@@ -230,7 +227,7 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   p->Translate(mid[0], mid[1], mid[2]); 
   p->Rotate(0.f, 0.f, 0.f);
 
-  float dir[3] = {-cam.Target[0], -cam.Target[1], -cam.Target[2]};
+  float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, 
                      (const GLfloat *)p->GetWVPTrans());
   glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, 
@@ -307,7 +304,7 @@ int main(int, char**)
     GLuint trishader = CompileShaders();
     GLuint lightshader = LightingShader();
     ShaderVarLocations.gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
-    ShaderVarLocations.gWorldLocation = glGetUniformLocation(lightshader, "gWVP");
+    ShaderVarLocations.gWVPLocation = glGetUniformLocation(lightshader, "gWVP");
     ShaderVarLocations.vColorLocation = glGetUniformLocation(lightshader, "vColor");
     ShaderVarLocations.lColorLocation = glGetUniformLocation(lightshader, "lColor");
     ShaderVarLocations.lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
@@ -476,8 +473,8 @@ int main(int, char**)
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
 
 */
-        const float p1[3] = {-1, 2, 0};
-        const float p2[3] = {1, 2, 0};
+        const float p1[3] = {-1, 0, 0};
+        const float p2[3] = {1, 0, 0};
 //        DrawBond(gWorldLocation, mColorLocation, &p, CylVB, CylIB, p1, p2);
         DrawBondLighted(&p, CylVB, CylIB, p1, p2);
 
@@ -488,7 +485,7 @@ int main(int, char**)
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
-       // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glfwSwapBuffers(window);
     }
 
