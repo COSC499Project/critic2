@@ -260,11 +260,11 @@ float* getScreenPositionOfVertex(float *vertexLocation) {
 GLuint gWorldLocation; //made global to make Drawing via methods easer
 GLuint mColorLocation;
 void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], Pipeline p) {
-	float inc = 0.0f;
+	float inc = 1.f;
 	if (loadedAtoms[identifyer].selected) { //selection is color based
-		inc = 0.2f;
+		inc = .5f;
 	}
-	const GLfloat n_Color[4]{color[0],color[1],color[2],color[3] + inc};
+	const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
 
 	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
 	if (scaleAmount < 4.0f) {
