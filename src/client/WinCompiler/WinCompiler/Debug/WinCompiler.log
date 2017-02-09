@@ -10,11 +10,11 @@ c:\499drive\critic2\src\client\main.cpp(185): warning C4244: '+=': conversion fr
 c:\499drive\critic2\src\client\main.cpp(183): warning C4100: 'xoffset': unreferenced formal parameter
 c:\499drive\critic2\src\client\main.cpp(183): warning C4100: 'window': unreferenced formal parameter
 c:\499drive\critic2\src\client\main.cpp(257): warning C4100: 'vertexLocation': unreferenced formal parameter
-c:\499drive\critic2\src\client\main.cpp(316): warning C4018: '<': signed/unsigned mismatch
-c:\499drive\critic2\src\client\main.cpp(330): warning C4018: '<': signed/unsigned mismatch
-c:\499drive\critic2\src\client\main.cpp(493): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(494): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(490): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
+c:\499drive\critic2\src\client\main.cpp(321): warning C4018: '<': signed/unsigned mismatch
+c:\499drive\critic2\src\client\main.cpp(335): warning C4018: '<': signed/unsigned mismatch
+c:\499drive\critic2\src\client\main.cpp(498): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(499): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(495): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
 c:\499drive\critic2\src\client\main.cpp(65): warning C4505: 'LightingShader': unreferenced local function has been removed
   WinCompiler.vcxproj -> C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.exe
   WinCompiler.vcxproj -> C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.pdb (Partial PDB)

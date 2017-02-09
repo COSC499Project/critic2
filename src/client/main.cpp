@@ -306,9 +306,15 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
 	
 	//TODO draw atom ID number
-	
+	ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
+	ImGui::SetNextWindowCollapsed(true);
 
+	//float * winPos; 
+	//matrix math to transform posVector to pixel location of an atoms center
 
+	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
+	ImGui::Begin(to_string(loadedAtoms[identifyer].indentifyingNumber).c_str(), false);
+	ImGui::End();
 }
 
 ///draws all atoms in the loadedAtoms struct
@@ -322,9 +328,12 @@ void drawAllAtoms(Pipeline p) {
 
 #pragma region IMGUI
 
+void drawCrystalTree() {
 
-void drawTreeViewer() {
-	ImGui::SetNextWindowSize(ImVec2(300,500),ImGuiSetCond_Appearing);
+}
+
+void drawAtomTreeView() {
+	ImGui::SetNextWindowSize(ImVec2(300,500),ImGuiSetCond_Appearing); //this section will be moved to crystle once that section is done
 	ImGui::Begin("tree view",false);
 	//TODO tree nodes
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
@@ -474,7 +483,7 @@ int main(int, char**)
         ImGuiIO& io = ImGui::GetIO();
 	
 
-		drawTreeViewer();
+		drawAtomTreeView();
 
         // get input
         lLMB = cLMB;
