@@ -338,24 +338,32 @@ void drawAllAtoms(Pipeline p) {
 	}
 }
 
+/// moves cam over atom (alligned to z axis)
 void lookAtAtom(int atomNumber, Pipeline p) {
 	//TODO set camara to look at atom 
-	float camDistance = 3.f;
-	cout << cam.Target[0] << "," << cam.Target[1] << "," << cam.Target[2] << endl;
-	cout << loadedAtoms[atomNumber].atomPosition[0] << "," << loadedAtoms[atomNumber].atomPosition[1] << "," << loadedAtoms[atomNumber].atomPosition[2] << endl;
-	for (int i = 0; i < 3; i++) {
-		cam.Target[i] = loadedAtoms[atomNumber].atomPosition[i];
-		cam.Pos[i] = loadedAtoms[atomNumber].atomPosition[i];
-		if (i == 1) {
-			cam.Pos[i] = cam.Pos[i] - camDistance;
-		}
-	}
-
+	cam.Pos[0] = -loadedAtoms[atomNumber].atomPosition[0];
+	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition[1];
+	// z value is preserved
 }
 
 #pragma endregion
 
 #pragma region IMGUI
+
+void printCamStats() {
+	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
+	ImGui::Begin("cam stats", false);
+	string camPos = "cam pos: " + to_string(cam.Pos[0]) + "," + to_string(cam.Pos[1]) + "," + to_string(cam.Pos[2]);
+	string camTarget = "cam target: " + to_string(cam.Target[0]) + "," + to_string(cam.Target[1]) + "," + to_string(cam.Target[2]);
+	string camUp = "cam up: " + to_string(cam.Up[0]) + "," + to_string(cam.Up[1]) + "," + to_string(cam.Up[2]);
+	
+	ImGui::Text(camPos.c_str());
+	ImGui::Text(camTarget.c_str());
+	ImGui::Text(camUp.c_str());
+
+
+	ImGui::End();
+}
 
 void drawSeachBar() {
 	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
@@ -607,7 +615,7 @@ int main(int, char**)
     
         glEnableVertexAttribArray(0);
 		drawAllAtoms(p);
-
+		printCamStats();
 		
 
 		/* old atom drawing
