@@ -1,20 +1,43 @@
-﻿  main.cpp
-c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-c:\499drive\critic2\src\client\matrix_math.cpp(140): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(185): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(183): warning C4100: 'xoffset': unreferenced formal parameter
-c:\499drive\critic2\src\client\main.cpp(183): warning C4100: 'window': unreferenced formal parameter
-c:\499drive\critic2\src\client\main.cpp(257): warning C4100: 'vertexLocation': unreferenced formal parameter
-c:\499drive\critic2\src\client\main.cpp(321): warning C4018: '<': signed/unsigned mismatch
-c:\499drive\critic2\src\client\main.cpp(335): warning C4018: '<': signed/unsigned mismatch
-c:\499drive\critic2\src\client\main.cpp(498): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(499): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-c:\499drive\critic2\src\client\main.cpp(495): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
-c:\499drive\critic2\src\client\main.cpp(65): warning C4505: 'LightingShader': unreferenced local function has been removed
-  WinCompiler.vcxproj -> C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.exe
-  WinCompiler.vcxproj -> C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.pdb (Partial PDB)
+﻿Build started 2/19/2017 6:05:36 PM.
+     1>Project "C:\Users\roboritch\Desktop\critic2\src\client\WinCompiler\WinCompiler\WinCompiler.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /ZI /nologo /W4 /WX- /Od /Oy- /D WIN32 /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt ..\..\main.cpp
+         main.cpp
+     1>c:\users\roboritch\desktop\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\matrix_math.cpp(140): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(185): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(183): warning C4100: 'xoffset': unreferenced formal parameter
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(183): warning C4100: 'window': unreferenced formal parameter
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(244): warning C4018: '<': signed/unsigned mismatch
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(271): warning C4100: 'vertexLocation': unreferenced formal parameter
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(336): warning C4018: '<': signed/unsigned mismatch
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(341): warning C4100: 'p': unreferenced formal parameter
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(379): warning C4018: '<': signed/unsigned mismatch
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(393): warning C4018: '<': signed/unsigned mismatch
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(394): warning C4389: '!=': signed/unsigned mismatch
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(543): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(544): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(540): warning C4189: 'camZoomFactor': local variable is initialized but not referenced
+     1>c:\users\roboritch\desktop\critic2\src\client\main.cpp(65): warning C4505: 'LightingShader': unreferenced local function has been removed
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\roboritch\Desktop\critic2\src\client\WinCompiler\Debug\WinCompiler.exe" /INCREMENTAL /NOLOGO /LIBPATH:C:\Users\roboritch\Desktop\critic2\src\client\WinCompiler\libsF opengl32.lib gl3w.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib glfw3.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /NODEFAULTLIB:msvcrt.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FASTLINK /PDB:"C:\Users\roboritch\Desktop\critic2\src\client\WinCompiler\Debug\WinCompiler.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\roboritch\Desktop\critic2\src\client\WinCompiler\Debug\WinCompiler.lib" /MACHINE:X86 Debug\imgui.obj
+         Debug\imgui_demo.obj
+         Debug\imgui_draw.obj
+         Debug\imgui_impl_glfw_gl3.obj
+         Debug\main.obj
+     1>glfw3.lib(init.obj) : warning LNK4217: locally defined symbol _vsnprintf imported in function __glfwInputError
+     1>MSVCRTD.lib(vsnprintf.obj) : warning LNK4049: locally defined symbol _vsnprintf imported
+     1>glfw3.lib(context.obj) : warning LNK4217: locally defined symbol _sscanf imported in function _parseVersionString
+     1>MSVCRTD.lib(vsnprintf.obj) : warning LNK4049: locally defined symbol __vsnprintf imported
+     1>gl3w.lib(gl3w.obj) : warning LNK4099: PDB 'gl3w.pdb' was not found with 'gl3w.lib(gl3w.obj)' or at 'C:\Users\roboritch\Desktop\critic2\src\client\WinCompiler\Debug\gl3w.pdb'; linking object as if no debug info
+         WinCompiler.vcxproj -> C:\Users\roboritch\Desktop\critic2\src\client\WinCompiler\Debug\WinCompiler.exe
+     1>Done Building Project "C:\Users\roboritch\Desktop\critic2\src\client\WinCompiler\WinCompiler\WinCompiler.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:01.17
