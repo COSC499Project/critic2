@@ -228,8 +228,8 @@ struct atom{
 	string name = "";
 	bool selected = false;
 	int atomicNumber;
-	int indentifyingNumber;
-	float* atomPosition = new float[3];
+	float atomPosition[3];
+	string atomTreeName; //must be saved to preserve imgui tree Id's
 };
 
 int loadedAtomsAmount = 0;
@@ -238,7 +238,21 @@ atom *loadedAtoms;
 //TODO call this to load all atoms from the critic2 interface
 //the atoms should be loaded into the above array
 void loadAtoms() {
-	
+
+
+	//tree names must be constant
+	for (size_t x = 0; x < loadedAtomsAmount; x++) {
+		string nodeName = "";
+		nodeName += "Elem Name: ";
+		nodeName += loadedAtoms[x].name;
+		nodeName += "Atomic #:";
+		nodeName += to_string(loadedAtoms[x].atomicNumber);
+		nodeName += "  ID: ";
+		nodeName += to_string(x);
+		nodeName += "##TreeID = "; //extra info for imgui to find selection
+		nodeName += to_string(x);
+		loadedAtoms[x].atomTreeName = nodeName;
+	}
 }
 
 ///returns the color of an atom based on the atomic number
@@ -313,7 +327,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	//matrix math to transform posVector to pixel location of an atoms center
 
 	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
-	ImGui::Begin(to_string(loadedAtoms[identifyer].indentifyingNumber).c_str(), false);
+	ImGui::Begin(to_string(identifyer).c_str(), false);
 	ImGui::End();
 }
 
@@ -324,33 +338,72 @@ void drawAllAtoms(Pipeline p) {
 	}
 }
 
+/// moves cam over atom (alligned to z axis)
+void lookAtAtom(int atomNumber, Pipeline p) {
+	//TODO set camara to look at atom 
+	cam.Pos[0] = -loadedAtoms[atomNumber].atomPosition[0];
+	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition[1];
+	// z value is preserved
+}
+
 #pragma endregion
 
 #pragma region IMGUI
+
+void printCamStats() {
+	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
+	ImGui::Begin("cam stats", false);
+	string camPos = "cam pos: " + to_string(cam.Pos[0]) + "," + to_string(cam.Pos[1]) + "," + to_string(cam.Pos[2]);
+	string camTarget = "cam target: " + to_string(cam.Target[0]) + "," + to_string(cam.Target[1]) + "," + to_string(cam.Target[2]);
+	string camUp = "cam up: " + to_string(cam.Up[0]) + "," + to_string(cam.Up[1]) + "," + to_string(cam.Up[2]);
+	
+	ImGui::Text(camPos.c_str());
+	ImGui::Text(camTarget.c_str());
+	ImGui::Text(camUp.c_str());
+
+
+	ImGui::End();
+}
+
+void drawSeachBar() {
+	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
+	ImGui::Begin("atom search", false);
+
+
+
+	ImGui::End();
+}
 
 void drawCrystalTree() {
 
 }
 
-void drawAtomTreeView() {
+
+void drawAtomTreeView(Pipeline p) {
 	ImGui::SetNextWindowSize(ImVec2(300,500),ImGuiSetCond_Appearing); //this section will be moved to crystle once that section is done
 	ImGui::Begin("tree view",false);
-	//TODO tree nodes
+
+	int closeOthers = -1; //id's are context dependent so other tree nodes must be closed outside the main loop
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-		string nodeName = "";
-		nodeName += "Elem Name: ";
-		nodeName += loadedAtoms[x].name;
-		nodeName += "Atomic #:";
-		nodeName += to_string(loadedAtoms[x].atomicNumber);
-		nodeName += "  ID: ";
-		nodeName += to_string(loadedAtoms[x].indentifyingNumber);
-		if (ImGui::TreeNode(nodeName.c_str())) {
-			loadedAtoms[x].selected = true;
+		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {	
+			if (loadedAtoms[x].selected == false) { // not currently true must set all others to false
+				loadedAtoms[x].selected = true; //this loop is only run on the frame this tree node is clicked
+				lookAtAtom(x, p);
+				closeOthers = x;
+			}
 			ImGui::TreePop();
 		}else{
-			loadedAtoms[x].selected = false;
+			loadedAtoms[x].selected = false; 
 		}
 	}
+
+	if(closeOthers != -1)
+	for (size_t y = 0; y < loadedAtomsAmount; y++) { //close all tree nodes exept the current one
+		if (closeOthers != y) {
+			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[y].atomTreeName.c_str()), 0); //close tab
+		}
+	}
+	
 	ImGui::End();
 }
 
@@ -415,25 +468,22 @@ int main(int, char**)
 	loadedAtomsAmount = 3;
 	loadedAtoms = new atom[loadedAtomsAmount];
 	loadedAtoms[0].atomicNumber = 1;
-	loadedAtoms[0].indentifyingNumber = 1;
 	loadedAtoms[0].atomPosition[0] = 0.f;
 	loadedAtoms[0].atomPosition[1] = -1.f;
 	loadedAtoms[0].atomPosition[2] = 0.f;
 
 
 	loadedAtoms[1].atomicNumber = 1;
-	loadedAtoms[1].indentifyingNumber = 2;
 	loadedAtoms[1].atomPosition[0] = -1.29f;
 	loadedAtoms[1].atomPosition[1] = 1.16f;
 	loadedAtoms[1].atomPosition[2] = 0.f;
 
 
 	loadedAtoms[2].atomicNumber = 8;
-	loadedAtoms[2].indentifyingNumber = 3;
 	loadedAtoms[2].atomPosition[0] = 0.f;
 	loadedAtoms[2].atomPosition[1] = .715f;
 	loadedAtoms[2].atomPosition[2] = 0.f;
-
+	loadAtoms();
 #pragma endregion
 
     // Load sphere mesh
@@ -482,8 +532,7 @@ int main(int, char**)
         ImGui_ImplGlfwGL3_NewFrame();
         ImGuiIO& io = ImGui::GetIO();
 	
-
-		drawAtomTreeView();
+		drawAtomTreeView(p);
 
         // get input
         lLMB = cLMB;
@@ -566,7 +615,7 @@ int main(int, char**)
     
         glEnableVertexAttribArray(0);
 		drawAllAtoms(p);
-
+		printCamStats();
 		
 
 		/* old atom drawing
