@@ -235,6 +235,21 @@ struct atom{
 int loadedAtomsAmount = 0;
 atom *loadedAtoms;
 
+#pragma region atom info search
+enum SearchType {
+	atomicNumber,electonDensity,bondAmount
+};
+
+
+///find all the atoms that metch the search term and display them in the search box
+void searchForValue(SearchType searchType, float value) {
+	
+}
+
+#pragma endregion
+
+
+
 #pragma region atom selection
 ///do not change outised of atom selection region
 bool anyAtomSelected;
@@ -442,6 +457,16 @@ void printCamStats() {
 void drawSeachBar() {
 	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
 	ImGui::Begin("atom search", false);
+	//TODO atom searching
+	//ImGui::ListBox();
+		
+	
+
+	static char buff[64];
+	if (ImGui::InputText("search", buff, 64, ImGuiInputTextFlags_EnterReturnsTrue)) {
+		
+	}
+
 
 
 	ImGui::End();
@@ -691,7 +716,7 @@ int main(int, char**)
 		drawAllAtoms(p);
 		printCamStats();
 		drawSelectedAtomStats();
-
+		drawSeachBar();
 		/* old atom drawing
         p.Scale(0.25f, 0.25f, 0.25f);
         p.Translate(0.f, -1.f, 0.f); 
