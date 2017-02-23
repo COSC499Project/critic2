@@ -139,11 +139,31 @@ contains
 
   end subroutine get_positions
 
-  subroutine get_atomic_name(name, i, j) bind (c, name="get_atomic_name")
-    character (kind=c_char, len=1), dimension (*), intent (out) :: name
-    integer (kind=c_int), value :: i
-    integer (kind=c_int), value :: j
+  subroutine get_atomic_name(atomName, atomNum) bind (c, name="get_atomic_name") result (c_string)
+    use struct_basic, only: cr
+    implicit none
+    character (kind=c_char, len=1), dimension (10), intent (out) :: atomName
+    integer (kind=c_int), value :: atomNum
+
+    print*,"asdasda"
+    !TODO
+    iname = cr%at(cr%atcel(atomNum)%idx)%name
+
+    print*,iname
+    atomName = c_loc(iname)
 
   end subroutine get_atomic_name
+
+  !subroutine share_bond(atom1, atom2, bonded) bind (c, name="share_bond")
+
+    !TODO
+
+  !end subroutine share_bond
+
+  !subroutine get_atom_colour(atomNum, colour) bind (c, name="get_atom_colour")
+
+    !TODO
+
+  !end subroutine get_atom_colour
 
 end module interface
