@@ -238,8 +238,6 @@ atom *loadedAtoms;
 //TODO call this to load all atoms from the critic2 interface
 //the atoms should be loaded into the above array
 void loadAtoms() {
-
-
 	//tree names must be constant
 	for (size_t x = 0; x < loadedAtomsAmount; x++) {
 		string nodeName = "";
@@ -253,6 +251,7 @@ void loadAtoms() {
 		nodeName += to_string(x);
 		loadedAtoms[x].atomTreeName = nodeName;
 	}
+
 }
 
 ///returns the color of an atom based on the atomic number
@@ -350,8 +349,43 @@ void lookAtAtom(int atomNumber, Pipeline p) {
 
 #pragma region IMGUI
 
+void displaySelectedAtomStats() {
+	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
+	ImGui::Begin("atom information", false);
+
+	ImGui::Columns(3, "mycolumns"); 
+	ImGui::Separator();
+	ImGui::Text("ID"); ImGui::NextColumn();
+	ImGui::Text("Name"); ImGui::NextColumn();
+	//TODO: this section should be dynamic based on what the user wants
+	ImGui::Text("Charge"); ImGui::NextColumn(); //change to reflect informati=n
+	//
+	
+	
+	ImGui::Separator();
+
+	static int selected = -1; //TODO connect selection to tree view or new selection system
+	for (int i = 0; i < loadedAtomsAmount; i++) {
+		char label[32];
+		sprintf(label, "%04d", i);
+		if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SpanAllColumns))
+			selected = i;
+		ImGui::NextColumn();
+		ImGui::Text(loadedAtoms[i].name.c_str()); ImGui::NextColumn(); // atom names
+		//this section should change with the section above
+		ImGui::Text(to_string(i).c_str()); ImGui::NextColumn(); //atom information
+		
+		//
+	
+	}
+	
+	
+
+	ImGui::End();
+}
+
 void printCamStats() {
-	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
+	ImGui::SetNextWindowSize(ImVec2(300, 75), ImGuiSetCond_Appearing);
 	ImGui::Begin("cam stats", false);
 	string camPos = "cam pos: " + to_string(cam.Pos[0]) + "," + to_string(cam.Pos[1]) + "," + to_string(cam.Pos[2]);
 	string camTarget = "cam target: " + to_string(cam.Target[0]) + "," + to_string(cam.Target[1]) + "," + to_string(cam.Target[2]);
@@ -368,7 +402,6 @@ void printCamStats() {
 void drawSeachBar() {
 	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
 	ImGui::Begin("atom search", false);
-
 
 
 	ImGui::End();
@@ -616,7 +649,7 @@ int main(int, char**)
         glEnableVertexAttribArray(0);
 		drawAllAtoms(p);
 		printCamStats();
-		
+		displaySelectedAtomStats();
 
 		/* old atom drawing
         p.Scale(0.25f, 0.25f, 0.25f);
