@@ -236,12 +236,19 @@ int loadedAtomsAmount = 0;
 atom *loadedAtoms;
 
 #pragma region atom selection
-void selectAtom() {
+///do not change outised of atom selection region
+bool anyAtomSelected;
 
+void selectAtom(int atomID) {
+	loadedAtoms[atomID].selected = true;
+	anyAtomSelected = true;
 }
 
 void deselectAll() {
-
+	for (size_t i = 0; i < loadedAtomsAmount; i++) {
+		loadedAtoms[i].selected = false;
+	}
+	anyAtomSelected = false;
 }
 
 #pragma endregion
@@ -270,16 +277,33 @@ void loadAtoms() {
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
 const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
+#ifdef WIN32
+	if (atomicNumber == 1) {
+		return new GLfloat[4]{ .8f, .8f, .8f, colorIntesity }; //white 
+	}
+	else if (atomicNumber == 8) {
+		return new GLfloat[4]{ .8f,0.0f, 0.0f, colorIntesity }; //red
+	}
+	else {
+		return new GLfloat[4]{ 0.8f,0.8f, 0.8f, colorIntesity }; //brown
+	}
+#endif // windows
+
+#ifdef defined LINUX || defined __APPLE__
 	if (atomicNumber == 1) {
 		GLfloat col[] = { .8f, .8f, .8f, colorIntesity };
 		return col; //white 
-	}else if(atomicNumber == 8) {
+	}
+	else if (atomicNumber == 8) {
 		GLfloat col[] = { .8f,0.0f, 0.0f, colorIntesity };
 		return col;//red
-	} else  {
+	}
+	else {
 		GLfloat col[] = { 0.8f,0.8f, 0.8f, colorIntesity };
 		return col; //brown
 	}
+#endif // defined LINUX || defined __APPLE__
+	return NULL;
 }
 
 ///will be used to draw atom number over the atom using imgui window
@@ -436,7 +460,7 @@ void drawAtomTreeView(Pipeline p) {
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
 		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {	
 			if (loadedAtoms[x].selected == false) { // not currently true must set all others to false
-				loadedAtoms[x].selected = true; //this loop is only run on the frame this tree node is clicked
+				selectAtom(x); //this loop is only run on the frame this tree node is clicked
 				lookAtAtom(x, p);
 				closeOthers = x;
 			}
@@ -446,7 +470,8 @@ void drawAtomTreeView(Pipeline p) {
 		}
 	}
 
-	if(closeOthers != -1)
+
+	if(closeOthers != -1 || anyAtomSelected == false)
 	for (size_t y = 0; y < loadedAtomsAmount; y++) { //close all tree nodes exept the current one
 		if (closeOthers != y) {
 			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[y].atomTreeName.c_str()), 0); //close tab
