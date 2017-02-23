@@ -11,6 +11,12 @@
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
 
+extern "C" void initialize();
+extern "C" void call_crystal(const char *filename, int size);
+extern "C" void get_positions(int *n,int **z,double **x);
+//extern "C" void get_atomic_name(const char *atomName, int atomNum);
+extern "C" void share_bond(int n_atom, int **connected_atom);
+
 struct {
   bool LeftMouseButton = 0;
   bool RightMouseButton = 0;
@@ -166,7 +172,7 @@ static GLuint CompileShaders()
 
 #pragma endregion
 
-void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer, 
+void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
                           GLfloat * Vertices, unsigned int * Indices,
                           unsigned int NumVertices, unsigned int NumIndices)
 {
@@ -185,7 +191,7 @@ void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
   cam.Pos[2] += yoffset * 0.5f;
 }
 
-void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p, 
+void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
               GLuint CylVB, GLuint CylIB,
               const float p1[3], const float p2[3])
 {
@@ -196,7 +202,7 @@ void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
 
 
   p->Scale(0.1f, 0.1f, d);
-  p->Translate(mid[0], mid[1], mid[2]); 
+  p->Translate(mid[0], mid[1], mid[2]);
   p->Rotate(0.f, 0.f, 0.f);
 
   glUniformMatrix4fv(WorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetTrans());
@@ -230,6 +236,8 @@ struct atom{
 	int atomicNumber;
 	float atomPosition[3];
 	string atomTreeName; //must be saved to preserve imgui tree Id's
+  int numberOfBonds;
+  int *bondedAtoms;
 };
 
 int loadedAtomsAmount = 0;
@@ -251,7 +259,32 @@ void deselectAll() {
 //TODO call this to load all atoms from the critic2 interface
 //the atoms should be loaded into the above array
 void loadAtoms() {
-	//tree names must be constant
+  //fill loadedAtoms array
+  char const *filename = "../../examples/data/pyridine.wfx";
+  int *z; // atomic numbers
+  double *x; // atomic positions
+  int n; // number of atoms
+
+  char const *atomName;
+
+  initialize();
+  call_crystal(filename, (int) strlen(filename));
+  get_positions(&n,&z,&x);
+
+  loadedAtomsAmount = n;
+	loadedAtoms = new atom[loadedAtomsAmount];
+  for (int i=0;i<n;i++) {
+    loadedAtoms[i].atomicNumber = z[i];
+    loadedAtoms[i].atomPosition[0] = x[i*3+0];
+  	loadedAtoms[i].atomPosition[1] = x[i*3+1];
+  	loadedAtoms[i].atomPosition[2] = x[i*3+2];
+  }
+	// loadedAtoms[0].atomicNumber = 1;
+	// loadedAtoms[0].atomPosition[0] = 0.f;
+	// loadedAtoms[0].atomPosition[1] = -1.f;
+	// loadedAtoms[0].atomPosition[2] = 0.f;
+
+  //tree names must be constant
 	for (size_t x = 0; x < loadedAtomsAmount; x++) {
 		string nodeName = "";
 		nodeName += "Elem Name: ";
@@ -270,10 +303,10 @@ void loadAtoms() {
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
 const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
-	if (atomicNumber == 1) {
+	if (atomicNumber == 7) {
 		GLfloat col[] = { .8f, .8f, .8f, colorIntesity };
-		return col; //white 
-	}else if(atomicNumber == 8) {
+		return col; //white
+	}else if(atomicNumber == 6) {
 		GLfloat col[] = { .8f,0.0f, 0.0f, colorIntesity };
 		return col;//red
 	} else  {
@@ -284,7 +317,7 @@ const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
 
 ///will be used to draw atom number over the atom using imgui window
 float* getScreenPositionOfVertex(float *vertexLocation) {
-	//TODO transfrom from vertex location to screen location 
+	//TODO transfrom from vertex location to screen location
 	return NULL;
 }
 
@@ -333,12 +366,12 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
 	glUniform4fv(mColorLocation, 1, (const GLfloat *)&n_Color);
 	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
-	
+
 	//TODO draw atom ID number
 	ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
 	ImGui::SetNextWindowCollapsed(true);
 
-	//float * winPos; 
+	//float * winPos;
 	//matrix math to transform posVector to pixel location of an atoms center
 
 	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
@@ -355,7 +388,7 @@ void drawAllAtoms(Pipeline p) {
 
 /// moves cam over atom (alligned to z axis)
 void lookAtAtom(int atomNumber, Pipeline p) {
-	//TODO set camara to look at atom 
+	//TODO set camara to look at atom
 	cam.Pos[0] = -loadedAtoms[atomNumber].atomPosition[0];
 	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition[1];
 	// z value is preserved
@@ -369,15 +402,15 @@ void drawSelectedAtomStats() {
 	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
 	ImGui::Begin("atom information", false);
 
-	ImGui::Columns(3, "mycolumns"); 
+	ImGui::Columns(3, "mycolumns");
 	ImGui::Separator();
 	ImGui::Text("ID"); ImGui::NextColumn();
 	ImGui::Text("Name"); ImGui::NextColumn();
 	//TODO: this section should be dynamic based on what the user wants
 	ImGui::Text("Charge"); ImGui::NextColumn(); //change to reflect informati=n
 	//
-	
-	
+
+
 	ImGui::Separator();
 
 	static int selected = -1; //TODO connect selection to tree view or new selection system
@@ -390,12 +423,12 @@ void drawSelectedAtomStats() {
 		ImGui::Text(loadedAtoms[i].name.c_str()); ImGui::NextColumn(); // atom names
 		//this section should change with the section above
 		ImGui::Text(to_string(i).c_str()); ImGui::NextColumn(); //atom information
-		
+
 		//
-	
+
 	}
-	
-	
+
+
 
 	ImGui::End();
 }
@@ -406,7 +439,7 @@ void printCamStats() {
 	string camPos = "cam pos: " + to_string(cam.Pos[0]) + "," + to_string(cam.Pos[1]) + "," + to_string(cam.Pos[2]);
 	string camTarget = "cam target: " + to_string(cam.Target[0]) + "," + to_string(cam.Target[1]) + "," + to_string(cam.Target[2]);
 	string camUp = "cam up: " + to_string(cam.Up[0]) + "," + to_string(cam.Up[1]) + "," + to_string(cam.Up[2]);
-	
+
 	ImGui::Text(camPos.c_str());
 	ImGui::Text(camTarget.c_str());
 	ImGui::Text(camUp.c_str());
@@ -434,7 +467,7 @@ void drawAtomTreeView(Pipeline p) {
 
 	int closeOthers = -1; //id's are context dependent so other tree nodes must be closed outside the main loop
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {	
+		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {
 			if (loadedAtoms[x].selected == false) { // not currently true must set all others to false
 				loadedAtoms[x].selected = true; //this loop is only run on the frame this tree node is clicked
 				lookAtAtom(x, p);
@@ -442,7 +475,7 @@ void drawAtomTreeView(Pipeline p) {
 			}
 			ImGui::TreePop();
 		}else{
-			loadedAtoms[x].selected = false; 
+			loadedAtoms[x].selected = false;
 		}
 	}
 
@@ -452,7 +485,7 @@ void drawAtomTreeView(Pipeline p) {
 			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[y].atomTreeName.c_str()), 0); //close tab
 		}
 	}
-	
+
 	ImGui::End();
 }
 
@@ -481,8 +514,8 @@ int main(int, char**)
 
     // Event callbacks
     glfwSetScrollCallback(window, ScrollCallback);
-    
-    
+
+
     //Setup up OpenGL stuff
     GLuint VertexArray;
     glGenVertexArrays(1, &VertexArray);
@@ -491,7 +524,7 @@ int main(int, char**)
     GLuint trishader = CompileShaders();
     gWorldLocation = glGetUniformLocation(trishader, "gWorld");
     mColorLocation = glGetUniformLocation(trishader, "mColor");
-    
+
 	//glEnables
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -511,27 +544,27 @@ int main(int, char**)
 
 	//load all atom information ---------------------------------------------
 	loadAtomObject();
-	
+
 	//this section will be replaced by the loadAtoms function
 #pragma region atom loading test
-	loadedAtomsAmount = 3;
-	loadedAtoms = new atom[loadedAtomsAmount];
-	loadedAtoms[0].atomicNumber = 1;
-	loadedAtoms[0].atomPosition[0] = 0.f;
-	loadedAtoms[0].atomPosition[1] = -1.f;
-	loadedAtoms[0].atomPosition[2] = 0.f;
-
-
-	loadedAtoms[1].atomicNumber = 1;
-	loadedAtoms[1].atomPosition[0] = -1.29f;
-	loadedAtoms[1].atomPosition[1] = 1.16f;
-	loadedAtoms[1].atomPosition[2] = 0.f;
-
-
-	loadedAtoms[2].atomicNumber = 8;
-	loadedAtoms[2].atomPosition[0] = 0.f;
-	loadedAtoms[2].atomPosition[1] = .715f;
-	loadedAtoms[2].atomPosition[2] = 0.f;
+	// loadedAtomsAmount = 3;
+	// loadedAtoms = new atom[loadedAtomsAmount];
+	// loadedAtoms[0].atomicNumber = 1;
+	// loadedAtoms[0].atomPosition[0] = 0.f;
+	// loadedAtoms[0].atomPosition[1] = -1.f;
+	// loadedAtoms[0].atomPosition[2] = 0.f;
+  //
+  //
+	// loadedAtoms[1].atomicNumber = 1;
+	// loadedAtoms[1].atomPosition[0] = -1.29f;
+	// loadedAtoms[1].atomPosition[1] = 1.16f;
+	// loadedAtoms[1].atomPosition[2] = 0.f;
+  //
+  //
+	// loadedAtoms[2].atomicNumber = 8;
+	// loadedAtoms[2].atomPosition[0] = 0.f;
+	// loadedAtoms[2].atomPosition[1] = .715f;
+	// loadedAtoms[2].atomPosition[2] = 0.f;
 	loadAtoms();
 #pragma endregion
 
@@ -543,7 +576,7 @@ int main(int, char**)
     static GLfloat * SphereV = (GLfloat *) malloc(sizeof(GLfloat)*SphereNumV);
     static unsigned int * SphereI = (unsigned int *) malloc(sizeof(unsigned int)*SphereNumI);
     ReadMesh(SphereV, SphereI, "./sphere.v", "./sphere.i");
-    CreateAndFillBuffers(&SphereVB, &SphereIB, SphereV, SphereI, 
+    CreateAndFillBuffers(&SphereVB, &SphereIB, SphereV, SphereI,
                          SphereNumV, SphereNumI);
 
     // Load cylinder mesh
@@ -580,7 +613,7 @@ int main(int, char**)
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
         ImGuiIO& io = ImGui::GetIO();
-	
+
 		drawAtomTreeView(p);
 
         // get input
@@ -629,7 +662,7 @@ int main(int, char**)
             ImGui::DragFloat("Translate CamX", &camPos[0], 0.005f);
             ImGui::DragFloat("Translate CamY", &camPos[1], 0.005f);
             ImGui::DragFloat("Translate CamZ", &camPos[2], 0.005f);
-  
+
             ImGui::DragFloat("CamTargetX", &camTarget[0], 0.005f);
             ImGui::DragFloat("CamTargetY", &camTarget[1], 0.005f);
             ImGui::DragFloat("CamTargetZ", &camTarget[2], 0.005f);
@@ -655,13 +688,13 @@ int main(int, char**)
         glViewport(0, 0, display_w, display_h);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+
 
         p.SetPersProjInfo(45, 500, 500, 1.f, 1000.f);
         p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
         p.SetCamera(cam);
 
-    
+
         glEnableVertexAttribArray(0);
 		drawAllAtoms(p);
 		printCamStats();
@@ -669,7 +702,7 @@ int main(int, char**)
 
 		/* old atom drawing
         p.Scale(0.25f, 0.25f, 0.25f);
-        p.Translate(0.f, -1.f, 0.f); 
+        p.Translate(0.f, -1.f, 0.f);
         p.Rotate(0.f, 0.f, 0.f);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
@@ -680,7 +713,7 @@ int main(int, char**)
         glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
 
         p.Scale(0.25f, 0.25f, 0.25f);
-        p.Translate(-1.29, 1.16, 0.f); 
+        p.Translate(-1.29, 1.16, 0.f);
         p.Rotate(0.f, 0.f, 0.f);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
@@ -692,7 +725,7 @@ int main(int, char**)
 
 
         p.Scale(0.5f, 0.5f, 0.5f);
-        p.Translate(0.f, .715, 0.f); 
+        p.Translate(0.f, .715, 0.f);
         p.Rotate(0.f, 0.f, 0.f);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
@@ -705,7 +738,7 @@ int main(int, char**)
 
 		/*
         p.Scale(0.1f, 0.1f, .5f);
-        p.Translate(0.f, -.275, 0.f); 
+        p.Translate(0.f, -.275, 0.f);
         p.Rotate(-90.f, 0.f, 0.f);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
@@ -716,7 +749,7 @@ int main(int, char**)
         glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
 
         p.Scale(0.1f, 0.1f, .5f);
-        p.Translate(-.7, 1, 0); 
+        p.Translate(-.7, 1, 0);
         p.Rotate(90, 0, 75);
         glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
 
@@ -729,15 +762,15 @@ int main(int, char**)
 
         const float p1[3] = {-1, 2, 0};
         const float p2[3] = {1, 2, 0};
-//        DrawBond(gWorldLocation, mColorLocation, &p, 
+//        DrawBond(gWorldLocation, mColorLocation, &p,
   //               CylVB, CylIB, p1, p2);
 
 
 
         glDisableVertexAttribArray(0);
-        
+
         glUseProgram(trishader);
-        
+
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

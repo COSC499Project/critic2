@@ -139,14 +139,18 @@ contains
 
   end subroutine get_positions
 
-  !subroutine get_atomic_name(atomName, atomNum) bind (c, name="get_atomic_name") result (c_string)
+  !subroutine get_atomic_name(atomName, atomNum) bind (c, name="get_atomic_name")
     !use struct_basic, only: cr
     !implicit none
-    !character (kind=c_char, len=1), dimension (10), intent (out) :: atomName
+    !character (kind=c_char, len=1), dimension(10), intent (out) :: atomName
     !integer (kind=c_int), value :: atomNum
 
+    !character(len=:), allocatable, target, save :: iname
+
     !print*,"asdasda"
-    !iname = cr%at(cr%atcel(atomNum)%idx)%name
+
+
+    !allocate(iname(size(cr%at(cr%atcel(atomNum)%idx)%name)))
 
     !print*,iname
     !atomName = c_loc(iname)
@@ -155,25 +159,20 @@ contains
 
   subroutine share_bond(n_atom, connected_atoms) bind (c, name="share_bond")
     use struct_basic, only: cr
-    integer(c_int), intent(in) :: n_atom
+    integer (kind=c_int), value :: n_atom
     type(c_ptr), intent(out) :: connected_atoms
     integer(c_int), allocatable, target, save :: iz(:)
+    integer :: i
 
     call cr%find_asterisms()
 
-    allocate(iz(cr%nstar(n_atom)%idcon))
+    allocate(iz(size(cr%nstar(n_atom)%idcon)))
+    do i = 1, size(cr%nstar(n_atom)%idcon)
+      iz(i) = int(cr%nstar(n_atom)%idcon(i))
+    end do
 
-    print*,cr%nstar()%idcon
-    !allocate(iz(cr%nstar(1)%idcon))
-    !print*,iz
-
+    connected_atoms = c_loc(iz)
 
   end subroutine share_bond
-
-  !subroutine get_atom_colour(atomNum, colour) bind (c, name="get_atom_colour")
-
-    !TODO
-
-  !end subroutine get_atom_colour
 
 end module interface
