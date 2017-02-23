@@ -258,11 +258,14 @@ void loadAtoms() {
 ///and desired color Intesity (brightness)
 const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
 	if (atomicNumber == 1) {
-		return new GLfloat[4]{ .8f, .8f, .8f, colorIntesity}; //white 
+		GLfloat col[] = { .8f, .8f, .8f, colorIntesity };
+		return col; //white 
 	}else if(atomicNumber == 8) {
-		return new GLfloat[4]{ .8f,0.0f, 0.0f, colorIntesity }; //red
+		GLfloat col[] = { .8f,0.0f, 0.0f, colorIntesity };
+		return col;//red
 	} else  {
-		return new GLfloat[4]{ 0.8f,0.8f, 0.8f, colorIntesity }; //brown
+		GLfloat col[] = { 0.8f,0.8f, 0.8f, colorIntesity };
+		return col; //brown
 	}
 }
 
@@ -297,7 +300,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	if (loadedAtoms[identifyer].selected) { //selection is color based
 		inc = 1.5f;
 	}
-	const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
+	const GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
 	//selection end
 
 	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
