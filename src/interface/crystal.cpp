@@ -9,7 +9,7 @@ extern "C" void initialize();
 extern "C" void call_crystal(const char *filename, int size);
 extern "C" void get_positions(int *n,int **z,double **x);
 //extern "C" void get_atomic_name(const char *atomName, int atomNum);
-extern "C" void share_bond();
+extern "C" void share_bond(int *n_atom, int **connected_atom);
 
 int main(int argc, char ** argv)
 {

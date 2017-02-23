@@ -153,13 +153,15 @@ contains
 
   !end subroutine get_atomic_name
 
-  subroutine share_bond(n_atom, ) bind (c, name="share_bond")
+  subroutine share_bond(n_atom, connected_atoms) bind (c, name="share_bond")
     use struct_basic, only: cr
-    type(c_ptr), intent(out) :: z
-    type(c_ptr), intent(out) :: x
+    integer(c_int), intent(in) :: n_atom
+    type(c_ptr), intent(out) :: connected_atoms
     integer(c_int), allocatable, target, save :: iz(:)
 
     call cr%find_asterisms()
+
+    allocate(iz(cr%nstar(n_atom)%idcon))
 
     print*,cr%nstar()%idcon
     !allocate(iz(cr%nstar(1)%idcon))
