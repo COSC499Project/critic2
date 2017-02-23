@@ -235,6 +235,19 @@ struct atom{
 int loadedAtomsAmount = 0;
 atom *loadedAtoms;
 
+#pragma region atom selection
+void selectAtom() {
+
+}
+
+void deselectAll() {
+
+}
+
+#pragma endregion
+
+
+
 //TODO call this to load all atoms from the critic2 interface
 //the atoms should be loaded into the above array
 void loadAtoms() {
@@ -352,7 +365,7 @@ void lookAtAtom(int atomNumber, Pipeline p) {
 
 #pragma region IMGUI
 
-void displaySelectedAtomStats() {
+void drawSelectedAtomStats() {
 	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
 	ImGui::Begin("atom information", false);
 
@@ -652,7 +665,7 @@ int main(int, char**)
         glEnableVertexAttribArray(0);
 		drawAllAtoms(p);
 		printCamStats();
-		displaySelectedAtomStats();
+		drawSelectedAtomStats();
 
 		/* old atom drawing
         p.Scale(0.25f, 0.25f, 0.25f);
