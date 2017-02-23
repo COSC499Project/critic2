@@ -67,7 +67,7 @@ public:
     }
     return Ret;
   }
-  
+
   void InitScaleTransform(float sx, float sy, float sz);
   void InitRotateTransform(float rx, float ry, float rz);
   void InitTranslateTransform(float x, float y, float z);
@@ -124,7 +124,7 @@ void Matrix4f::InitCameraTransform(const float Target[3], const float Up[3])
     float * N = (float *)Target;
     float U[3];
     Cross(Up, N, U);
-    float V[3];  
+    float V[3];
     Cross(N, U, V);
 
     m[0][0] = U[0];   m[0][1] = U[1];   m[0][2] = U[2];   m[0][3] = 0.0f;
@@ -142,7 +142,7 @@ void Matrix4f::InitPersProjTransform(const PersProjInfo& p)
     m[0][0] = 1.0f/(tanHalfFOV * ar); m[0][1] = 0.0f;            m[0][2] = 0.0f;            m[0][3] = 0.0;
     m[1][0] = 0.0f;                   m[1][1] = 1.0f/tanHalfFOV; m[1][2] = 0.0f;            m[1][3] = 0.0;
     m[2][0] = 0.0f;                   m[2][1] = 0.0f;            m[2][2] = (-p.zNear - p.zFar)/zRange ; m[2][3] = 2.0f*p.zFar*p.zNear/zRange;
-    m[3][0] = 0.0f;                   m[3][1] = 0.0f;            m[3][2] = 1.0f;            m[3][3] = 0.0;    
+    m[3][0] = 0.0f;                   m[3][1] = 0.0f;            m[3][2] = 1.0f;            m[3][3] = 0.0;
 }
 
 void Matrix4f::InitOrthoProjTransform(const OrthoProjInfo& p)
@@ -332,7 +332,7 @@ void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_f
 #endif // WIN32
 
 
-#ifdef LINUX
+#if defined LINUX || defined __APPLE__
 void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file) {
 	FILE * fpv = NULL;
 	FILE * fpi = NULL;
