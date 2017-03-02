@@ -179,11 +179,12 @@ contains
     character*(*), intent(in) :: line
 
     integer :: lp, lp2, nti, id, luout, np
-    real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xx(3)
+    real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xx(3), xout(3), dout
     character(len=:), allocatable :: word, outfile, prop, expr
     type(scalar_value) :: res
     logical :: ok, iok
     integer :: i
+    real*8, allocatable :: rhoout(:), lapout(:)
 
     ! read the points
     lp = 1
@@ -199,9 +200,12 @@ contains
        return
     end if
 
+    ! at least two points
+    np = max(np,2)
+
     ! read additional options
-    nti = 11
-    prop = "lap"
+    nti = 0
+    prop = ""
     id = refden
     outfile = "" 
     do while (.true.)
@@ -279,7 +283,7 @@ contains
     end if
 
     ! header
-    write (luout,'("# Field values (and derivatives) along a line")')
+    write (luout,'("# Field values (f) along a line (d = distance).")')
     write (luout,'("#",1x,4a15,1p,2a20,0p)') "x","y","z","d","f",string(prop)
 
     ! calculate the line
@@ -290,16 +294,25 @@ contains
        x0 = x0 / dunit - cr%molx0
        x1 = x1 / dunit - cr%molx0
     endif
+    allocate(rhoout(np),lapout(np))
+    lapout = 0d0
+
+    !$omp parallel do private (xp,dist,res,iok,rhopt,lappt) schedule(dynamic)
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
-       xx = cr%c2x(xp)
-
-       dist = norm(xp-x0)
        if (id >= 0) then
-          call grd(f(id),xp,2,res)
+          if (nti == 0) then
+             call grd(f(id),xp,0,res)
+          elseif (nti >= 1 .and. nti <= 4) then
+             call grd(f(id),xp,1,res)
+          else
+             call grd(f(id),xp,2,res)
+          end if
 
           rhopt = res%f
           select case(nti)
+          case (0)
+             lappt = rhopt
           case (1)
              lappt = res%gf(1)
           case (2)
@@ -327,20 +340,39 @@ contains
           rhopt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
           lappt = rhopt
        end if
+
+       !$omp critical (iowrite)
+       rhoout(i) = rhopt
+       lapout(i) = lappt
+       !$omp end critical (iowrite)
+    enddo
+    !$omp end parallel do
+
+    ! write the line to output
+    do i = 1, np
+       xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
+       dist = norm(xp-x0) * dunit
        if (.not.cr%ismolecule) then
-          write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-             xx, dist, rhopt, lappt
+          xout = cr%c2x(xp)
+       else
+          xout = (xp + cr%molx0) * dunit
+       end if
+       if (nti == 0) then
+          write (luout,'(1x,4(f15.10,x),1p,1(e18.10,x),0p)') &
+             xout, dist, rhoout(i)
        else
           write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-             (xp + cr%molx0) * dunit, dist * dunit, rhopt, lappt
-       endif
-    enddo
+             xout, dist, rhoout(i), lapout(i)
+       end if
+    end do
     write (luout,*)
-
     if (len_trim(outfile) > 0) then
        call fclose(luout)
        write (uout,'("* LINE written to file: ",A/)') string(outfile)
     end if
+
+    ! clean up
+    deallocate(rhoout,lapout)
 
   end subroutine rhoplot_line
 
@@ -432,6 +464,10 @@ contains
              return
           end if
           nn = nint(dd / rgr) + 1
+       else
+          do i = 1, 3
+             nn(i) = max(nn(i),2)
+          end do
        end if
     end if
 
@@ -669,6 +705,10 @@ contains
        call ferror('rhoplot_plane','Wrong PLANE command: nx and ny',faterr,line,syntax=.true.)
        return
     end if
+
+    ! at least two points 
+    nx = max(nx,2)
+    ny = max(ny,2)
 
     ! read additional options
     sx = 1d0
@@ -1923,6 +1963,9 @@ contains
                 call ferror ('grdvec', 'bad nptsu/nptsv/niso option',faterr,line,syntax=.true.)
                 return
              end if
+             n1 = max(n1,2)
+             n2 = max(n2,2)
+             niso = max(niso,2)
           else
              n1 = 100
              n2 = 100

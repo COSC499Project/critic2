@@ -178,6 +178,27 @@ module struct_basic
   type(crystal), target :: cr
   public :: cr
 
+  ! enumeration for structure file format types
+  integer, parameter, public :: isformat_unknown = 0
+  integer, parameter, public :: isformat_cif = 1
+  integer, parameter, public :: isformat_res = 2
+  integer, parameter, public :: isformat_cube = 3
+  integer, parameter, public :: isformat_struct = 4
+  integer, parameter, public :: isformat_abinit = 5
+  integer, parameter, public :: isformat_elk = 6
+  integer, parameter, public :: isformat_qein = 7
+  integer, parameter, public :: isformat_qeout = 8
+  integer, parameter, public :: isformat_crystal = 9
+  integer, parameter, public :: isformat_xyz = 10
+  integer, parameter, public :: isformat_wfn = 11
+  integer, parameter, public :: isformat_wfx = 12
+  integer, parameter, public :: isformat_fchk = 13
+  integer, parameter, public :: isformat_molden = 14
+  integer, parameter, public :: isformat_siesta = 15
+  integer, parameter, public :: isformat_xsf = 16
+  integer, parameter, public :: isformat_gen = 17
+  integer, parameter, public :: isformat_vasp = 18
+
   ! private to guessspg
   integer, parameter :: maxch=1000 !< max. possible unit cell translations
   real*8, allocatable  :: disctr(:,:) !< possible unit cell translations
@@ -2149,7 +2170,7 @@ contains
                 do i = 1, c%ncel
                    iz = c%at(c%atcel(i)%idx)%z
                    if (iz < 1 .or. iz > size(cscatt,2)) &
-                      call ferror('struct_powder','invalic Z -> no atomic scattering factors',faterr)
+                      call ferror('struct_powder','invalid Z -> no atomic scattering factors',faterr)
                    as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
                    bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
                    cs = cscatt(9,iz)

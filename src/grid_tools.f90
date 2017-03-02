@@ -560,7 +560,7 @@ contains
           read(luc,*,iostat=istat) pmat
           if (istat /= 0) &
              call ferror('grid_read_xsf','Error PRIMVEC',faterr,file)
-       else if (equal(word,'begin_block_datagrid_3d'))then
+       else if (equal(word,'begin_block_datagrid_3d').or.equal(word,'begin_block_datagrid3d'))then
           found = .true.
           exit
        end if
@@ -572,7 +572,8 @@ contains
     do while (getline_raw(luc,line))
        lp = 1
        word = lgetword(line,lp)
-       if (equal(word(1:min(17,len(word))),'begin_datagrid_3d') .or. equal(word(1:min(11,len(word))),'datagrid_3d')) then
+       if (equal(word(1:min(17,len(word))),'begin_datagrid_3d') .or. equal(word(1:min(11,len(word))),'datagrid_3d').or.&
+           equal(word(1:min(16,len(word))),'begin_datagrid3d') .or. equal(word(1:min(10,len(word))),'datagrid3d')) then
           found = .true.
           exit
        end if
@@ -689,13 +690,13 @@ contains
     if (ios /= 0) &
        call ferror('grid_read_elk','Error reading n1, n2, n3',faterr,file)
 
-    f%n = n - 1
-    allocate(f%f(n(1)-1,n(2)-1,n(3)-1),stat=ios)
+    f%n = n
+    allocate(f%f(n(1),n(2),n(3)),stat=ios)
     if (ios /= 0) &
        call ferror('grid_read_elk','Error allocating grid',faterr,file)
-    do k = 1, n(3)-1
-       do j = 1, n(2)-1
-          do i = 1, n(1)-1
+    do k = 1, n(3)
+       do j = 1, n(2)
+          do i = 1, n(1)
              read (luc,*) dum, f%f(i,j,k)
           end do
        end do
