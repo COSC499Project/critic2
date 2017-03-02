@@ -13,7 +13,7 @@
 
 EXE = critic2
 OBJS = main.o imgui_impl_glfw_gl3.o
-OBJS += imgui.o imgui_demo.o imgui_draw.o
+OBJS += imgui.o imgui_demo.o imgui_draw.o interface.o
 OBJS += libs/gl3w/GL/gl3w.o
 
 UNAME_S := $(shell uname -s)
@@ -32,6 +32,7 @@ ifeq ($(UNAME_S), Darwin) #APPLE
 	ECHO_MESSAGE = "Mac OS X"
 	LIBS = -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
 	LIBS += -L/usr/local/lib -lglfw3
+	LIBS += ../criticlib.a -lgfortran ../qhull/libqhull_critic.a ../cubpack/libcubpack.a ../ciftbx/libciftbx.a ../oldlibs/libmisc.a -lgomp
 	#LIBS += -L/usr/local/lib -lglfw
 
 	CXXFLAGS = -I./ -Ilibs/gl3w -I/usr/local/include
