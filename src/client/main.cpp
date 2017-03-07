@@ -825,7 +825,7 @@ static void ShowMenuFile()
             ImGui::MenuItem("Sailor");
             if (ImGui::BeginMenu("Recurse.."))
             {
-                ShowExampleMenuFile();
+                //ShowExampleMenuFile();
                 ImGui::EndMenu();
             }
             ImGui::EndMenu();
