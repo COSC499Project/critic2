@@ -1,8 +1,37 @@
-glfw3.lib(init.obj) : warning LNK4217: locally defined symbol _vsnprintf imported in function __glfwInputError
+﻿glfw3.lib(init.obj) : warning LNK4217: locally defined symbol _vsnprintf imported in function __glfwInputError
 MSVCRTD.lib(vsnprintf.obj) : warning LNK4049: locally defined symbol _vsnprintf imported
 glfw3.lib(context.obj) : warning LNK4217: locally defined symbol _sscanf imported in function _parseVersionString
 MSVCRTD.lib(vsnprintf.obj) : warning LNK4049: locally defined symbol __vsnprintf imported
-main.obj : error LNK2019: unresolved external symbol _initialize referenced in function "void __cdecl loadAtoms(void)" (?loadAtoms@@YAXXZ)
-main.obj : error LNK2019: unresolved external symbol _call_crystal referenced in function "void __cdecl loadAtoms(void)" (?loadAtoms@@YAXXZ)
-main.obj : error LNK2019: unresolved external symbol _get_positions referenced in function "void __cdecl loadAtoms(void)" (?loadAtoms@@YAXXZ)
-C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.exe : fatal error LNK1120: 3 unresolved externals
+interface.o : error LNK2019: unresolved external symbol ___struct_basic_MOD___vtab_struct_basic_Crystal referenced in function _share_bond
+interface.o : error LNK2019: unresolved external symbol ___struct_basic_MOD_cr referenced in function _share_bond
+interface.o : error LNK2019: unresolved external symbol ___tools_io_MOD_uout referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___global_MOD_refden referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___fields_MOD_nprops referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___fields_MOD_integ_prop referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___fields_MOD_f referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___global_MOD_gradient_mode referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___global_MOD_int_radquad_errprop_default referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___global_MOD_int_radquad_errprop referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___global_MOD_fileroot referenced in function _initialize
+interface.o : error LNK2019: unresolved external symbol __F.global_MOD_fileroot referenced in function _initialize
+interface.o : error LNK2019: unresolved external symbol ___struct_basic_MOD_find_asterisms referenced in function _share_bond
+interface.o : error LNK2019: unresolved external symbol __gfortran_runtime_error referenced in function _share_bond
+interface.o : error LNK2019: unresolved external symbol __gfortran_runtime_error_at referenced in function _share_bond
+interface.o : error LNK2019: unresolved external symbol __gfortran_os_error referenced in function _share_bond
+interface.o : error LNK2019: unresolved external symbol ___struct_MOD_struct_crystal_input referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___grd_atomic_MOD_grda_init referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol __gfortran_st_write referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___tools_io_MOD_string_int4 referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol __gfortran_transfer_character_write referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol __gfortran_st_write_done referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___autocp_MOD_init_cplist referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___fields_MOD_fields_integrable_report referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___param_MOD_param_init referenced in function _initialize
+interface.o : error LNK2019: unresolved external symbol ___tools_io_MOD_ioinit referenced in function _initialize
+interface.o : error LNK2019: unresolved external symbol ___tools_io_MOD_stdargs referenced in function _initialize
+interface.o : error LNK2019: unresolved external symbol ___global_MOD_global_init referenced in function _initialize
+interface.o : error LNK2019: unresolved external symbol ___struct_basic_MOD_struct_init referenced in function _call_crystal
+interface.o : error LNK2019: unresolved external symbol ___fields_MOD_fields_init referenced in function _initialize
+interface.o : error LNK2019: unresolved external symbol ___spgs_MOD_spgs_init referenced in function _initialize
+interface.o : error LNK2019: unresolved external symbol ___graphics_MOD_graphics_init referenced in function _initialize
+C:\499Drive\critic2\src\client\WinCompiler\Debug\WinCompiler.exe : fatal error LNK1120: 32 unresolved externals

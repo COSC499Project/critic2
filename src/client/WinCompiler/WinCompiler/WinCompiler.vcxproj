@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -83,7 +83,7 @@
       </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(solutiondir)libsF;$(solutiondir)..\criticlib.a;-lgfortran;$(solutiondir)..\qhull\libqhull_critic.a;$(solutiondir)..\cubpack\libcubpack.a;$(solutiondir)..\ciftbx\libciftbx.a;$(solutiondir)..\oldlibs\libmisc.a;-lgomp;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(solutiondir)libsF;$(solutiondir)..\..\criticlib.a;-lgfortran;$(solutiondir)..\..\qhull\libqhull_critic.a;$(solutiondir)..\..\cubpack\libcubpack.a;$(solutiondir)..\..\ciftbx\libciftbx.a;$(solutiondir)..\..\oldlibs\libmisc.a;-lgomp;-lglfw3;-lgdi32;-lopengl32;-limm32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>opengl32.lib;gl3w.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>msvcrt.lib</IgnoreSpecificDefaultLibraries>
     </Link>
@@ -132,6 +132,19 @@
     <ClInclude Include="..\..\imgui.h" />
     <ClInclude Include="..\..\imgui_impl_glfw_gl3.h" />
     <ClInclude Include="..\..\imgui_internal.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="..\..\interface.o">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
+    </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\interface.mod">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </DeploymentContent>
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
