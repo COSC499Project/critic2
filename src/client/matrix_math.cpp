@@ -221,6 +221,15 @@ public:
     return Ret;
   }
 
+  inline Vector3f operator*(const Vector3f& Right) const
+  {
+    Vector3f Ret;
+    Ret.x = m[0][0]*Right.x + m[0][1]*Right.y + m[0][2]*Right.z;
+    Ret.y = m[1][0]*Right.x + m[1][1]*Right.y + m[1][2]*Right.z;
+    Ret.z = m[2][0]*Right.x + m[2][1]*Right.y + m[2][2]*Right.z;
+    return Ret;
+  }
+
   inline Matrix4f operator*(const float s) const
   {
     Matrix4f Ret;
