@@ -7,6 +7,7 @@ module interface
   public :: init_struct
   public :: call_structure
   public :: get_positions
+  public :: share_bond
 
 contains
   !xx! top-level routines
@@ -167,6 +168,9 @@ contains
     x = c_loc(ix)
     z = c_loc(iz)
 
+    deallocate(ix)
+    deallocate(iz)
+
   end subroutine get_positions
 
   !subroutine get_atomic_name(atomName, atomNum) bind (c, name="get_atomic_name")
@@ -202,6 +206,7 @@ contains
     end do
 
     connected_atoms = c_loc(iz)
+    deallocate(iz)
 
   end subroutine share_bond
 

@@ -264,15 +264,10 @@ void deselectAll() {
 //the atoms should be loaded into the above array
 void loadAtoms() {
   //fill loadedAtoms array
-  char const *filename = "../../examples/data/pyridine.wfx";
   int *z; // atomic numbers
   double *x; // atomic positions
   int n; // number of atoms
 
-  char const *atomName;
-
-  initialize();
-  call_structure(filename, (int) strlen(filename), 0);
   get_positions(&n,&z,&x);
 
   loadedAtomsAmount = n;
@@ -828,6 +823,7 @@ static void ShowMenuFile()
       char const *filename = "../../examples/data/pyridine.wfx";
       init_struct();
       call_structure(filename, (int) strlen(filename), 1);
+      loadAtoms();
     }
     if (ImGui::MenuItem("Crystal")) {
       char const * lTheOpenFileName = tinyfd_openFileDialog(
@@ -842,5 +838,6 @@ static void ShowMenuFile()
       char const *filename = "../../examples/data/pyridine.wfx";
       init_struct();
       call_structure(filename, (int) strlen(filename), 0);
+      loadAtoms();
     }
 }
