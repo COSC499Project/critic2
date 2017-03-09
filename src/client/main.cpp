@@ -19,6 +19,24 @@ extern "C" void share_bond(int n_atom, int **connected_atom);
 static void ShowAppMainMenuBar();
 static void ShowMenuFile();
 
+char* charConverter(float t) {
+	char buffer[64];
+	sprintf(buffer, "%f", t);
+	return buffer;
+}
+
+char* charConverter(size_t t) {
+	char buffer[64];
+	sprintf(buffer, "%d", t);
+	return buffer;
+}
+
+char* charConverter(int t) {
+	char buffer[64];
+	sprintf(buffer, "%d", t);
+	return buffer;
+}
+
 struct {
   bool LeftMouseButton = 0;
   bool RightMouseButton = 0;
@@ -286,17 +304,19 @@ void loadAtoms() {
 	// loadedAtoms[0].atomPosition[1] = -1.f;
 	// loadedAtoms[0].atomPosition[2] = 0.f;
 
+
+
   //tree names must be constant
 	for (size_t x = 0; x < loadedAtomsAmount; x++) {
 		string nodeName = "";
 		nodeName += "Elem Name: ";
 		nodeName += loadedAtoms[x].name;
 		nodeName += "Atomic #:";
-		nodeName += to_string(loadedAtoms[x].atomicNumber);
+		nodeName += charConverter(loadedAtoms[x].atomicNumber);
 		nodeName += "  ID: ";
-		nodeName += to_string(x);
+		nodeName += charConverter(x);
 		nodeName += "##TreeID = "; //extra info for imgui to find selection
-		nodeName += to_string(x);
+		nodeName += charConverter(x);
 		loadedAtoms[x].atomTreeName = nodeName;
 	}
 
@@ -377,7 +397,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	//matrix math to transform posVector to pixel location of an atoms center
 
 	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
-	ImGui::Begin(to_string(identifyer).c_str(), false);
+	ImGui::Begin(charConverter(identifyer), false);
 	ImGui::End();
 }
 
@@ -424,7 +444,7 @@ void drawSelectedAtomStats() {
 		ImGui::NextColumn();
 		ImGui::Text(loadedAtoms[i].name.c_str()); ImGui::NextColumn(); // atom names
 		//this section should change with the section above
-		ImGui::Text(to_string(i).c_str()); ImGui::NextColumn(); //atom information
+		ImGui::Text(charConverter(i)); ImGui::NextColumn(); //atom information
 
 		//
 
@@ -438,9 +458,9 @@ void drawSelectedAtomStats() {
 void printCamStats() {
 	ImGui::SetNextWindowSize(ImVec2(300, 75), ImGuiSetCond_Appearing);
 	ImGui::Begin("cam stats", false);
-	string camPos = "cam pos: " + to_string(cam.Pos[0]) + "," + to_string(cam.Pos[1]) + "," + to_string(cam.Pos[2]);
-	string camTarget = "cam target: " + to_string(cam.Target[0]) + "," + to_string(cam.Target[1]) + "," + to_string(cam.Target[2]);
-	string camUp = "cam up: " + to_string(cam.Up[0]) + "," + to_string(cam.Up[1]) + "," + to_string(cam.Up[2]);
+	string camPos = "cam pos: " + (string)charConverter(cam.Pos[0]) + "," + charConverter(cam.Pos[1]) + "," + charConverter(cam.Pos[2]);
+	string camTarget = "cam target: " + (string)charConverter(cam.Target[0]) + "," + charConverter(cam.Target[1]) + "," + charConverter(cam.Target[2]);
+	string camUp = "cam up: " + (string)charConverter(cam.Up[0]) + "," + charConverter(cam.Up[1]) + "," + charConverter(cam.Up[2]);
 
 	ImGui::Text(camPos.c_str());
 	ImGui::Text(camTarget.c_str());

@@ -51,6 +51,7 @@ ifeq ($(UNAME_S), CYGWIN_NT-10.0)
 
    CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
    CXXFLAGS += -Wall -Wformat
+   CXXFLAGS += -DWIN32
    CFLAGS = $(CXXFLAGS)
 endif
 
