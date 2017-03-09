@@ -214,123 +214,63 @@ void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 }
 
+static float Xa, Ya, Za;
+static Matrix4f RotView;
+static Vector3f v2, n_q2, z_ax, q2;
+static float c2;
+
 void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
-                     const float p1[3], const float p2[3])
+                     const float p1[3], const float p2[3],
+                     GLuint SphereVB, GLuint SphereIB)
 {
-  float df[3] = {p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]};
-  float d = sqrt(df[0]*df[0] + df[1]*df[1] + df[2]*df[2]);
   float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
 
-  float q[3] = {(p1[0]-p2[0]), (p1[1]-p2[1]), (p1[2]-p2[2])};
+  float q[3] = {(p1[0]-mid[0]), (p1[1]-mid[1]), (p1[2]-mid[2])};
+  float d = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2]);
 
-  // TODO don't need to calculate this every frame, just store it somewhere
-  // X rotation
-  /*
-  float a = d/2.0f;
-  float a_sq = a * a;
-  float b_sq = ((q1[1] * q1[1]) + (q1[2] * q1[2]));
-  float c_sq = ((q1[1] * q1[1]) + ((q1[2] - a) * (q1[2] - a)));
-  float b = sqrt(b_sq);
-  float c = sqrt(c_sq);
-  float Xang;
-  if (b == 0){
-    Xang = 0;
-  } else {
-    Xang = ToDegree(acos((c_sq - a_sq - b_sq)/(-2.0f * a * b)));
-  }
-  if (q1[2] < 0){
-    Xang = 360 - Xang;
-  }
 
-  // Y rotation
-  b_sq = ((q1[0] * q1[0]) + (q1[2] * q1[2]));
-  c_sq = ((q1[0] * q1[0]) + ((q1[2] - a) * (q1[2] - a)));
-  b = sqrt(b_sq);
-  c = sqrt(c_sq);
-  float Yang;
-  if (b == 0){
-    Yang = 0;
-  } else {
-    Yang = ToDegree(acos((c_sq - a_sq - b_sq)/(-2.0f * a * b)));
-  }
-  if (q1[2] < 0){
-    Yang = 360 - Yang;
-  }
+  q2 = Vector3f(q);
+  
+  Vector3f n_q = Vector3f(q);
+  n_q.Normalize();
 
-  // Z rotation
-  float Zang;
-  if (q1[0] == 0){
-    Zang = 0;
-  } else {
-    Zang = ToDegree(atan(q1[1]/q1[0]));
-  }
-  if (q1[1] < 0 && q1[0] < 0){
-    Zang = 180 +  Zang;
-  } else if (q1[1] < 0 && q1[0] > 0){
-    Zang = 270 - Zang;
-  } else if (q1[1] > 0 && q1[0] < 0){
-    Zang = 90 - Zang;
-  }
-  */
+  Vector3f z_axis = Vector3f(0, 0, 1);
+  z_axis.Normalize();
+  Vector3f v = z_axis.Cross(n_q);
+  v.Normalize();
+  float c = (1.0f - z_axis.Dot(n_q))/1.0f;
 
-  float h = sqrt((q[1] * q[1]) + (q[2] * q[2]));
-  float y = abs(q[1]);
-  float Xang;
-  if (h == 0 || y == 0){
-    Xang = 0;
-  } else if (q[1] > 0 && q[2] > 0) {
-    Xang = ToDegree(asin(y/h));
-  } else if (q[1] > 0 && q[2] < 0) {
-    Xang = 180 - ToDegree(asin(y/h));
-  } else if (q[1] < 0 && q[2] < 0) {
-    Xang = 180 + ToDegree(asin(y/h));
-  } else if (q[1] < 0 && q[2] > 0) {
-    Xang = 360 - ToDegree(asin(y/h));
-  }
-    
-  h = sqrt((q[0] * q[0]) + (q[2] * q[2]));
-  float x = abs(q[0]);
-  float Yang;
-  if (h == 0 || x == 0){
-    Yang = 0;
-  } else if (q[0] > 0 && q[2] > 0) {
-    Yang = ToDegree(asin(x/h));
-  } else if (q[0] > 0 && q[2] < 0) {
-    Yang = 180 - ToDegree(asin(x/h));
-  } else if (q[0] < 0 && q[2] < 0) {
-    Yang = 180 + ToDegree(asin(x/h));
-  } else if (q[0] < 0 && q[2] > 0) {
-    Yang = 360 - ToDegree(asin(x/h));
-  }
- 
+  v2 = v; n_q2 = n_q; z_ax = z_axis; c2 = c;
+  
+  Matrix4f v_x;
+  v_x.m[0][0] = 0;     v_x.m[0][1] = -v.z;  v_x.m[0][2] = v.y;  v_x.m[0][3] = 0;
+  v_x.m[1][0] =  v.z;  v_x.m[1][1] = 0;     v_x.m[1][2] = -v.x; v_x.m[1][3] = 0;
+  v_x.m[2][0] = -v.y;  v_x.m[2][1] = v.x;   v_x.m[2][2] = 0;    v_x.m[2][3] = 0;
+  v_x.m[3][0] = 0;     v_x.m[3][1] = 0   ;  v_x.m[3][2] = 0;    v_x.m[3][3] = 1;
 
-  h = sqrt((q[0] * q[0]) + (q[1] * q[1]));
-  y = abs(q[1]);
-  float Zang;
-  if (h == 0 || y == 0){
-    Zang = 0;
-  } else if (q[1] > 0 && q[0] > 0) {
-    Zang = ToDegree(asin(y/h));
-  } else if (q[1] > 0 && q[0] < 0) {
-    Zang = 180 - ToDegree(asin(y/h));
-  } else if (q[1] < 0 && q[0] < 0) {
-    Zang = 180 + ToDegree(asin(y/h));
-  } else if (q[1] < 0 && q[0] > 0) {
-    Zang = 360 - ToDegree(asin(y/h));
-  }
+  Matrix4f Rot;
+  Rot.InitIdentity();
+  Rot = Rot + v_x;
+  Matrix4f v_x2 = v_x * v_x;
+  v_x2 = v_x2 * c;
+  Rot = Rot + v_x2;
+  
+  Rot.m[3][3] = 1;
+  Rot.m[0][3] = 0;
+  Rot.m[1][3] = 0;
+  Rot.m[2][3] = 0;
 
-  const float Rx = sinf(ToRadian(Xang/2));
-  const float Ry = sinf(ToRadian(Yang/2));
-  const float Rz = sinf(ToRadian(Zang/2));
- 
+  Rot.m[3][0] = 0;
+  Rot.m[3][1] = 0;
+  Rot.m[3][2] = 0;
 
- // printf("%.02f, %.02f, %.02f\n", -Xang, Yang, Zang);
-
-  p->Scale(0.1f, 0.1f, d);
+  RotView = Rot;
+  
+  p->Scale(0.05f, 0.05f, d);
   p->Translate(mid[0], mid[1], mid[2]); 
-  p->Rotate(Xang, Yang, Zang);
+  p->SetRotationMatrix(Rot);
 
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, 
@@ -342,12 +282,47 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
   glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
 
-
-
   glBindBuffer(GL_ARRAY_BUFFER, CylVB);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
+
+/*
+  float red[3] = {1, 0, 0};
+  float green[3] = {0, 1, 0};
+  float blue[3] = {0, 0, 1};
+        p->Scale(0.1f, 0.1f, 0.1f);
+        p->Translate(p1[0], p1[1], p1[2]); 
+        p->Rotate(0.f, 0.f, 0.f);
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&red);
+        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+        glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+
+
+        p->Translate(p2[0], p2[1], p2[2]); 
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+        glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+
+        p->Translate(mid[0], mid[1], mid[2]); 
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&green);
+         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+
+        p->Scale(0.05f, 0.05f, 0.05f);
+        p->Translate(n_q.x, n_q.y, n_q.z); 
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
+         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+
+        p->Scale(0.05f, 0.05f, 0.05f);
+        p->Translate(0, 0, 0); 
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
+         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+*/
 }
 
 #pragma region atom loading and drawing
@@ -591,11 +566,24 @@ int main(int, char**)
           ImGui::DragFloat("p2 x: ", &p2[0], 0.01f);
           ImGui::DragFloat("p2 y: ", &p2[1], 0.01f);
           ImGui::DragFloat("p2 z: ", &p2[2], 0.01f);
+          ImGui::Text("X axis rotation: %.02f", Xa);
+          ImGui::Text("Y axis rotation: %.02f", Ya);
+          ImGui::Text("Z axis rotation: %.02f", Za);
+          ImGui::Text("%.02f %.02f %.02f %.02f", RotView.m[0][0], RotView.m[0][1], RotView.m[0][2], RotView.m[0][3]);
+          ImGui::Text("%.02f %.02f %.02f %.02f", RotView.m[1][0], RotView.m[1][1], RotView.m[1][2], RotView.m[1][3]);
+          ImGui::Text("%.02f %.02f %.02f %.02f", RotView.m[2][0], RotView.m[2][1], RotView.m[2][2], RotView.m[2][3]);
+          ImGui::Text("%.02f %.02f %.02f %.02f", RotView.m[3][0], RotView.m[3][1], RotView.m[3][2], RotView.m[3][3]);
+
+          ImGui::Text("q: %.02f, %.02f, %.02f", q2.x, q2.y, q2.z);
+          ImGui::Text("n_q: %.02f, %.02f, %.02f", n_q2.x, n_q2.y, n_q2.z);
+          ImGui::Text("v: %.02f, %.02f, %.02f", v2.x, v2.y, v2.z);
+          ImGui::Text("z_axis: %.02f, %.02f, %.02f", z_ax.x, z_ax.y, z_ax.z);
+          ImGui::Text("c: %.02f", c2);
 
           ImGui::End();
         }
 //        DrawBond(gWorldLocation, mColorLocation, &p, CylVB, CylIB, p1, p2);
-        DrawBondLighted(&p, CylVB, CylIB, p1, p2);
+        DrawBondLighted(&p, CylVB, CylIB, p1, p2, SphereVB, SphereIB);
 
 
         glDisableVertexAttribArray(0);

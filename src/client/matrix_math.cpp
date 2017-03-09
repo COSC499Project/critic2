@@ -1,4 +1,5 @@
 #ifdef WIN32
+
 #define _USE_MATH_DEFINES
 #endif // WIN32
 
@@ -102,13 +103,13 @@ struct Vector3f
   Vector3f(float _x, float _y, float _z){
     x = _x;
     y = _y;
-    z = _y;
+    z = _z;
   }
 
   Vector3f(const float * pFloat){
     x = pFloat[0];
-    y = pFloat[0];
-    z = pFloat[0];
+    y = pFloat[1];
+    z = pFloat[2];
   }
 
   Vector3f (float f){
@@ -142,6 +143,7 @@ struct Vector3f
 
   Vector3f Cross(const Vector3f &v) const;
   Vector3f& Normalize();
+  float Dot(const Vector3f &v) const;
   void Rotate(float Angle, const Vector3f& Axis);
   void Print() const {
     printf("(%.02f, %.02f, %.02f)\n", x, y ,z);
@@ -155,11 +157,22 @@ Vector3f Vector3f::Cross(const Vector3f& v) const {
   return Vector3f(_x, _y, _z);
 }
 
+float Vector3f::Dot(const Vector3f& v) const {
+  const float _x = x * v.x;
+  const float _y = y * v.y;
+  const float _z = z * v.z;
+  return _x + _y + _z;
+}
+
 Vector3f& Vector3f::Normalize(){
   const float Length = sqrtf(x*x + y*y + z*z);
-  x /= Length;
-  y /= Length;
-  z /= Length;
+  if (Length == 0){
+    x = 0; y = 0; z = 0;
+  } else {
+    x /= Length;
+    y /= Length;
+    z /= Length;
+  }
   return *this;
 }
 
@@ -207,6 +220,29 @@ public:
     }
     return Ret;
   }
+
+  inline Matrix4f operator*(const float s) const
+  {
+    Matrix4f Ret;
+    for (unsigned int i=0; i<4; i++){
+      for (unsigned int j=0; j<4; j++){
+        Ret.m[i][j] = m[i][j] * s;
+      }
+    }
+    return Ret;
+  }
+
+  inline Matrix4f operator+(const Matrix4f& Right) const
+  {
+    Matrix4f Ret;
+    for (unsigned int i=0; i<4; i++){
+      for (unsigned int j=0; j<4; j++){
+        Ret.m[i][j] = m[i][j] + Right.m[i][j];
+      }
+    }
+    return Ret;
+  }
+
   
   void InitScaleTransform(float sx, float sy, float sz);
   void InitRotateTransform(float rx, float ry, float rz);
@@ -346,6 +382,7 @@ public:
   }
 
   void Rotate(float x, float y, float z){
+    m_rotate_trans.InitRotateTransform(x, y, z);
     m_rotate[0] = x; m_rotate[1] = y; m_rotate[2] = z;
   }
 
@@ -396,10 +433,13 @@ public:
   const Matrix4f * GetVPTrans();
   const Matrix4f * GetWVPTrans();
 
+  void SetRotationMatrix(const Matrix4f _m);
+
 private:
   float m_scale[3];
   float m_pos[3];
   float m_rotate[3];
+  Matrix4f m_rotate_trans;
   Matrix4f m_transform;
 
   PersProjInfo m_projInfo;
@@ -579,11 +619,31 @@ void Normalize(float * v)
   v[2] = v[2]/d;
 }
 
+void Pipeline::SetRotationMatrix(const Matrix4f _m)
+{  
+  m_rotate_trans.m[0][0] = _m.m[0][0];
+  m_rotate_trans.m[0][1] = _m.m[0][1];
+  m_rotate_trans.m[0][2] = _m.m[0][2];
+  m_rotate_trans.m[0][3] = _m.m[0][3];
+  m_rotate_trans.m[1][0] = _m.m[1][0];
+  m_rotate_trans.m[1][1] = _m.m[1][1];
+  m_rotate_trans.m[1][2] = _m.m[1][2];
+  m_rotate_trans.m[1][3] = _m.m[1][3];
+  m_rotate_trans.m[2][0] = _m.m[2][0];
+  m_rotate_trans.m[2][1] = _m.m[2][1];
+  m_rotate_trans.m[2][2] = _m.m[2][2];
+  m_rotate_trans.m[2][3] = _m.m[2][3];
+  m_rotate_trans.m[3][0] = _m.m[3][0];
+  m_rotate_trans.m[3][1] = _m.m[3][1];
+  m_rotate_trans.m[3][2] = _m.m[3][2];
+  m_rotate_trans.m[3][3] = _m.m[3][3];
+}
+
 const Matrix4f * Pipeline::GetTrans(){
   Matrix4f ScaleTrans, RotateTrans, TranslateTrans, CamTranslateTrans, CamRotateTrans,
            PersProjTrans, OrthoProjTrans;
   ScaleTrans.InitScaleTransform(m_scale[0], m_scale[1], m_scale[2]);
-  RotateTrans.InitRotateTransform(m_rotate[0], m_rotate[1], m_rotate[2]);
+//  RotateTrans.InitRotateTransform(m_rotate[0], m_rotate[1], m_rotate[2]);
   TranslateTrans.InitTranslateTransform(m_pos[0], m_pos[1], m_pos[2]);
   CamTranslateTrans.InitTranslateTransform(m_camera.Pos[0], -m_camera.Pos[1], -m_camera.Pos[2]);
   CamRotateTrans.InitCameraTransform(m_camera.Target, m_camera.Up);
@@ -591,7 +651,7 @@ const Matrix4f * Pipeline::GetTrans(){
   OrthoProjTrans.InitOrthoProjTransform(m_orthoInfo);
 
   m_transform =  PersProjTrans * CamRotateTrans * CamTranslateTrans * TranslateTrans *
-                RotateTrans * ScaleTrans;
+                m_rotate_trans * ScaleTrans;
 
   return &m_transform;
 }
@@ -614,7 +674,7 @@ const Matrix4f * Pipeline::GetWorldTrans(){
   ScaleTrans.InitScaleTransform(m_scale[0], m_scale[1], m_scale[2]);
   RotateTrans.InitRotateTransform(m_rotate[0], m_rotate[1], m_rotate[2]);
   TranslateTrans.InitTranslateTransform(m_pos[0], m_pos[1], m_pos[2]);
-  m_Wtransformation = TranslateTrans * RotateTrans * ScaleTrans;
+  m_Wtransformation = TranslateTrans * m_rotate_trans * ScaleTrans;
   return &m_Wtransformation;
 }
 
