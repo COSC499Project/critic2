@@ -1,7 +1,6 @@
 // ImGui - standalone example application for Glfw + OpenGL 3, using programmable pipeline
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 #include <imgui.h>
-#include "imguifilesystem.h"
 #include "imgui_impl_glfw_gl3.h"
 #include <stdio.h>
 #include <string.h>
@@ -10,9 +9,11 @@
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
+#include "tinyfiledialogs.h"
 
 extern "C" void initialize();
-extern "C" void call_crystal(const char *filename, int size);
+extern "C" void init_struct();
+extern "C" void call_structure(const char *filename, int size, int isMolecule);
 extern "C" void get_positions(int *n,int **z,double **x);
 //extern "C" void get_atomic_name(const char *atomName, int atomNum);
 extern "C" void share_bond(int n_atom, int **connected_atom);
@@ -271,7 +272,7 @@ void loadAtoms() {
   char const *atomName;
 
   initialize();
-  call_crystal(filename, (int) strlen(filename));
+  call_structure(filename, (int) strlen(filename), 0);
   get_positions(&n,&z,&x);
 
   loadedAtomsAmount = n;
@@ -499,6 +500,7 @@ void drawAtomTreeView(Pipeline p) {
 
 int main(int, char**)
 {
+    initialize();
     // Setup window
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
@@ -568,7 +570,7 @@ int main(int, char**)
 	// loadedAtoms[2].atomPosition[0] = 0.f;
 	// loadedAtoms[2].atomPosition[1] = .715f;
 	// loadedAtoms[2].atomPosition[2] = 0.f;
-	loadAtoms();
+	//loadAtoms();
 #pragma endregion
 
     // Load sphere mesh
@@ -813,54 +815,32 @@ static void ShowAppMainMenuBar()
 static void ShowMenuFile()
 {
     ImGui::MenuItem("(dummy menu)", NULL, false, false);
-    if (ImGui::MenuItem("New")) {}
-    if (ImGui::MenuItem("Open", "Ctrl+O")) {}
-    if (ImGui::BeginMenu("Open Recent"))
-    {
-        ImGui::MenuItem("fish_hat.c");
-        ImGui::MenuItem("fish_hat.inl");
-        ImGui::MenuItem("fish_hat.h");
-        if (ImGui::BeginMenu("More.."))
-        {
-            ImGui::MenuItem("Hello");
-            ImGui::MenuItem("Sailor");
-            if (ImGui::BeginMenu("Recurse.."))
-            {
-                ShowMenuFile();
-                ImGui::EndMenu();
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::EndMenu();
+    if (ImGui::MenuItem("Molecule")) {
+      char const * lTheOpenFileName = tinyfd_openFileDialog(
+    		"Select Crystal file",
+    		"",
+    		0,
+    		NULL,
+    		NULL,
+    		0);
+
+      printf("* File: %s \n", lTheOpenFileName);
+      char const *filename = "../../examples/data/pyridine.wfx";
+      init_struct();
+      call_structure(filename, (int) strlen(filename), 1);
     }
-    if (ImGui::MenuItem("Save", "Ctrl+S")) {}
-    if (ImGui::MenuItem("Save As..")) {}
-    ImGui::Separator();
-    if (ImGui::BeginMenu("Options"))
-    {
-        static bool enabled = true;
-        ImGui::MenuItem("Enabled", "", &enabled);
-        ImGui::BeginChild("child", ImVec2(0, 60), true);
-        for (int i = 0; i < 10; i++)
-            ImGui::Text("Scrolling Text %d", i);
-        ImGui::EndChild();
-        static float f = 0.5f;
-        static int n = 0;
-        ImGui::SliderFloat("Value", &f, 0.0f, 1.0f);
-        ImGui::InputFloat("Input", &f, 0.1f);
-        ImGui::Combo("Combo", &n, "Yes\0No\0Maybe\0\0");
-        ImGui::EndMenu();
+    if (ImGui::MenuItem("Crystal")) {
+      char const * lTheOpenFileName = tinyfd_openFileDialog(
+    		"Select Crystal file",
+    		"",
+    		0,
+    		NULL,
+    		NULL,
+    		0);
+
+      printf("* File: %s \n", lTheOpenFileName);
+      char const *filename = "../../examples/data/pyridine.wfx";
+      init_struct();
+      call_structure(filename, (int) strlen(filename), 0);
     }
-    if (ImGui::BeginMenu("Colors"))
-    {
-        for (int i = 0; i < ImGuiCol_COUNT; i++)
-            ImGui::MenuItem(ImGui::GetStyleColName((ImGuiCol)i));
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("Disabled", false)) // Disabled
-    {
-        IM_ASSERT(0);
-    }
-    if (ImGui::MenuItem("Checked", NULL, true)) {}
-    if (ImGui::MenuItem("Quit", "Alt+F4")) {}
 }

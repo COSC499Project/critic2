@@ -4,7 +4,8 @@ module interface
   private
 
   public :: initialize
-  public :: call_crystal
+  public :: init_struct
+  public :: call_structure
   public :: get_positions
 
 contains
@@ -12,7 +13,7 @@ contains
   subroutine initialize() bind (c,name="initialize")
     use graphics, only: graphics_init
     use spgs, only: spgs_init
-    use fields, only: fields_init
+    use fields, only: fields_init, fields_end
     use struct_basic, only: cr
     use config, only: datadir
     use global, only: global_init, fileroot
@@ -21,6 +22,16 @@ contains
     character(len=:), allocatable :: optv
     character(len=:), allocatable :: ghome
     character(len=:), allocatable :: uroot
+
+    if (cr%isinit) then
+      call cr%end()
+      ! ...the fields associated to the previous structure
+      call fields_end()
+      ! ...the loaded radial atomic and core densities
+      !call grda_end()
+      ! ...the CP list
+      !call varbas_end()
+    end if
 
     ! initialize parameters
     call param_init()
@@ -31,14 +42,32 @@ contains
 
     ! set default values and initialize the rest of the modules
     call global_init(ghome,datadir)
-    call cr%init()
-    call fields_init()
     call spgs_init()
     call graphics_init()
 
   end subroutine initialize
 
-  subroutine call_crystal(filename0, nc) bind(c,name="call_crystal")
+  subroutine init_struct() bind (c,name="init_struct")
+    use fields, only: fields_init, fields_end
+    use struct_basic, only: cr
+
+    if (cr%isinit) then
+      call cr%end()
+      ! ...the fields associated to the previous structure
+      call fields_end()
+      ! ...the loaded radial atomic and core densities
+      !call grda_end()
+      ! ...the CP list
+      !call varbas_end()
+    end if
+
+    call cr%init()
+    call fields_init()
+
+  end subroutine init_struct
+
+
+  subroutine call_structure(filename0, nc, isMolecule) bind(c,name="call_structure")
     use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
        fields_integrable_report
     use grd_atomic, only: grda_init
@@ -50,12 +79,13 @@ contains
 
     character (kind=c_char, len=1), dimension (*), intent (in) :: filename0
     integer (kind=c_int), value :: nc
+    integer (kind=c_int), value :: isMolecule
 
     character(len=:), allocatable :: filename
 
     filename = str_c_to_f(filename0, nc)
 
-    call struct_crystal_input(cr, filename, .true., .true., .true.)
+    call struct_crystal_input(cr, filename, isMolecule == 1, .true., .true.)
     if (cr%isinit) then
        ! initialize the radial densities
        call grda_init(.true.,.true.,.true.)
@@ -94,7 +124,7 @@ contains
        call cr%init()
     end if
 
-  end subroutine call_crystal
+  end subroutine call_structure
 
   function str_c_to_f(strc, nchar) result(strf)
     integer(kind=C_INT), intent(in), value :: nchar
