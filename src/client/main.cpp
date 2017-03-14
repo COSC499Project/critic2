@@ -281,6 +281,7 @@ void deselectAll() {
 void loadAtoms() {
   //fill loadedAtoms array
   char const *filename = "../../examples/data/pyridine.wfx";
+  
   int *z; // atomic numbers
   double *x; // atomic positions
   int n; // number of atoms
@@ -524,12 +525,13 @@ int main(int, char**)
         return 1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
 #if __APPLE__ 
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Critic2", NULL, NULL);
-    glfwMakeContextCurrent(window);
+
+	glfwMakeContextCurrent(window);
     gl3wInit();
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
