@@ -1,0 +1,129 @@
+﻿imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetWindowSize referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetFramebufferSize referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
+main.obj : error LNK2001: unresolved external symbol glfwGetFramebufferSize
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetWindowAttrib referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwSetInputMode referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetMouseButton referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
+main.obj : error LNK2001: unresolved external symbol glfwGetMouseButton
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetCursorPos referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
+main.obj : error LNK2001: unresolved external symbol glfwGetCursorPos
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwSetKeyCallback referenced in function "bool __cdecl ImGui_ImplGlfwGL3_Init(struct GLFWwindow *,bool)" (?ImGui_ImplGlfwGL3_Init@@YA_NPEAUGLFWwindow@@_N@Z)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwSetCharCallback referenced in function "bool __cdecl ImGui_ImplGlfwGL3_Init(struct GLFWwindow *,bool)" (?ImGui_ImplGlfwGL3_Init@@YA_NPEAUGLFWwindow@@_N@Z)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwSetMouseButtonCallback referenced in function "bool __cdecl ImGui_ImplGlfwGL3_Init(struct GLFWwindow *,bool)" (?ImGui_ImplGlfwGL3_Init@@YA_NPEAUGLFWwindow@@_N@Z)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwSetScrollCallback referenced in function "bool __cdecl ImGui_ImplGlfwGL3_Init(struct GLFWwindow *,bool)" (?ImGui_ImplGlfwGL3_Init@@YA_NPEAUGLFWwindow@@_N@Z)
+main.obj : error LNK2001: unresolved external symbol glfwSetScrollCallback
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwSetClipboardString referenced in function "void __cdecl ImGui_ImplGlfwGL3_SetClipboardText(char const *)" (?ImGui_ImplGlfwGL3_SetClipboardText@@YAXPEBD@Z)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetClipboardString referenced in function "char const * __cdecl ImGui_ImplGlfwGL3_GetClipboardText(void)" (?ImGui_ImplGlfwGL3_GetClipboardText@@YAPEBDXZ)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetTime referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetWin32Window referenced in function "bool __cdecl ImGui_ImplGlfwGL3_Init(struct GLFWwindow *,bool)" (?ImGui_ImplGlfwGL3_Init@@YA_NPEAUGLFWwindow@@_N@Z)
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wActiveTexture
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wAttachShader
+main.obj : error LNK2001: unresolved external symbol gl3wAttachShader
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wBindBuffer
+main.obj : error LNK2001: unresolved external symbol gl3wBindBuffer
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wBindTexture
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wBindVertexArray
+main.obj : error LNK2001: unresolved external symbol gl3wBindVertexArray
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wBlendEquation
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wBlendEquationSeparate
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wBlendFunc
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wBufferData
+main.obj : error LNK2001: unresolved external symbol gl3wBufferData
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wCompileShader
+main.obj : error LNK2001: unresolved external symbol gl3wCompileShader
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wCreateProgram
+main.obj : error LNK2001: unresolved external symbol gl3wCreateProgram
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wCreateShader
+main.obj : error LNK2001: unresolved external symbol gl3wCreateShader
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wDeleteBuffers
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wDeleteProgram
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wDeleteShader
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wDeleteTextures
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wDeleteVertexArrays
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wDetachShader
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wDisable
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wDrawElements
+main.obj : error LNK2001: unresolved external symbol gl3wDrawElements
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wEnable
+main.obj : error LNK2001: unresolved external symbol gl3wEnable
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wEnableVertexAttribArray
+main.obj : error LNK2001: unresolved external symbol gl3wEnableVertexAttribArray
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wGenBuffers
+main.obj : error LNK2001: unresolved external symbol gl3wGenBuffers
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wGenTextures
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wGenVertexArrays
+main.obj : error LNK2001: unresolved external symbol gl3wGenVertexArrays
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wGetAttribLocation
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wGetIntegerv
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wGetUniformLocation
+main.obj : error LNK2001: unresolved external symbol gl3wGetUniformLocation
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wIsEnabled
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wLinkProgram
+main.obj : error LNK2001: unresolved external symbol gl3wLinkProgram
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wScissor
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wShaderSource
+main.obj : error LNK2001: unresolved external symbol gl3wShaderSource
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wTexImage2D
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wTexParameteri
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wUniform1i
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wUniformMatrix4fv
+main.obj : error LNK2001: unresolved external symbol gl3wUniformMatrix4fv
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wUseProgram
+main.obj : error LNK2001: unresolved external symbol gl3wUseProgram
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wVertexAttribPointer
+main.obj : error LNK2001: unresolved external symbol gl3wVertexAttribPointer
+imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wViewport
+main.obj : error LNK2001: unresolved external symbol gl3wViewport
+main.obj : error LNK2019: unresolved external symbol gl3wInit referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwInit referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwTerminate referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwSetErrorCallback referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwWindowHint referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwCreateWindow referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwWindowShouldClose referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwPollEvents referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwMakeContextCurrent referenced in function main
+main.obj : error LNK2019: unresolved external symbol glfwSwapBuffers referenced in function main
+main.obj : error LNK2001: unresolved external symbol gl3wClear
+main.obj : error LNK2001: unresolved external symbol gl3wClearColor
+main.obj : error LNK2001: unresolved external symbol gl3wDepthFunc
+main.obj : error LNK2001: unresolved external symbol gl3wDisableVertexAttribArray
+main.obj : error LNK2001: unresolved external symbol gl3wGetProgramiv
+main.obj : error LNK2001: unresolved external symbol gl3wGetShaderInfoLog
+main.obj : error LNK2001: unresolved external symbol gl3wGetShaderiv
+main.obj : error LNK2001: unresolved external symbol gl3wPolygonMode
+main.obj : error LNK2001: unresolved external symbol gl3wUniform4fv
+main.obj : error LNK2001: unresolved external symbol gl3wValidateProgram
+interface.o : error LNK2019: unresolved external symbol __struct_basic_MOD_find_asterisms referenced in function share_bond
+interface.o : error LNK2019: unresolved external symbol _gfortran_runtime_error referenced in function share_bond
+interface.o : error LNK2019: unresolved external symbol _gfortran_runtime_error_at referenced in function share_bond
+interface.o : error LNK2019: unresolved external symbol _gfortran_os_error referenced in function share_bond
+interface.o : error LNK2019: unresolved external symbol __struct_MOD_struct_crystal_input referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol __grd_atomic_MOD_grda_init referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol _gfortran_st_write referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol __tools_io_MOD_string_int4 referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol _gfortran_transfer_character_write referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol _gfortran_st_write_done referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol __autocp_MOD_init_cplist referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol __fields_MOD_fields_integrable_report referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol __param_MOD_param_init referenced in function initialize
+interface.o : error LNK2019: unresolved external symbol __tools_io_MOD_ioinit referenced in function initialize
+interface.o : error LNK2019: unresolved external symbol __tools_io_MOD_stdargs referenced in function initialize
+interface.o : error LNK2019: unresolved external symbol __global_MOD_global_init referenced in function initialize
+interface.o : error LNK2019: unresolved external symbol __struct_basic_MOD_struct_init referenced in function call_crystal
+interface.o : error LNK2019: unresolved external symbol __fields_MOD_fields_init referenced in function initialize
+interface.o : error LNK2019: unresolved external symbol __spgs_MOD_spgs_init referenced in function initialize
+interface.o : error LNK2019: unresolved external symbol __graphics_MOD_graphics_init referenced in function initialize
+interface.o : error LNK2001: unresolved external symbol _F.global_MOD_fileroot
+interface.o : error LNK2001: unresolved external symbol __global_MOD_fileroot
+interface.o : error LNK2001: unresolved external symbol __global_MOD_int_radquad_errprop
+interface.o : error LNK2001: unresolved external symbol __global_MOD_int_radquad_errprop_default
+interface.o : error LNK2001: unresolved external symbol __global_MOD_gradient_mode
+interface.o : error LNK2001: unresolved external symbol __fields_MOD_f
+interface.o : error LNK2001: unresolved external symbol __fields_MOD_integ_prop
+interface.o : error LNK2001: unresolved external symbol __fields_MOD_nprops
+interface.o : error LNK2001: unresolved external symbol __global_MOD_refden
+interface.o : error LNK2001: unresolved external symbol __tools_io_MOD_uout
+interface.o : error LNK2001: unresolved external symbol __struct_basic_MOD_cr
+interface.o : error LNK2001: unresolved external symbol __struct_basic_MOD___vtab_struct_basic_Crystal
+C:\499Drive\critic2\src\client\WinCompiler\x64\Debug\WinCompiler.exe : fatal error LNK1120: 105 unresolved externals

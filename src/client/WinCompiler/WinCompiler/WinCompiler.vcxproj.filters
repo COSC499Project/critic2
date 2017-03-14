@@ -47,9 +47,4 @@
       <Filter>Source Files</Filter>
     </Object>
   </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="..\..\interface.mod">
-      <Filter>Resource Files</Filter>
-    </CustomBuild>
-  </ItemGroup>
 </Project>
