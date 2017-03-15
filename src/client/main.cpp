@@ -19,22 +19,25 @@ extern "C" void share_bond(int n_atom, int **connected_atom);
 static void ShowAppMainMenuBar();
 static void ShowMenuFile();
 
-char* charConverter(float t) {
+string charConverter(float t) {
 	char buffer[64];
-	sprintf(buffer, "%f", t);
-	return buffer;
+	int len = sprintf(buffer, "%f", t);
+	string val = buffer;
+	return val;
 }
 
-char* charConverter(size_t t) {
+string charConverter(size_t t) {
 	char buffer[64];
-	sprintf(buffer, "%d", t);
-	return buffer;
+	int len = sprintf(buffer, "%d", t);
+	string val = buffer;
+	return val;
 }
 
-char* charConverter(int t) {
+string charConverter(int t) {
 	char buffer[64];
-	sprintf(buffer, "%d", t);
-	return buffer;
+	int len = sprintf(buffer, "%d", t);
+	string val = buffer;
+	return val;
 }
 
 struct {
@@ -294,7 +297,7 @@ void loadAtoms() {
 
   loadedAtomsAmount = n;
 	loadedAtoms = new atom[loadedAtomsAmount];
-  for (int i=0;i<n;i++) {
+	for (int i=0;i<n;i++) {
     loadedAtoms[i].atomicNumber = z[i];
     loadedAtoms[i].atomPosition[0] = x[i*3+0];
   	loadedAtoms[i].atomPosition[1] = x[i*3+1];
@@ -304,7 +307,6 @@ void loadAtoms() {
 	// loadedAtoms[0].atomPosition[0] = 0.f;
 	// loadedAtoms[0].atomPosition[1] = -1.f;
 	// loadedAtoms[0].atomPosition[2] = 0.f;
-
 
 
   //tree names must be constant
@@ -369,7 +371,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	if (loadedAtoms[identifyer].selected) { //selection is color based
 		inc = 1.5f;
 	}
-	const GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
+	//const GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
 	//selection end
 
 	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
@@ -387,7 +389,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	glBindBuffer(GL_ARRAY_BUFFER, atomVB);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
-	glUniform4fv(mColorLocation, 1, (const GLfloat *)&n_Color);
+	glUniform4fv(mColorLocation, 1, (const GLfloat *)&color);
 	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
 
 	//TODO draw atom ID number
@@ -398,7 +400,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	//matrix math to transform posVector to pixel location of an atoms center
 
 	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
-	ImGui::Begin(charConverter(identifyer), false);
+	ImGui::Begin(charConverter(identifyer).c_str(), false);
 	ImGui::End();
 }
 
@@ -444,8 +446,9 @@ void drawSelectedAtomStats() {
 			selected = i;
 		ImGui::NextColumn();
 		ImGui::Text(loadedAtoms[i].name.c_str()); ImGui::NextColumn(); // atom names
-		//this section should change with the section above
-		ImGui::Text(charConverter(i)); ImGui::NextColumn(); //atom information
+		//this section should change swith the section above
+		
+		ImGui::Text(charConverter(i).c_str()); ImGui::NextColumn(); //atom information
 
 		//
 
@@ -525,7 +528,12 @@ int main(int, char**)
         return 1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
+
+#if WIN32
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
+#else
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
 #if __APPLE__ 
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -696,7 +704,7 @@ int main(int, char**)
             ImGui::DragFloat("CamUpZ", &camUp[2], 0.005f);
 
         }
-*/
+*/		
         ShowAppMainMenuBar();
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
@@ -724,7 +732,7 @@ int main(int, char**)
 		printCamStats();
 		drawSelectedAtomStats();
 
-		/* old atom drawing
+ 		/* old atom drawing
         p.Scale(0.25f, 0.25f, 0.25f);
         p.Translate(0.f, -1.f, 0.f);
         p.Rotate(0.f, 0.f, 0.f);
