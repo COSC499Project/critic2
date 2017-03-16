@@ -32,7 +32,7 @@ endif
 ifeq ($(UNAME_S), Darwin) #APPLE
 	ECHO_MESSAGE = "Mac OS X"
 	LIBS = -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
-	LIBS += -L/usr/local/lib -lglfw3 `pkg-config --cflags --libs gtk+-2.0`
+	LIBS += -L/usr/local/lib -lglfw3
 	LIBS += ../criticlib.a -lgfortran ../qhull/libqhull_critic.a ../cubpack/libcubpack.a ../ciftbx/libciftbx.a ../oldlibs/libmisc.a -lgomp
 	#LIBS += -L/usr/local/lib -lglfw
 
