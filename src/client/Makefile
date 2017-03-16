@@ -13,7 +13,7 @@
 
 EXE = critic2
 OBJS = main.o imgui_impl_glfw_gl3.o
-OBJS += imgui.o imgui_demo.o imgui_draw.o interface.o tinyfiledialogs.c
+OBJS += imgui.o imgui_demo.o imgui_draw.o
 OBJS += libs/gl3w/GL/gl3w.o
 
 UNAME_S := $(shell uname -s)
@@ -22,6 +22,7 @@ UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S), Linux) #LINUX
 	ECHO_MESSAGE = "Linux"
 	LIBS = -lGL `pkg-config --static --libs glfw3`
+	LIBS += ../criticlib.a -lgfortran ../qhull/libqhull_critic.a ../cubpack/libcubpack.a ../ciftbx/libciftbx.a ../oldlibs/libmisc.a -lgomp
 
 	CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
 	CXXFLAGS += -Wall -Wformat -DLINUX -D_GLIBCXX_USE_CXX11_ABI=0
@@ -31,7 +32,7 @@ endif
 ifeq ($(UNAME_S), Darwin) #APPLE
 	ECHO_MESSAGE = "Mac OS X"
 	LIBS = -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
-	LIBS += -L/usr/local/lib -lglfw3 `pkg-config --cflags --libs gtk+-2.0`
+	LIBS += -L/usr/local/lib -lglfw3
 	LIBS += ../criticlib.a -lgfortran ../qhull/libqhull_critic.a ../cubpack/libcubpack.a ../ciftbx/libciftbx.a ../oldlibs/libmisc.a -lgomp
 	#LIBS += -L/usr/local/lib -lglfw
 
@@ -58,7 +59,7 @@ all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
 $(EXE): $(OBJS)
-	$(CXX) -o $(EXE) $(OBJS) $(CXXFLAGS) $(LIBS)
+	$(CXX) -o $(EXE) $(OBJS) ../interface.o tinyfiledialogs.c $(CXXFLAGS) $(LIBS)
 
 clean:
 	rm $(EXE) $(OBJS)
