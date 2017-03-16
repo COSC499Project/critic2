@@ -119,7 +119,7 @@ static GLuint LightingShader()
   AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
 
   GLint success = 0;
-  
+
   glLinkProgram(ShaderProgram);
   glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
   if (success == 0) exit(1);
@@ -165,7 +165,7 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
 
 
 //  q2 = Vector3f(q);
-  
+
   Vector3f n_q = Vector3f(q);
   n_q.Normalize();
 
@@ -176,7 +176,7 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   float c = (1.0f - z_axis.Dot(n_q))/1.0f;
 
   //v2 = v; n_q2 = n_q; z_ax = z_axis; c2 = c;
-  
+
   Matrix4f v_x;
   v_x.m[0][0] = 0;     v_x.m[0][1] = -v.z;  v_x.m[0][2] = v.y;  v_x.m[0][3] = 0;
   v_x.m[1][0] =  v.z;  v_x.m[1][1] = 0;     v_x.m[1][2] = -v.x; v_x.m[1][3] = 0;
@@ -189,7 +189,7 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   Matrix4f v_x2 = v_x * v_x;
   v_x2 = v_x2 * c;
   Rot = Rot + v_x2;
-  
+
   Rot.m[3][3] = 1;
   Rot.m[0][3] = 0;
   Rot.m[1][3] = 0;
@@ -200,15 +200,15 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   Rot.m[3][2] = 0;
 
   //RotView = Rot;
-  
+
   p->Scale(0.05f, 0.05f, d);
-  p->Translate(mid[0], mid[1], mid[2]); 
+  p->Translate(mid[0], mid[1], mid[2]);
   p->SetRotationMatrix(Rot);
 
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, 
+  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
                      (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, 
+  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
                      (const GLfloat *)p->GetWorldTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&grey);
   glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
@@ -225,7 +225,7 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   float green[3] = {0, 1, 0};
   float blue[3] = {0, 0, 1};
         p->Scale(0.1f, 0.1f, 0.1f);
-        p->Translate(p1[0], p1[1], p1[2]); 
+        p->Translate(p1[0], p1[1], p1[2]);
         p->Rotate(0.f, 0.f, 0.f);
         glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&red);
@@ -235,23 +235,23 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
 
 
-        p->Translate(p2[0], p2[1], p2[2]); 
+        p->Translate(p2[0], p2[1], p2[2]);
         glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
 
-        p->Translate(mid[0], mid[1], mid[2]); 
+        p->Translate(mid[0], mid[1], mid[2]);
         glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&green);
          glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
 
         p->Scale(0.05f, 0.05f, 0.05f);
-        p->Translate(n_q.x, n_q.y, n_q.z); 
+        p->Translate(n_q.x, n_q.y, n_q.z);
         glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
          glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
 
         p->Scale(0.05f, 0.05f, 0.05f);
-        p->Translate(0, 0, 0); 
+        p->Translate(0, 0, 0);
         glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
          glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
@@ -342,8 +342,6 @@ void loadAtoms() {
 void connectAtoms() {
   float atom1pos[3] = {loadedAtoms[1].atomPosition[0], loadedAtoms[1].atomPosition[1], loadedAtoms[1].atomPosition[2]};
   float atom2pos[3] = {loadedAtoms[3].atomPosition[0], loadedAtoms[3].atomPosition[1], loadedAtoms[3].atomPosition[2]};
-
-  DrawBond()
 }
 
 ///returns the color of an atom based on the atomic number
@@ -383,7 +381,7 @@ const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
 
 GLuint gWorldLocation; //made global to make Drawing via methods easer
 GLuint mColorLocation;
-void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
+void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4],
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	//selection start
 	float inc = 1.f;
@@ -575,7 +573,7 @@ int main(int, char**)
     ShaderVarLocations.vColorLocation = glGetUniformLocation(lightshader, "vColor");
     ShaderVarLocations.lColorLocation = glGetUniformLocation(lightshader, "lColor");
     ShaderVarLocations.lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
-    
+
 
 	//glEnables
     glEnable(GL_DEPTH_TEST);
@@ -744,16 +742,6 @@ static void ShowAppMainMenuBar()
         if (ImGui::BeginMenu("File"))
         {
             ShowMenuFile();
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Edit"))
-        {
-            if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
-            if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}  // Disabled item
-            ImGui::Separator();
-            if (ImGui::MenuItem("Cut", "CTRL+X")) {}
-            if (ImGui::MenuItem("Copy", "CTRL+C")) {}
-            if (ImGui::MenuItem("Paste", "CTRL+V")) {}
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
