@@ -282,11 +282,13 @@ struct atom{
 	float atomPosition[3];
 	string atomTreeName; //must be saved to preserve imgui tree Id's
   int numberOfBonds;
-  int *bondedAtoms;
+  int *loadedBonds;
 };
 
 int loadedAtomsAmount = 0;
 atom *loadedAtoms;
+
+int loadedBondsAmount = 0;
 
 #pragma region atom selection
 void selectAtom() {
@@ -314,11 +316,23 @@ void loadAtoms() {
   loadedAtomsAmount = n;
 	loadedAtoms = new atom[loadedAtomsAmount];
   for (int i=0;i<n;i++) {
+    // share_bond(i, &connected_atoms);
     loadedAtoms[i].atomicNumber = z[i];
     loadedAtoms[i].atomPosition[0] = x[i*3+0];
   	loadedAtoms[i].atomPosition[1] = x[i*3+1];
   	loadedAtoms[i].atomPosition[2] = x[i*3+2];
+
+    // loadedAtoms[i].bondedAtoms = connected_atoms;
+    // int *connected_atoms;
+    // int size = sizeof(loadedAtoms[i].bondedAtoms)
+    //
+    // printf(loadedAtoms[i].bondedAtoms);
   }
+
+  // for (int i=0; i<n; i++) {
+  //
+  // }
+
 	// loadedAtoms[0].atomicNumber = 1;
 	// loadedAtoms[0].atomPosition[0] = 0.f;
 	// loadedAtoms[0].atomPosition[1] = -1.f;
@@ -339,9 +353,39 @@ void loadAtoms() {
 
 }
 
-void connectAtoms() {
-  float atom1pos[3] = {loadedAtoms[1].atomPosition[0], loadedAtoms[1].atomPosition[1], loadedAtoms[1].atomPosition[2]};
-  float atom2pos[3] = {loadedAtoms[3].atomPosition[0], loadedAtoms[3].atomPosition[1], loadedAtoms[3].atomPosition[2]};
+void loadBonds() {
+
+  for (int i = 1; i < loadedAtomsAmount; i++) {
+    int *connected_atoms;
+    share_bond(i, &connected_atoms);
+
+    int numBonds = sizeof(connected_atoms) / sizeof(connected_atoms[0]);
+    loadedAtoms[i].loadedBonds = new int[numBonds];
+
+    loadedBondsAmount += numBonds;
+
+    for (int j = 0; j < numBonds; j++) {
+      if (connected_atoms[j] >= 0 && connected_atoms[j] <= loadedAtomsAmount) {
+        loadedAtoms[i].loadedBonds[j] = connected_atoms[j];
+      }
+    }
+  }
+
+}
+
+void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB,
+                     GLuint SphereVB, GLuint SphereIB)
+{
+  for (size_t x = 1; x < loadedAtomsAmount; x++){
+    int numBonds = sizeof(loadedAtoms[x].loadedBonds) / sizeof(loadedAtoms[x].loadedBonds[0]);
+    std::cout << numBonds << " num of bonds\n";
+    for (size_t i = 0; i < numBonds; i++) {
+      std::cout << i << " atom bond " << loadedAtoms[x].loadedBonds[i] << "\n";
+      if (loadedAtoms[x].loadedBonds[i] < loadedAtomsAmount && loadedAtoms[x].loadedBonds[i] > -1) {
+        DrawBondLighted(p, CylVB, CylIB, loadedAtoms[x].atomPosition, loadedAtoms[loadedAtoms[x].loadedBonds[i]].atomPosition, SphereVB, SphereIB);
+      }
+    }
+	}
 }
 
 ///returns the color of an atom based on the atomic number
@@ -712,9 +756,10 @@ int main(int, char**)
 		printCamStats();
 		drawSelectedAtomStats();
 
-        static float p1[3] = {-1, 0, 0};
-        static float p2[3] = {1, 0, 0};
-        DrawBondLighted(&p, CylVB, CylIB, p1, p2, SphereVB, SphereIB);
+        //static float p1[3] = {-1, 0, 0};
+        //static float p2[3] = {1, 0, 0};
+        drawAllBonds(&p, CylVB, CylIB, SphereVB, SphereIB);
+        //DrawBondLighted(&p, CylVB, CylIB, p1, p2, SphereVB, SphereIB);
 
 
 
@@ -765,6 +810,7 @@ static void ShowMenuFile()
       init_struct();
       call_structure(filename, (int) strlen(filename), 1);
       loadAtoms();
+      loadBonds();
     }
     if (ImGui::MenuItem("Crystal")) {
       char const * lTheOpenFileName = tinyfd_openFileDialog(
