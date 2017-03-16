@@ -282,7 +282,6 @@ void loadAtoms() {
 	// loadedAtoms[0].atomPosition[0] = 0.f;
 	// loadedAtoms[0].atomPosition[1] = -1.f;
 	// loadedAtoms[0].atomPosition[2] = 0.f;
-  printf("loadatoms");
   //tree names must be constant
 	for (size_t x = 0; x < loadedAtomsAmount; x++) {
 		std::string nodeName = "";
@@ -297,6 +296,13 @@ void loadAtoms() {
 		loadedAtoms[x].atomTreeName = nodeName;
 	}
 
+}
+
+void connectAtoms() {
+  float atom1pos[3] = {loadedAtoms[1].atomPosition[0], loadedAtoms[1].atomPosition[1], loadedAtoms[1].atomPosition[2]};
+  float atom2pos[3] = {loadedAtoms[3].atomPosition[0], loadedAtoms[3].atomPosition[1], loadedAtoms[3].atomPosition[2]};
+
+  DrawBond()
 }
 
 ///returns the color of an atom based on the atomic number
