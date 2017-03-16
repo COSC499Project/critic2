@@ -90,26 +90,22 @@ contains
     if (cr%isinit) then
        ! initialize the radial densities
        call grda_init(.true.,.true.,.true.)
-
        ! header and change refden
        write (uout,'("* Field number ",A," is now REFERENCE."/)') string(0)
        refden = 0
        call init_cplist(.true.)
-
        ! define second integrable property as the valence charge.
        nprops = max(2,nprops)
        integ_prop(2)%used = .true.
        integ_prop(2)%itype = itype_fval
        integ_prop(2)%fid = 0
        integ_prop(2)%prop_name = "Pop"
-
        ! define third integrable property as the valence laplacian.
        nprops = max(3,nprops)
        integ_prop(3)%used = .true.
        integ_prop(3)%itype = itype_lapval
        integ_prop(3)%fid = 0
        integ_prop(3)%prop_name = "Lap"
-
        ! reset defaults for qtree
        if (f(refden)%type == type_grid) then
           gradient_mode = 1
@@ -124,7 +120,6 @@ contains
     else
        call cr%init()
     end if
-
   end subroutine call_structure
 
   function str_c_to_f(strc, nchar) result(strf)

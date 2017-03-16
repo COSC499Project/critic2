@@ -3,7 +3,7 @@
 #include <imgui.h>
 #include "imgui_impl_glfw_gl3.h"
 #include <stdio.h>
-#include <string.h>
+#include <string>
 #include <stdlib.h>
 #include <math.h>
 #include <GL/gl3w.h>
@@ -282,18 +282,18 @@ void loadAtoms() {
 	// loadedAtoms[0].atomPosition[0] = 0.f;
 	// loadedAtoms[0].atomPosition[1] = -1.f;
 	// loadedAtoms[0].atomPosition[2] = 0.f;
-
+  printf("loadatoms");
   //tree names must be constant
 	for (size_t x = 0; x < loadedAtomsAmount; x++) {
-		string nodeName = "";
+		std::string nodeName = "";
 		nodeName += "Elem Name: ";
 		nodeName += loadedAtoms[x].name;
 		nodeName += "Atomic #:";
-		nodeName += to_string(loadedAtoms[x].atomicNumber);
+		nodeName += std::to_string(loadedAtoms[x].atomicNumber);
 		nodeName += "  ID: ";
-		nodeName += to_string(x);
+		nodeName += std::to_string(x);
 		nodeName += "##TreeID = "; //extra info for imgui to find selection
-		nodeName += to_string(x);
+		nodeName += std::to_string(x);
 		loadedAtoms[x].atomTreeName = nodeName;
 	}
 
@@ -301,16 +301,13 @@ void loadAtoms() {
 
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
-const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
+void getAtomColor(int atomicNumber, float colorIntensity, GLfloat col[4]) {
 	if (atomicNumber == 7) {
-		GLfloat col[] = { .8f, .8f, .8f, colorIntesity };
-		return col; //white
+        col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[0] = colorIntensity;
 	}else if(atomicNumber == 6) {
-		GLfloat col[] = { .8f,0.0f, 0.0f, colorIntesity };
-		return col;//red
+        col[0] = 0.8; col[1] = 0.0; col[2] = 0.0; col[0] = colorIntensity;
 	} else  {
-		GLfloat col[] = { 0.8f,0.8f, 0.8f, colorIntesity };
-		return col; //brown
+        col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[0] = colorIntensity;
 	}
 }
 
@@ -345,7 +342,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	if (loadedAtoms[identifyer].selected) { //selection is color based
 		inc = 1.5f;
 	}
-	const GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
+	GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
 	//selection end
 
 	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
@@ -354,12 +351,10 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	} else {
 		scaleAmount = 0.5f;
 	}
-
 	p.Scale(scaleAmount, scaleAmount, scaleAmount);
 	p.Translate(posVector[0], posVector[1], posVector[2]);
 	p.Rotate(0.f, 0.f, 0.f); //no rotation required
 	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
 	glBindBuffer(GL_ARRAY_BUFFER, atomVB);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
@@ -369,19 +364,20 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	//TODO draw atom ID number
 	ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
 	ImGui::SetNextWindowCollapsed(true);
-
 	//float * winPos;
 	//matrix math to transform posVector to pixel location of an atoms center
 
 	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
-	ImGui::Begin(to_string(identifyer).c_str(), false);
+	ImGui::Begin(std::to_string(identifyer).c_str(), false);
 	ImGui::End();
 }
 
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline p) {
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-		drawAtomInstance(x,loadedAtoms[x].atomPosition,getAtomColor(loadedAtoms[x].atomicNumber, 0.6f),p);
+        GLfloat c[4] = {0, 0, 0, 0};
+        getAtomColor(loadedAtoms[x].atomicNumber, 0.6f, c);
+		drawAtomInstance(x, loadedAtoms[x].atomPosition, c, p);
 	}
 }
 
@@ -421,7 +417,7 @@ void drawSelectedAtomStats() {
 		ImGui::NextColumn();
 		ImGui::Text(loadedAtoms[i].name.c_str()); ImGui::NextColumn(); // atom names
 		//this section should change with the section above
-		ImGui::Text(to_string(i).c_str()); ImGui::NextColumn(); //atom information
+		ImGui::Text(std::to_string(i).c_str()); ImGui::NextColumn(); //atom information
 
 		//
 
@@ -435,9 +431,9 @@ void drawSelectedAtomStats() {
 void printCamStats() {
 	ImGui::SetNextWindowSize(ImVec2(300, 75), ImGuiSetCond_Appearing);
 	ImGui::Begin("cam stats", false);
-	string camPos = "cam pos: " + to_string(cam.Pos[0]) + "," + to_string(cam.Pos[1]) + "," + to_string(cam.Pos[2]);
-	string camTarget = "cam target: " + to_string(cam.Target[0]) + "," + to_string(cam.Target[1]) + "," + to_string(cam.Target[2]);
-	string camUp = "cam up: " + to_string(cam.Up[0]) + "," + to_string(cam.Up[1]) + "," + to_string(cam.Up[2]);
+	std::string camPos = "cam pos: " + std::to_string(cam.Pos[0]) + "," + std::to_string(cam.Pos[1]) + "," + std::to_string(cam.Pos[2]);
+	std::string camTarget = "cam target: " + to_string(cam.Target[0]) + "," + std::to_string(cam.Target[1]) + "," + std::to_string(cam.Target[2]);
+	std::string camUp = "cam up: " + std::to_string(cam.Up[0]) + "," + std::to_string(cam.Up[1]) + "," + std::to_string(cam.Up[2]);
 
 	ImGui::Text(camPos.c_str());
 	ImGui::Text(camTarget.c_str());
