@@ -112,9 +112,12 @@ module global
   ! guess and symmetry option (-1 = only for small systems, 0 = no, 1 = cen, 2 = full)
   integer :: doguess
 
+  ! symmetry precision (spglib)
+  real*8 :: symprec
+
   ! A crystal is considered small if it has less than this number of
   ! atoms in the unit cell.
-  integer, parameter :: crsmall = 500
+  integer, parameter :: crsmall = 5000
 
   ! reference scalar field
   integer :: refden
@@ -194,7 +197,7 @@ contains
     integer :: isenv
     logical :: lchk
 
-    character(len=:), allocatable :: msg1, msg2, msg3, msg4
+    character(len=:), allocatable :: msg1, msg2, msg3
     integer, parameter :: maxlenpath = 1024
 
     ! read the -r option
@@ -250,9 +253,12 @@ contains
   !> Set the default values for all the global variables
   subroutine global_set_defaults()
 
-    doguess = -1
     refden = 0
     precisecube = .true.
+
+    ! symmetry
+    doguess = -1
+    symprec = 1d-6
 
     ! units
     iunit = iunit_bohr
@@ -399,9 +405,14 @@ contains
     if (equal(word,'nosymm') .or. equal(word,'nosym')) then
        doguess = 0
        call check_no_extra_word(ok)
-    elseif (equal(word,'symm')) then
+    elseif (equal(word,'symm').or.equal(word,'sym')) then
        ok = isinteger(doguess,line,lp)
-       if (.not.ok) doguess = 2
+       if (.not.ok) doguess = 1
+       call check_no_extra_word(ok)
+    elseif (equal(word,'symprec')) then
+       ok = isreal(symprec,line,lp)
+       if (.not.ok) &
+          call ferror('critic_setvariables','Wrong symprec',faterr,line,syntax=.true.)
        call check_no_extra_word(ok)
     else if (equal(word,'ode_mode')) then
        do while (.true.)

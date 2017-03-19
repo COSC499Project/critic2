@@ -483,7 +483,7 @@ contains
              !isig = (-1)**m
              isig = -isig
              lm = lm + 1
-             call radial_derivs(f%rhomt(:,lm,nid),t0,t1,t2,r,f%spr_a(is),f%spr_b(is))
+             call radial_derivs(f%rhomt(1:f%nrmt(is),lm,nid),t0,t1,t2,r,f%spr_a(is),f%spr_b(is))
              call ylmderiv(ylm,r,l,m,t0,t1,t2,xgrad1,xhess1)
              if (m /= 0) call ylmderiv(ylm,r,l,-m,t0,t1,t2,xgrad2,xhess2)
              if (m > 0) then
@@ -677,14 +677,14 @@ contains
           do m = -l, l
              lm = lm + 1
              ! save the old radial grid
-             rgrid = f%rhomt(:,lm,iat)
+             rgrid = f%rhomt(1:f%nrmt(is),lm,iat)
 
              ! run over all radial points
              do ir = 1, f%nrmt(is)
                 r = f%spr(ir,is)
                 r1 = 1d0 / r
                 r2 = r1 * r1
-                call radial_derivs(rgrid,rho,rho1,rho2,r,f%spr_a(is),f%spr_b(is))
+                call radial_derivs(rgrid(1:f%nrmt(is)),rho,rho1,rho2,r,f%spr_a(is),f%spr_b(is))
                 f%rhomt(ir,lm,iat) = -l*lp1*rho*r2 + 2d0*r1*rho1 + rho2
              end do
           end do

@@ -3,16 +3,26 @@
 #include <imgui.h>
 #include "imgui_impl_glfw_gl3.h"
 #include <stdio.h>
-#include <string.h>
+#include <string>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
+#include "tinyfiledialogs.h"
+
+#ifdef WINDOWS
+  #include <direct.h>
+  #define GetCurrentDir _getcwd
+#else
+  #include <unistd.h>
+  #define GetCurrentDir getcwd
+#endif
 
 extern "C" void initialize();
-extern "C" void call_crystal(const char *filename, int size);
+extern "C" void init_struct();
+extern "C" void call_structure(const char *filename, int size, int isMolecule);
 extern "C" void get_positions(int *n,int **z,double **x);
 //extern "C" void get_atomic_name(const char *atomName, int atomNum);
 extern "C" void share_bond(int n_atom, int **connected_atom);
@@ -41,6 +51,9 @@ string charConverter(int t) {
 	return val;
 }
 
+// 
+//  Global Variables and Structs
+//
 struct {
   bool LeftMouseButton = 0;
   bool RightMouseButton = 0;
@@ -58,6 +71,39 @@ struct {
 } input;
 
 static CameraInfo cam;
+
+struct {
+  GLuint gWorldLocation;
+  GLuint gWVPLocation;
+  GLuint vColorLocation;
+  GLuint lColorLocation;
+  GLuint lDirectionLocation;
+  GLuint fAmbientIntensityLocation;
+} ShaderVarLocations;
+
+struct atom{
+	string name = "";
+	bool selected = false;
+	int atomicNumber;
+	float atomPosition[3];
+	string atomTreeName; //must be saved to preserve imgui tree Id's
+  int numberOfBonds;
+  int * loadedBonds;
+};
+
+struct bond{
+    atom * a1;
+    atom * a2;
+    Vector3f center;
+    Matrix4f rotation;
+    float length;
+};
+
+bond * Bonds;
+atom * loadedAtoms;
+int loadedAtomsAmount = 0;
+int loadedBondsAmount = 0;
+
 
 static void error_callback(int error, const char* description)
 {
@@ -92,106 +138,53 @@ static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum Shad
 	glAttachShader(ShaderProgram, ShaderObj);
 }
 
-static GLuint LightingShader() {
-	GLuint ShaderProgram = glCreateProgram();
-	if (ShaderProgram == 0) {
-		exit(1);
-	}
-
-	const char * vs = "#version 400 \n \
-		varying vec3 N; \
-		varying vec3 v; \
-		void main(void){ \
-		v = vec3(gl_ModelViewMatrix * gl_Vertex); \
-		N = normalize(gl_NormalMatrix * gl_Normal); \
-		gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex; \
-		}";
-
-
-	const char * fs = "#version 400 \n \
-		varying vec3 N;\
-		varying vec3 v;\
-		void main(void){ \
-		vec3 L = normalize(gl_LightSource[0].position.xyz - v);\
-		vec3 E = normalize(-v); // we are in Eye Coordinates, so EyePos is (0,0,0)\
-		vec3 R = normalize(-reflect(L, N));\
-		//calculate Ambient Term: \
-		vec4 Iamb = gl_FrontLightProduct[0].ambient; \
-		//calculate Diffuse Term:\
-		vec4 Idiff = gl_FrontLightProduct[0].diffuse * max(dot(N, L), 0.0); \
-		// calculate Specular Term: \
-		vec4 Ispec = gl_FrontLightProduct[0].specular \
-			* pow(max(dot(R, E), 0.0), 0.3*gl_FrontMaterial.shininess); \
-		// write Total Color:\
-		gl_FragColor = gl_FrontLightModelProduct.sceneColor + Iamb + Idiff + Ispec;\
-		}";
-
-	AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
-	AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
-
-	GLint success = 0;
-
-	glLinkProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
-	if (success == 0) exit(1);
-
-	glValidateProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
-	if (success == 0) exit(1);
-
-	return ShaderProgram;
-}
-
-static GLuint CompileShaders()
+static GLuint LightingShader()
 {
-	GLuint ShaderProgram = glCreateProgram();
+  GLuint ShaderProgram = glCreateProgram();
+  if (ShaderProgram == 0){
+    exit(1);
+  }
 
-	if (ShaderProgram == 0) {
-		exit(1);
-	}
+  const char * vs = "#version 330 \n \
+    uniform mat4 gWorld; \n \
+    uniform mat4 gWVP; \n \
+    layout (location = 0) in vec3 inPosition; \n \
+    layout (location = 1) in vec3 inNormal; \n \
+    smooth out vec3 vNormal; \n \
+    void main() { \n \
+      gl_Position = gWVP * vec4(inPosition, 1.0); \n \
+      vNormal = (gWorld * vec4(inNormal, 0.0)).xyz; \n \
+      }";
 
-	const char * vs = "#version 330 \n \
-      layout (location = 0) in vec3 Position; \n \
-      layout (location = 1) in vec3 Normal; \n \
-      uniform mat4 gWorld; \n \
-      uniform vec4 mColor; \n \
-      out vec4 Color; \n \
-      out vec3 Normal0; \n \
-      void main() { \n \
-        gl_Position = gWorld * vec4(Position, 1.0); \n \
-        Normal0 = (gWorld * vec4(Normal, 0.0)).xyz; \n \
-        Color = mColor;}";
+  const char * fs = "#version 330 \n \
+    smooth in vec3 vNormal; \n \
+    uniform vec4 vColor; \n \
+    out vec4 outputColor; \n \
+    uniform vec3 lColor; \n \
+    uniform vec3 lDirection; \n \
+    uniform float fAmbientIntensity; \n \
+    void main() { \n \
+      float fDiffuseIntensity = max(0.0, dot(normalize(vNormal), lDirection)); \n \
+      outputColor = vColor; \n \
+      }";
 
-	const char * fs = "#version 330 \n \
-      in vec4 Color; \n \
-      in vec3 Normal0; \n \
-      vec3 Direction = vec3(0.0, 0.0, 1.0);\n \
-      float DiffuseFactor = dot(normalize(Normal0), Direction); \n \
-      out vec4 FragColor; \n \
-      vec4 DiffuseColor; \n \
-      float DiffuseIntensity = 1.0; \n \
-      void main() { \n \
-        if (DiffuseFactor > 0) { \n \
-          DiffuseColor = vec4(Color * DiffuseFactor * DiffuseIntensity); \n \
-        } else { \n \
-          DiffuseColor = vec4(0, 0, 0, 0);} \n \
-        FragColor = Color; }";
+//outputColor = vColor * vec4(lColor * (fAmbientIntensity+fDiffuseIntensity), 1.0);
+//      outputColor = vColor;
 
+  AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
+  AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
 
-	AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
-	AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
+  GLint success = 0;
 
-	GLint success = 0;
+  glLinkProgram(ShaderProgram);
+  glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
+  if (success == 0) exit(1);
 
-	glLinkProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
-	if (success == 0) exit(1);
+  glValidateProgram(ShaderProgram);
+  glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
+  if (success == 0) exit(1);
 
-	glValidateProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
-	if (success == 0) exit(1);
-
-	return ShaderProgram;
+  return ShaderProgram;
 }
 
 #pragma endregion
@@ -215,26 +208,115 @@ void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
   cam.Pos[2] += yoffset * 0.5f;
 }
 
-void DrawBond(GLuint WorldLocation, GLuint ColorLocation, Pipeline * p,
-              GLuint CylVB, GLuint CylIB,
-              const float p1[3], const float p2[3])
+void GenerateBondInfo(bond * b, atom * a1, atom * a2)
 {
-  float df[3] = {p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]};
-  float d = sqrt(df[0]*df[0] + df[1]*df[1] + df[2]*df[2]);
+  b->a1 = a1;
+  b->a2 = a2;
+  float p1[3] = {a1->atomPosition[0], a1->atomPosition[1], a1->atomPosition[2]};
+  float p2[3] = {a2->atomPosition[0], a2->atomPosition[1], a2->atomPosition[2]};
   float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
+  float q[3] = {(p1[0]-mid[0]), (p1[1]-mid[1]), (p1[2]-mid[2])};
+  float d = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2]);
+  b->length = d;
+  Vector3f n_q = Vector3f(q);
+  n_q.Normalize();
+
+  Vector3f z_axis = Vector3f(0, 0, 1);
+  z_axis.Normalize();
+  Vector3f v = z_axis.Cross(n_q);
+  v.Normalize();
+  float c = (1.0f - z_axis.Dot(n_q))/1.0f;
+
+  //v2 = v; n_q2 = n_q; z_ax = z_axis; c2 = c;
+
+  Matrix4f v_x;
+  v_x.m[0][0] = 0;     v_x.m[0][1] = -v.z;  v_x.m[0][2] = v.y;  v_x.m[0][3] = 0;
+  v_x.m[1][0] =  v.z;  v_x.m[1][1] = 0;     v_x.m[1][2] = -v.x; v_x.m[1][3] = 0;
+  v_x.m[2][0] = -v.y;  v_x.m[2][1] = v.x;   v_x.m[2][2] = 0;    v_x.m[2][3] = 0;
+  v_x.m[3][0] = 0;     v_x.m[3][1] = 0   ;  v_x.m[3][2] = 0;    v_x.m[3][3] = 1;
+
+  Matrix4f Rot;
+  Rot.InitIdentity();
+  Rot = Rot + v_x;
+  Matrix4f v_x2 = v_x * v_x;
+  v_x2 = v_x2 * c;
+  Rot = Rot + v_x2;
+
+  Rot.m[3][3] = 1;
+  Rot.m[0][3] = 0;
+  Rot.m[1][3] = 0;
+  Rot.m[2][3] = 0;
+
+  Rot.m[3][0] = 0;
+  Rot.m[3][1] = 0;
+  Rot.m[3][2] = 0;
+
+  b->center = Vector3f(mid[0], mid[1], mid[2]);
+  b->rotation = Rot;
+}
+
+
+void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b,
+                     GLuint SphereVB, GLuint SphereIB)
+{
   float grey[3] = {.5, .5, .5};
+  float white[3] = {1, 1, 1};
+  
+  p->Scale(0.05f, 0.05f, b->length);
+  p->Translate(b->center.x, b->center.y, b->center.z);
+  p->SetRotationMatrix(b->rotation);
 
+  float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
+  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWorldTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&grey);
+  glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
+  glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
+  glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
 
-  p->Scale(0.1f, 0.1f, d);
-  p->Translate(mid[0], mid[1], mid[2]);
-  p->Rotate(0.f, 0.f, 0.f);
-
-  glUniformMatrix4fv(WorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetTrans());
   glBindBuffer(GL_ARRAY_BUFFER, CylVB);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glUniform4fv(ColorLocation, 1, (const GLfloat *)&grey);
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
+
+/*
+  float red[3] = {1, 0, 0};
+  float green[3] = {0, 1, 0};
+  float blue[3] = {0, 0, 1};
+        p->Scale(0.1f, 0.1f, 0.1f);
+        p->Translate(p1[0], p1[1], p1[2]);
+        p->Rotate(0.f, 0.f, 0.f);
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&red);
+        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+        glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+
+
+        p->Translate(p2[0], p2[1], p2[2]);
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+        glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+
+        p->Translate(mid[0], mid[1], mid[2]);
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&green);
+         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+
+        p->Scale(0.05f, 0.05f, 0.05f);
+        p->Translate(n_q.x, n_q.y, n_q.z);
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
+         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+
+        p->Scale(0.05f, 0.05f, 0.05f);
+        p->Translate(0, 0, 0);
+        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
+         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+*/
 }
 
 #pragma region atom loading and drawing
@@ -254,19 +336,6 @@ void loadAtomObject() {
 		numbVerteces, numbIndeces);
 }
 
-struct atom{
-	string name = "";
-	bool selected = false;
-	int atomicNumber;
-	float atomPosition[3];
-	string atomTreeName; //must be saved to preserve imgui tree Id's
-  int numberOfBonds;
-  int *bondedAtoms;
-};
-
-int loadedAtomsAmount = 0;
-atom *loadedAtoms;
-
 #pragma region atom selection
 void selectAtom() {
 
@@ -284,35 +353,40 @@ void deselectAll() {
 //the atoms should be loaded into the above array
 void loadAtoms() {
   //fill loadedAtoms array
-  char const *filename = "../../examples/data/pyridine.wfx";
-  
   int *z; // atomic numbers
   double *x; // atomic positions
   int n; // number of atoms
 
-  char const *atomName;
-
-  initialize();
-  call_crystal(filename, (int) strlen(filename));
   get_positions(&n,&z,&x);
 
   loadedAtomsAmount = n;
 	loadedAtoms = new atom[loadedAtomsAmount];
-	for (int i=0;i<n;i++) {
+  for (int i=0;i<n;i++) {
+    // share_bond(i, &connected_atoms);
     loadedAtoms[i].atomicNumber = z[i];
     loadedAtoms[i].atomPosition[0] = x[i*3+0];
   	loadedAtoms[i].atomPosition[1] = x[i*3+1];
   	loadedAtoms[i].atomPosition[2] = x[i*3+2];
+
+    // loadedAtoms[i].bondedAtoms = connected_atoms;
+    // int *connected_atoms;
+    // int size = sizeof(loadedAtoms[i].bondedAtoms)
+    //
+    // printf(loadedAtoms[i].bondedAtoms);
   }
+
+  // for (int i=0; i<n; i++) {
+  //
+  // }
+
 	// loadedAtoms[0].atomicNumber = 1;
 	// loadedAtoms[0].atomPosition[0] = 0.f;
 	// loadedAtoms[0].atomPosition[1] = -1.f;
 	// loadedAtoms[0].atomPosition[2] = 0.f;
 
-
   //tree names must be constant
 	for (size_t x = 0; x < loadedAtomsAmount; x++) {
-		string nodeName = "";
+		std::string nodeName = "";
 		nodeName += "Elem Name: ";
 		nodeName += loadedAtoms[x].name;
 		nodeName += "Atomic #:";
@@ -326,18 +400,72 @@ void loadAtoms() {
 
 }
 
+void loadBonds() {
+
+  for (int i = 1; i < loadedAtomsAmount; i++) {
+    int *connected_atoms;
+    share_bond(i, &connected_atoms);
+
+    int numBonds = sizeof(connected_atoms) / sizeof(connected_atoms[0]);
+    loadedAtoms[i].loadedBonds = new int[numBonds];
+
+    loadedBondsAmount += numBonds;
+
+    for (int j = 0; j < numBonds; j++) {
+      if (connected_atoms[j] >= 0 && connected_atoms[j] <= loadedAtomsAmount) {
+        loadedAtoms[i].loadedBonds[j] = connected_atoms[j];
+
+      }
+    }
+  }
+
+  Bonds = new bond[loadedBondsAmount];
+  int bondidx = 0;
+  for (int i=1; i<loadedAtomsAmount; i++){
+    int numBonds = sizeof(loadedAtoms[i].loadedBonds) / sizeof(loadedAtoms[i].loadedBonds[0]);
+    for (int j=0; j<numBonds; j++){
+      if (loadedAtoms[i].loadedBonds[j] < loadedAtomsAmount && loadedAtoms[i].loadedBonds[j] > -1) {
+        GenerateBondInfo(&Bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].loadedBonds[j]]);
+        bondidx += 1;
+
+      }
+
+    }
+
+
+  }
+
+}
+
+void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB,
+                     GLuint SphereVB, GLuint SphereIB)
+{
+    /*
+  for (size_t x = 1; x < loadedAtomsAmount; x++){
+    int numBonds = sizeof(loadedAtoms[x].loadedBonds) / sizeof(loadedAtoms[x].loadedBonds[0]);
+    //std::cout << numBonds << " num of bonds\n";
+    for (size_t i = 0; i < numBonds; i++) {
+      //std::cout << i << " atom bond " << loadedAtoms[x].loadedBonds[i] << "\n";
+      if (loadedAtoms[x].loadedBonds[i] < loadedAtomsAmount && loadedAtoms[x].loadedBonds[i] > -1) {
+        DrawBondLighted(p, CylVB, CylIB, loadedAtoms[x].atomPosition, loadedAtoms[loadedAtoms[x].loadedBonds[i]].atomPosition, SphereVB, SphereIB);
+      }
+    }
+	}
+   */
+   for (int i=0; i< loadedBondsAmount; i++){
+       DrawBondLighted(p, CylVB, CylIB, &Bonds[i], SphereVB, SphereIB);
+   }
+}
+
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
-const GLfloat* getAtomColor(int atomicNumber,float colorIntesity, GLfloat col[4]) {
+void getAtomColor(int atomicNumber, float colorIntensity, GLfloat col[4]) {
 	if (atomicNumber == 7) {
-		GLfloat col[] = { .8f, .8f, .8f, colorIntesity };
-		return col; //white
+        col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[0] = colorIntensity;
 	}else if(atomicNumber == 6) {
-		GLfloat col[] = { .8f,0.0f, 0.0f, colorIntesity };
-		return col;//red
+        col[0] = 0.8; col[1] = 0.0; col[2] = 0.0; col[0] = colorIntensity;
 	} else  {
-		GLfloat col[] = { 0.8f,0.8f, 0.8f, colorIntesity };
-		return col; //brown
+        col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[0] = colorIntensity;
 	}
 }
 
@@ -366,13 +494,15 @@ const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
 
 GLuint gWorldLocation; //made global to make Drawing via methods easer
 GLuint mColorLocation;
-void drawAtomInstance(int identifyer, float * posVector,const GLfloat* color, Pipeline p) {
+void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4],
+                      Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	//selection start
 	float inc = 1.f;
 	if (loadedAtoms[identifyer].selected) { //selection is color based
 		inc = 1.5f;
 	}
-	GLfloat n_Color[] = { color[0],color[1],color[2],color[3] };
+
+	GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc, color[3]};
 	//selection end
 
 	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
@@ -381,22 +511,20 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat* color, Pi
 	} else {
 		scaleAmount = 0.5f;
 	}
-
-	p.Scale(scaleAmount, scaleAmount, scaleAmount);
-	p.Translate(posVector[0], posVector[1], posVector[2]);
-	p.Rotate(0.f, 0.f, 0.f); //no rotation required
-	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-	glBindBuffer(GL_ARRAY_BUFFER, atomVB);
+	p->Scale(scaleAmount, scaleAmount, scaleAmount);
+	p->Translate(posVector[0], posVector[1], posVector[2]);
+	p->Rotate(0.f, 0.f, 0.f); //no rotation required
+	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
+	glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
-	glUniform4fv(mColorLocation, 1, (const GLfloat *)&n_Color);
-	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+	glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&n_Color);
+	glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
 
 	//TODO draw atom ID number
 	ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
 	ImGui::SetNextWindowCollapsed(true);
-
 	//float * winPos;
 	//matrix math to transform posVector to pixel location of an atoms center
 
@@ -406,11 +534,11 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat* color, Pi
 }
 
 ///draws all atoms in the loadedAtoms struct
-void drawAllAtoms(Pipeline p) {
+void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-		GLfloat c[4] = {0,0,0,0};
-		getAtomColor(x, 0.6, c);
-		drawAtomInstance(x,loadedAtoms[x].atomPosition,c,p);
+        GLfloat c[4] = {0, 0, 0, 0};
+        getAtomColor(loadedAtoms[x].atomicNumber, 0.6f, c);
+		drawAtomInstance(x, loadedAtoms[x].atomPosition, c, p, SphereVB, SphereIB);
 	}
 }
 
@@ -525,7 +653,9 @@ void drawAtomTreeView(Pipeline p) {
 
 int main(int, char**)
 {
-	// Setup window
+
+    initialize();
+    // Setup window
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
         return 1;
@@ -555,9 +685,16 @@ int main(int, char**)
     glGenVertexArrays(1, &VertexArray);
     glBindVertexArray(VertexArray);
 
-    GLuint trishader = CompileShaders();
-	gWorldLocation = glGetUniformLocation(trishader, "gWorld");
-    mColorLocation = glGetUniformLocation(trishader, "mColor");
+    //GLuint trishader = CompileShaders();
+//    gWorldLocation = glGetUniformLocation(trishader, "gWorld");
+  //  mColorLocation = glGetUniformLocation(trishader, "mColor");
+    GLuint lightshader = LightingShader();
+    ShaderVarLocations.gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
+    ShaderVarLocations.gWVPLocation = glGetUniformLocation(lightshader, "gWVP");
+    ShaderVarLocations.vColorLocation = glGetUniformLocation(lightshader, "vColor");
+    ShaderVarLocations.lColorLocation = glGetUniformLocation(lightshader, "lColor");
+    ShaderVarLocations.lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
+
 
 
 	//glEnables
@@ -601,7 +738,7 @@ int main(int, char**)
 	// loadedAtoms[2].atomPosition[0] = 0.f;
 	// loadedAtoms[2].atomPosition[1] = .715f;
 	// loadedAtoms[2].atomPosition[2] = 0.f;
-	loadAtoms();
+	//loadAtoms();
 #pragma endregion
 
     // Load sphere mesh
@@ -671,44 +808,6 @@ int main(int, char**)
           }
         }
 
-        /*
-        static float sx=1.f, sy=1.f, sz=1.f;
-        static float sf = 0.5f;
-        static bool lockScale = true;
-        static float rx = 0.f, ry = 0.f, rz = 0.f;
-        static float tx = 0.5f, ty = 0.f, tz = 0.f;
-        {
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::Checkbox("Lock Scale Ratio", &lockScale);
-            if(lockScale){
-              ImGui::DragFloat("Scale", &sf, 0.005f);
-            } else {
-              ImGui::DragFloat("Scale X", &sx, 0.005f);
-              ImGui::DragFloat("Scale Y", &sy, 0.005f);
-              ImGui::DragFloat("Scale Z", &sz, 0.005f);
-            }
-            ImGui::DragFloat("Rotate X", &rx, 0.5f);
-            ImGui::DragFloat("Rotate Y", &ry, 0.5f);
-            ImGui::DragFloat("Rotate Z", &rz, 0.5f);
-
-            ImGui::DragFloat("Translate X", &tx, 0.005f);
-            ImGui::DragFloat("Translate Y", &ty, 0.005f);
-            ImGui::DragFloat("Translate Z", &tz, 0.005f);
-
-            ImGui::DragFloat("Translate CamX", &camPos[0], 0.005f);
-            ImGui::DragFloat("Translate CamY", &camPos[1], 0.005f);
-            ImGui::DragFloat("Translate CamZ", &camPos[2], 0.005f);
-
-            ImGui::DragFloat("CamTargetX", &camTarget[0], 0.005f);
-            ImGui::DragFloat("CamTargetY", &camTarget[1], 0.005f);
-            ImGui::DragFloat("CamTargetZ", &camTarget[2], 0.005f);
-
-            ImGui::DragFloat("CamUpX", &camUp[0], 0.005f);
-            ImGui::DragFloat("CamUpY", &camUp[1], 0.005f);
-            ImGui::DragFloat("CamUpZ", &camUp[2], 0.005f);
-
-        }
-*/		
         ShowAppMainMenuBar();
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
@@ -732,80 +831,15 @@ int main(int, char**)
 
 
         glEnableVertexAttribArray(0);
-		drawAllAtoms(p);
+		drawAllAtoms(&p, SphereVB, SphereIB);
 		printCamStats();
 		drawSelectedAtomStats();
 
- 		/* old atom drawing
-        p.Scale(0.25f, 0.25f, 0.25f);
-        p.Translate(0.f, -1.f, 0.f);
-        p.Rotate(0.f, 0.f, 0.f);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
-        glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
-
-        p.Scale(0.25f, 0.25f, 0.25f);
-        p.Translate(-1.29, 1.16, 0.f);
-        p.Rotate(0.f, 0.f, 0.f);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&white);
-        glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
-
-
-        p.Scale(0.5f, 0.5f, 0.5f);
-        p.Translate(0.f, .715, 0.f);
-        p.Rotate(0.f, 0.f, 0.f);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&red);
-        glDrawElements(GL_TRIANGLES, SphereNumI, GL_UNSIGNED_INT, 0);
-		*/
-
-		/*
-        p.Scale(0.1f, 0.1f, .5f);
-        p.Translate(0.f, -.275, 0.f);
-        p.Rotate(-90.f, 0.f, 0.f);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-        glBindBuffer(GL_ARRAY_BUFFER, CylVB);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&grey);
-        glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
-
-        p.Scale(0.1f, 0.1f, .5f);
-        p.Translate(-.7, 1, 0);
-        p.Rotate(90, 0, 75);
-        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p.GetTrans());
-
-        glBindBuffer(GL_ARRAY_BUFFER, CylVB);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glUniform4fv(mColorLocation, 1, (const GLfloat *)&grey);
-        glDrawElements(GL_TRIANGLES, CylNumI, GL_UNSIGNED_INT, 0);
-		*/
-
-        const float p1[3] = {-1, 2, 0};
-        const float p2[3] = {1, 2, 0};
-//        DrawBond(gWorldLocation, mColorLocation, &p,
-  //               CylVB, CylIB, p1, p2);
-
-
+        drawAllBonds(&p, CylVB, CylIB, SphereVB, SphereIB);
 
         glDisableVertexAttribArray(0);
 
-        glUseProgram(trishader);
+        glUseProgram(lightshader);
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
@@ -829,16 +863,6 @@ static void ShowAppMainMenuBar()
             ShowMenuFile();
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Edit"))
-        {
-            if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
-            if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}  // Disabled item
-            ImGui::Separator();
-            if (ImGui::MenuItem("Cut", "CTRL+X")) {}
-            if (ImGui::MenuItem("Copy", "CTRL+C")) {}
-            if (ImGui::MenuItem("Paste", "CTRL+V")) {}
-            ImGui::EndMenu();
-        }
         ImGui::EndMainMenuBar();
     }
 }
@@ -846,54 +870,39 @@ static void ShowAppMainMenuBar()
 static void ShowMenuFile()
 {
     ImGui::MenuItem("(dummy menu)", NULL, false, false);
-    if (ImGui::MenuItem("New")) {}
-    if (ImGui::MenuItem("Open", "Ctrl+O")) {}
-    if (ImGui::BeginMenu("Open Recent"))
-    {
-        ImGui::MenuItem("fish_hat.c");
-        ImGui::MenuItem("fish_hat.inl");
-        ImGui::MenuItem("fish_hat.h");
-        if (ImGui::BeginMenu("More.."))
-        {
-            ImGui::MenuItem("Hello");
-            ImGui::MenuItem("Sailor");
-            if (ImGui::BeginMenu("Recurse.."))
-            {
-                //ShowExampleMenuFile();
-                ImGui::EndMenu();
-            }
-            ImGui::EndMenu();
+    if (ImGui::MenuItem("Molecule")) {
+      char const * lTheOpenFileName = tinyfd_openFileDialog(
+    		"Select Molecule file",
+    		"",
+    		0,
+    		NULL,
+    		NULL,
+    		0);
+
+      if (lTheOpenFileName == NULL) {
+        return;
+      }
+
+      init_struct();
+      call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
+      loadAtoms();
+      loadBonds();
+    }
+    if (ImGui::MenuItem("Crystal")) {
+      char const * lTheOpenFileName = tinyfd_openFileDialog(
+    		"Select Crystal file",
+    		"",
+    		0,
+    		NULL,
+    		NULL,
+    		0);
+
+        if (lTheOpenFileName == NULL) {
+          return;
         }
-        ImGui::EndMenu();
+
+      init_struct();
+      call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
+      loadAtoms();
     }
-    if (ImGui::MenuItem("Save", "Ctrl+S")) {}
-    if (ImGui::MenuItem("Save As..")) {}
-    ImGui::Separator();
-    if (ImGui::BeginMenu("Options"))
-    {
-        static bool enabled = true;
-        ImGui::MenuItem("Enabled", "", &enabled);
-        ImGui::BeginChild("child", ImVec2(0, 60), true);
-        for (int i = 0; i < 10; i++)
-            ImGui::Text("Scrolling Text %d", i);
-        ImGui::EndChild();
-        static float f = 0.5f;
-        static int n = 0;
-        ImGui::SliderFloat("Value", &f, 0.0f, 1.0f);
-        ImGui::InputFloat("Input", &f, 0.1f);
-        ImGui::Combo("Combo", &n, "Yes\0No\0Maybe\0\0");
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("Colors"))
-    {
-        for (int i = 0; i < ImGuiCol_COUNT; i++)
-            ImGui::MenuItem(ImGui::GetStyleColName((ImGuiCol)i));
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("Disabled", false)) // Disabled
-    {
-        IM_ASSERT(0);
-    }
-    if (ImGui::MenuItem("Checked", NULL, true)) {}
-    if (ImGui::MenuItem("Quit", "Alt+F4")) {}
 }

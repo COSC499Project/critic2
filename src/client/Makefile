@@ -13,7 +13,7 @@ CXX = g++
 
 EXE = critic2
 OBJS = compat.o main.o imgui_impl_glfw_gl3.o
-OBJS += imgui.o imgui_demo.o imgui_draw.o ../interface.o
+OBJS += imgui.o imgui_demo.o imgui_draw.o
 OBJS += libs/gl3w/GL/gl3w.o
 
 UNAME_S := $(shell uname -s)
@@ -25,9 +25,10 @@ endif
 ifeq ($(UNAME_S), Linux) #LINUX
 	ECHO_MESSAGE = "Linux"
 	LIBS = -lGL `pkg-config --static --libs glfw3`
+	LIBS += ../criticlib.a -lgfortran ../qhull/libqhull_critic.a ../cubpack/libcubpack.a ../ciftbx/libciftbx.a ../oldlibs/libmisc.a -lgomp
 
 	CXXFLAGS = -I./ -Ilibs/gl3w `pkg-config --cflags glfw3`
-	CXXFLAGS += -Wall -Wformat -DLINUX -D_GLIBCXX_USE_CXX11_ABI=0
+	CXXFLAGS += -Wall -Wformat -DLINUX -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++11 -w -g
 	CFLAGS = $(CXXFLAGS)
 endif
 
@@ -65,7 +66,7 @@ all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
 $(EXE): $(OBJS)
-	$(CXX) -o $(EXE) $(OBJS) $(CXXFLAGS) $(LIBS)
+	$(CXX) -o $(EXE) $(OBJS) ../interface.o tinyfiledialogs.c $(CXXFLAGS) $(LIBS)
 
 clean:
 	rm $(EXE) $(OBJS)
