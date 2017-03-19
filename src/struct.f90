@@ -40,16 +40,23 @@ contains
   !xx! top-level routines
   !> Parse the input of the crystal keyword
   subroutine struct_crystal_input(c,line,mol,allownofile,verbose) 
-    use struct_basic, only: crystal
+    use struct_basic, only: isformat_unknown, isformat_cif, isformat_res,&
+       isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
+       isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
+       isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp,&
+       crystal
     use struct_readers, only: struct_read_cif, struct_read_res, struct_read_cube,&
        struct_read_wien, struct_read_wien, struct_read_potcar, struct_read_vasp,&
        struct_read_abinit, struct_read_elk, struct_read_qeout, struct_read_qein,&
+       struct_read_crystalout,&
        struct_read_library, struct_read_mol, struct_read_siesta, struct_read_dftbp,&
-       parse_crystal_env, parse_molecule_env
+       struct_read_xsf, parse_crystal_env, parse_molecule_env, is_espresso, &
+       struct_detect_format
     use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
        iunitname0, iunitname, dunit0, dunit, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
-       string, uin
+       string, uin, isinteger, lower
     use param, only: dirsep, maxzat0
 
     character*(*), intent(in) :: line
@@ -58,12 +65,12 @@ contains
     logical, intent(in) :: allownofile
     logical, intent(in) :: verbose
 
-    integer :: lp, lp2
-    character(len=:), allocatable :: word, word2, wext1, wext2, subline, aux
-    integer :: ntyp, nn
+    integer :: lp, lp2, istruct
+    character(len=:), allocatable :: word, word2, subline
+    integer :: ntyp, nn, isformat
     character*5 :: ztyp(maxzat0)
     real*8 :: rborder, raux
-    logical :: docube, ok
+    logical :: docube, ok, ismol
 
     ! Initialize the structure
     call c%end()
@@ -88,136 +95,105 @@ contains
     ! read and parse
     lp=1
     word = getword(line,lp)
-    aux = word(index(word,dirsep,.true.)+1:)
-    wext1 = aux(index(aux,'.',.true.)+1:)
-    aux = word(index(word,dirsep,.true.)+1:)
-    wext2 = aux(index(aux,'_',.true.)+1:)
     c%file = ""
 
-    if (equal(wext1,'cif')) then
-       aux = getword(line,lp)
-       if (equal(aux,"")) then
-          aux = " "
-       end if
-       call struct_read_cif(c,word,aux,.false.,mol)
+    ! detect the format for this file
+    call struct_detect_format(word,isformat,ismol)
+
+    if (isformat == isformat_cif) then
+       word2 = getword(line,lp)
+       call struct_read_cif(c,word,word2,.false.,mol)
        call c%set_cryscar()
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'res')) then
+    elseif (isformat == isformat_res) then
        call struct_read_res(c,word,.false.,mol)
        call c%set_cryscar()
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'cube')) then
+    elseif (isformat == isformat_cube) then
        call struct_read_cube(c,word,.false.,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'struct')) then
+    elseif (isformat == isformat_struct) then
        call struct_read_wien(c,word,.false.,mol)
        call c%set_cryscar()
        if (c%neqv == 0) then ! some structs may come without symmetry
           call struct_read_wien(c,word,.true.,mol)
           call c%set_cryscar()
        endif
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'POSCAR').or.equal(wext1,'CONTCAR').or.equal(wext1,'CHGCAR').or.&
-             equal(wext1,'CHG').or.equal(wext1,'ELFCAR').or.equal(wext1,'AECCAR0').or.&
-             equal(wext1,'AECCAR2')) then
-       wext1 = getword(line,lp)
-       wext2 = wext1(index(wext1,dirsep,.true.)+1:)
-       wext2 = wext2(index(wext2,'.',.true.)+1:)
-       if (equal(wext2,'POTCAR')) then
-          call struct_read_potcar(wext1,ntyp,ztyp)
-          aux = getword(line,lp)
-          if (len_trim(aux) > 0) then
-             call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-             return
-          end if
+    elseif (isformat == isformat_vasp) then
+       word2 = getword(line,lp)
+       if (index(word2,'POTCAR') > 0) then
+          call struct_read_potcar(word2,ntyp,ztyp)
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else
           ntyp = 0
           ztyp = ""
           do while(.true.)
-             nn = zatguess(wext1)
+             nn = zatguess(word2)
              if (nn >= 0) then
                 ntyp = ntyp + 1
-                ztyp(ntyp) = string(wext1)
+                ztyp(ntyp) = string(word2)
              else
-                if (len_trim(wext1) > 0) then
+                if (len_trim(word2) > 0) then
                    call ferror('struct_crystal_input','Unknown atom type in CRYSTAL',faterr,line,syntax=.true.)
                    return
                 end if
                 exit
              end if
-             wext1 = getword(line,lp)
+             word2 = getword(line,lp)
           end do
        end if
        call struct_read_vasp(c,word,ntyp,ztyp,mol)
        c%file = word
 
-    else if (equal(wext1,'DEN').or.equal(wext2,'DEN').or.equal(wext1,'ELF').or.equal(wext2,'ELF').or.&
-       equal(wext1,'POT').or.equal(wext2,'POT').or.equal(wext1,'VHA').or.equal(wext2,'VHA').or.&
-       equal(wext1,'VHXC').or.equal(wext2,'VHXC').or.equal(wext1,'VXC').or.equal(wext2,'VXC').or.&
-       equal(wext1,'GDEN1').or.equal(wext2,'GDEN1').or.equal(wext1,'GDEN2').or.equal(wext2,'GDEN2').or.&
-       equal(wext1,'GDEN3').or.equal(wext2,'GDEN3').or.equal(wext1,'LDEN').or.equal(wext2,'LDEN').or.&
-       equal(wext1,'KDEN').or.equal(wext2,'KDEN').or.equal(wext1,'PAWDEN').or.equal(wext2,'PAWDEN')) then
+    elseif (isformat == isformat_abinit) then
        call struct_read_abinit(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
-       c%file = word
-
-    else if (equal(wext1,'OUT')) then
-       call struct_read_elk(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
-       c%file = word
-
-    else if (equal(wext1,'out')) then
-       call struct_read_qeout(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
-       c%file = word
-
-    else if (equal(wext1,'in')) then
-       call struct_read_qein(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
-       c%file = word
-
-    else if (equal(word,'library')) then
-       subline = line(lp:)
-       call struct_read_library(c,subline,mol,ok)
+       ok = check_no_extra_word()
        if (.not.ok) return
-       if (mol) then
-          c%file = "molecular library (" // trim(line(lp:)) // ")"
-       else
-          c%file = "crystal library (" // trim(line(lp:)) // ")"
-       end if
+       c%file = word
 
-    else if (equal(wext1,'xyz').or.equal(wext1,'wfn').or.equal(wext1,'wfx').or.&
-       equal(wext1,'fchk').or.equal(wext1,'molden')) then
+    elseif (isformat == isformat_elk) then
+       call struct_read_elk(c,word,mol)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_qeout) then
+       ok = isinteger(istruct,line,lp)
+       if (.not.ok) istruct = 0
+       call struct_read_qeout(c,word,mol,istruct)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_crystal) then
+       call struct_read_crystalout(c,word,mol)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_qein) then
+       call struct_read_qein(c,word,mol)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
+       isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
+       isformat == isformat_molden) then
        docube = .false.
        rborder = rborder_def 
        do while(.true.)
@@ -235,25 +211,25 @@ contains
           end if
        end do
 
-       call struct_read_mol(c,word,wext1,rborder,docube)
+       call struct_read_mol(c,word,isformat,rborder,docube)
        call c%set_cryscar()
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'STRUCT_OUT') .or. equal(wext1,'STRUCT_IN')) then
+    elseif (isformat == isformat_siesta) then
        call struct_read_siesta(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'gen')) then
+    elseif (isformat == isformat_xsf) then
+       call struct_read_xsf(c,word,mol)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_gen) then
        docube = .false.
        rborder = rborder_def
        do while(.true.)
@@ -272,12 +248,19 @@ contains
        end do
 
        call struct_read_dftbp(c,word,mol,rborder,docube)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
+
+    else if (equal(lower(word),'library')) then
+       subline = line(lp:)
+       call struct_read_library(c,subline,mol,ok)
+       if (.not.ok) return
+       if (mol) then
+          c%file = "molecular library (" // trim(line(lp:)) // ")"
+       else
+          c%file = "crystal library (" // trim(line(lp:)) // ")"
+       end if
 
     else if (len_trim(word) < 1) then
        if (.not.mol) then
@@ -305,6 +288,19 @@ contains
     call c%struct_fill(.true.,.true.,doguess,-1,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
+  contains
+    function check_no_extra_word()
+      logical :: check_no_extra_word
+
+      character(len=:), allocatable :: aux
+
+      check_no_extra_word = .true.
+      aux = getword(line,lp)
+      if (len_trim(aux) > 0) then
+         call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+         check_no_extra_word = .false.
+      end if
+    end function check_no_extra_word
   end subroutine struct_crystal_input
 
   ! use the P1 space group
@@ -324,7 +320,6 @@ contains
     if (allocated(cr%cen)) deallocate(cr%cen)
     allocate(cr%cen(3,4))
     cr%cen = 0d0
-    cr%lcent = 0
 
     ! convert ncel to nneq
     aux = cr%at(1:cr%nneq)
@@ -417,7 +412,7 @@ contains
        struct_write_espresso, struct_write_vasp, struct_write_abinit, struct_write_elk,&
        struct_write_tessel, struct_write_critic, struct_write_cif, struct_write_escher,&
        struct_write_gulp, struct_write_lammps, struct_write_siesta_fdf, struct_write_siesta_in,&
-       struct_write_dftbp_hsd, struct_write_dftbp_gen
+       struct_write_dftbp_hsd, struct_write_dftbp_gen, struct_write_d12
     use struct_basic, only: crystal
     use global, only: eval_next, dunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
@@ -590,6 +585,12 @@ contains
        ! cif
        write (uout,'("* WRITE cif file: ",A)') string(file)
        call struct_write_cif(file,c)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+    elseif (equal(wext,'d12')) then
+       ! d12
+       write (uout,'("* WRITE crystal file: ",A)') string(file)
+       call struct_write_d12(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'m')) then
@@ -898,23 +899,27 @@ contains
   !> similarity based on cross-correlation functions proposed in
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   subroutine struct_compare(line)
-    use struct_basic, only: crystal, cr
-    use global, only: doguess, eval_next
-    use tools_math, only: crosscorr_triangle
-    use tools_io, only: getword, equal, faterr, ferror, uout, string
+    use struct_basic, only: crystal, isformat_unknown, cr
+    use struct_readers, only: struct_detect_format
+    use global, only: doguess, eval_next, dunit, iunit, iunitname0
+    use tools_math, only: crosscorr_triangle, rmsd_walker
+    use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
+       ioj_left, string
+    use types, only: realloc
     character*(*), intent(in) :: line
 
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, tname, difstr, difout, diftyp
     integer :: doguess0
-    integer :: lp, i, j
-    integer :: ns
-    type(crystal), allocatable :: c(:), caux(:)
+    integer :: lp, i, j, k, n
+    integer :: ns, imol, isformat
+    type(crystal), allocatable :: c(:)
     real*8 :: tini, tend, nor, h, xend
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
     integer, allocatable :: hvecp(:,:)
-    real*8, allocatable :: diff(:,:), xnorm(:)
-    logical :: ok
-    logical :: dopowder 
+    real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
+    logical :: ok, usedot
+    logical :: dopowder, ismol, laux
+    character*1024, allocatable :: fname(:)
 
     real*8, parameter :: sigma0 = 0.2d0
     real*8, parameter :: lambda0 = 1.5406d0
@@ -928,12 +933,13 @@ contains
     doguess0 = doguess
     lp = 1
     ns = 0
-    allocate(c(2))
     dopowder = .true.
     xend = -1d0
+    allocate(fname(1))
 
-    ! load all the crystal structures
+    ! read the input optons
     doguess = 0
+    imol = -1
     do while(.true.)
        word = getword(line,lp)
        if (equal(word,'xend')) then
@@ -946,107 +952,180 @@ contains
           dopowder = .true.
        elseif (equal(word,'rdf')) then
           dopowder = .false.
+       elseif (equal(word,'molecule')) then
+          imol = 1
+       elseif (equal(word,'crystal')) then
+          imol = 0
        elseif (len_trim(word) > 0) then
           ns = ns + 1
-          if (ns > size(c)) then
-             allocate(caux(2*size(c)))
-             caux(1:size(c)) = c
-             call move_alloc(caux,c)
-          endif
-          if (equal(word,".")) then
-             if (.not.cr%isinit) then
-                call ferror('struct_compare','Current structure is not initialized. Use CRYSTAL before COMPARE.',faterr,syntax=.true.)
-                return
-             end if
-             if (cr%ismolecule) then
-                call ferror('struct_compare','Current structure is a molecule.',faterr,syntax=.true.)
-                return
-             end if
-             write (uout,'("  Crystal ",A,": <current>")') string(ns,2)
-             c(ns) = cr
-          else
-             write (uout,'("  Crystal ",A,": ",A)') string(ns,2), string(word) 
-             call struct_crystal_input(c(ns),word,.false.,.false.,.false.)
-             if (.not.c(ns)%isinit) &
-                call ferror("struct_compare","could not load crystal structure",faterr)
-          end if
+          if (ns > size(fname)) &
+             call realloc(fname,2*ns)
+          fname(ns) = word
        else
           exit
        end if
     end do
-    write (uout,*)
+    if (ns < 2) &
+       call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr)
 
-    write (uout,'("* COMPARE: compare crystal structures")')
-    if (dopowder) then
-       write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
+    ! determine whether to use crystal or molecule comparison
+    ismol = .true.
+    usedot = .false.
+    do i = 1, ns
+       if (.not.equal(fname(i),".")) then
+          call struct_detect_format(fname(i),isformat,laux)
+          ismol = ismol .and. laux
+          if (isformat == isformat_unknown) &
+             call ferror("struct_compare","unknown file format: " // string(fname(i)),faterr)
+          inquire(file=fname(i),exist=laux)
+          if (.not.laux) &
+             call ferror("struct_compare","file not found: " // string(fname(i)),faterr)
+       else
+          usedot = .true.
+       end if
+    end do
+    if (imol == 0) then
+       ismol = .false.
+    elseif (imol == 1) then
+       ismol = .true.
+    end if
+    if (usedot .and. (cr%ismolecule .neqv. ismol)) &
+       call ferror("struct_compare","current structure (.) incompatible with molecule/crystal in compare",faterr)
+    if (usedot.and..not.cr%isinit) &
+       call ferror('struct_compare','Current structure is not initialized.',faterr)
+       
+    ! Read the structures and header
+    write (uout,'("* COMPARE: compare structures")')
+    if (ismol) then
+       tname = "Molecule"
     else
-       write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+       tname = "Crystal"
     end if
-    write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
-
-    if (ns < 2) then
-       call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr,syntax=.true.)
-       return
-    end if
-    if (xend < 0d0) then
-       if (dopowder) then
-          xend = th2end0
-       else
-          xend = rend0
-       end if
-    end if
-
-    allocate(iha(10001,ns))
+    allocate(c(ns))
     do i = 1, ns
-       ! calculate the powder diffraction pattern
-       if (dopowder) then
-          call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma0,t,ih,th2p,ip,hvecp)
-
-          ! normalize the integral of abs(ih)
-          tini = ih(1)**2
-          tend = ih(npts)**2
-          nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
-          iha(:,i) = ih / sqrt(nor)
+       if (equal(fname(i),".")) then
+          write (uout,'("  ",A," ",A,": <current>")') string(tname), string(i,2)
+          c(i) = cr
        else
-          call c(i)%rdf(xend,npts,t,ih)
-          iha(:,i) = ih
+          write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i)) 
+          call struct_crystal_input(c(i),fname(i),ismol,.false.,.false.)
+          if (.not.c(i)%isinit) &
+             call ferror("struct_compare","could not load crystal structure" // string(fname(i)),faterr)
        end if
     end do
-    if (allocated(t)) deallocate(t)
-    if (allocated(ih)) deallocate(ih)
-    if (allocated(th2p)) deallocate(th2p)
-    if (allocated(ip)) deallocate(ip)
-    if (allocated(hvecp)) deallocate(hvecp)
 
-    ! self-correlation
-    allocate(xnorm(ns))
-    h =  (xend-th2ini) / real(npts-1,8)
-    do i = 1, ns
-       xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
-    end do
-    xnorm = sqrt(abs(xnorm))
+    ! rest of the header and default variables
+    if (ismol) then
+       diftyp = "Molecule"
+       difstr = "RMS"
+       write (uout,'("# RMS of the atomic positions in ",A)') iunitname0(iunit)
+    else
+       diftyp = "Crystal"
+       difstr = "DIFF"
+       if (dopowder) then
+          write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
+          if (xend < 0d0) xend = th2end0
+       else
+          write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+          if (xend < 0d0) xend = rend0
+       end if
+       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+    end if
 
-    ! calculate the overlap between diffraction patterns
+    ! allocate space for difference/rms values
     allocate(diff(ns,ns))
     diff = 1d0
-    do i = 1, ns
-       do j = i+1, ns
-          diff(i,j) = 1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j)
-          diff(j,i) = diff(i,j)
+
+    if (.not.ismol) then
+       ! crystals
+       allocate(iha(10001,ns))
+       do i = 1, ns
+          ! calculate the powder diffraction pattern
+          if (dopowder) then
+             call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma0,t,ih,th2p,ip,hvecp)
+
+             ! normalize the integral of abs(ih)
+             tini = ih(1)**2
+             tend = ih(npts)**2
+             nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             iha(:,i) = ih / sqrt(nor)
+          else
+             call c(i)%rdf(xend,npts,t,ih)
+             iha(:,i) = ih
+          end if
        end do
-    end do
-    deallocate(xnorm)
-    
-    ! write output 
-    if (ns == 2) then
-       write (uout,'("+ DIFF = ",A)') string(diff(1,2),'e',12,6)
-    else
+       if (allocated(t)) deallocate(t)
+       if (allocated(ih)) deallocate(ih)
+       if (allocated(th2p)) deallocate(th2p)
+       if (allocated(ip)) deallocate(ip)
+       if (allocated(hvecp)) deallocate(hvecp)
+       
+       ! self-correlation
+       allocate(xnorm(ns))
+       h =  (xend-th2ini) / real(npts-1,8)
+       do i = 1, ns
+          xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
+       end do
+       xnorm = sqrt(abs(xnorm))
+
+       ! calculate the overlap between diffraction patterns
+       diff = 0d0
        do i = 1, ns
           do j = i+1, ns
-             write (uout,'("+ DIFF(",A,": ",A," | ",A,": ",A,") = ",A)') &
-                string(i), string(c(i)%file), string(j), string(c(j)%file),&
-                string(diff(i,j),'f',10,6)
+             diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
+             diff(j,i) = diff(i,j)
           end do
+       end do
+       deallocate(xnorm)
+    else
+       ! molecules
+       diff = 0d0
+       do i = 1, ns
+          do j = i+1, ns
+             if (c(i)%ncel == c(j)%ncel) then
+                n = c(i)%ncel
+                allocate(x1(3,n),x2(3,n))
+                do k = 1, n
+                   x1(:,k) = c(i)%atcel(k)%r + c(i)%molx0
+                   x2(:,k) = c(j)%atcel(k)%r + c(j)%molx0
+                end do
+                diff(i,j) = rmsd_walker(x1,x2)
+                deallocate(x1,x2)
+             else
+                diff(i,j) = -1d0
+             end if
+             diff(j,i) = diff(i,j)
+          end do
+       end do
+       diff = diff * dunit
+    endif
+   
+    ! write output 
+    if (ns == 2) then
+       write (uout,'("+ ",A," = ",A)') string(difstr), string(diff(1,2),'e',12,6)
+    else
+       ! do i = 1, ns
+       !    do j = i+1, ns
+       !       if (diff(i,j) < 0d0) then
+       !          difout = "<not comparable>"
+       !       else
+       !          difout = string(diff(i,j),'f',10,6)
+       !       end if
+       !       write (uout,'("+ ",A,"(",A,": ",A," | ",A,": ",A,") = ",A)') &
+       !          string(difstr), string(i), string(c(i)%file), string(j), &
+       !          string(c(j)%file), difout
+       !    end do
+       ! end do
+       do i = 0, (ns-1)/5
+          write (uout,'(99(A,X))') string(diftyp,15,ioj_center), &
+             (string(c(5*i+j)%file,15,ioj_center),j=1,min(5,ns-i*5))
+          write (uout,'(99(A,X))') string(difstr,15,ioj_center), &
+             (string(5*i+j,15,ioj_center),j=1,min(5,ns-i*5))
+          do j = 1, ns
+             write (uout,'(2X,99(A,X))') string(c(j)%file,15,ioj_left), &
+                (string(diff(j,5*i+k),'f',15,7,3),k=1,min(5,ns-i*5))
+          end do
+          write (uout,*)
        end do
     endif
     write (uout,*)
@@ -1346,9 +1425,9 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
-    logical :: ok
-    integer :: lp
-    real*8 :: x0(3,3), t0(3)
+    logical :: ok, doprim
+    integer :: lp, lp2, dotyp, i
+    real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv
 
     if (cr%ismolecule) then
@@ -1358,39 +1437,64 @@ contains
 
     ! transform to the primitive?
     lp = 1
-    word = lgetword(line,lp)
-    if (equal(word,"primitive")) then
+    doprim = .false.
+    dotyp = 0
+    do while (.true.)
        word = lgetword(line,lp)
-       if (equal(word,"buerger")) then
-          call cr%primitive_buerger(.true.)
-       else if (equal(word,"any")) then
-          call cr%primitive_any(.true.)
-       else if (equal(word,"delaunay")) then
-          call cr%primitive_delaunay(.true.)
+       if (equal(word,"standard")) then
+          dotyp = 1
+          doprim = .false.
+       elseif (equal(word,"primitive")) then
+          dotyp = 1
+          doprim = .true.
+       elseif (equal(word,"niggli")) then
+          dotyp = 2
+       elseif (equal(word,"delaunay")) then
+          dotyp = 3
        else
-          call cr%primitive_buerger(.true.)
+          lp = 1
+          exit
        end if
-       return
-    ! elseif (equal(word,"conventional")) then
-    !    call cr%conventional_standard(.true.)
-    !    return
-    else
-       lp = 1
+    end do
+
+    if (dotyp == 1) then
+       call cr%cell_standard(doprim,.true.)
+    elseif (dotyp == 2) then
+       call cr%cell_niggli(.true.)
+    elseif (dotyp == 3) then
+       call cr%cell_delaunay(.true.)
     end if
+    if (dotyp > 0) return
 
     ! read the vectors from the input
-    ok = eval_next(x0(1,1),line,lp)
-    ok = ok .and. eval_next(x0(2,1),line,lp)
-    ok = ok .and. eval_next(x0(3,1),line,lp)
-    ok = ok .and. eval_next(x0(1,2),line,lp)
-    ok = ok .and. eval_next(x0(2,2),line,lp)
-    ok = ok .and. eval_next(x0(3,2),line,lp)
-    ok = ok .and. eval_next(x0(1,3),line,lp)
-    ok = ok .and. eval_next(x0(2,3),line,lp)
-    ok = ok .and. eval_next(x0(3,3),line,lp)
+    ok = eval_next(rdum(1),line,lp)
+    ok = ok .and. eval_next(rdum(2),line,lp)
+    ok = ok .and. eval_next(rdum(3),line,lp)
     if (.not.ok) then
        call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line,syntax=.true.)
        return
+    end if
+    
+    lp2 = lp
+    ok = eval_next(rdum(4),line,lp)
+    if (ok) then
+       x0(:,1) = rdum(1:3)
+       x0(1,2) = rdum(4)
+       ok = eval_next(x0(2,2),line,lp)
+       ok = ok .and. eval_next(x0(3,2),line,lp)
+       ok = ok .and. eval_next(x0(1,3),line,lp)
+       ok = ok .and. eval_next(x0(2,3),line,lp)
+       ok = ok .and. eval_next(x0(3,3),line,lp)
+       if (.not.ok) then
+          call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line,syntax=.true.)
+          return
+       end if
+    else
+       lp = lp2
+       x0 = 0d0
+       do i = 1, 3
+          x0(i,i) = rdum(i)
+       end do
     end if
 
     t0 = 0d0

@@ -42,6 +42,7 @@ module struct_writers
   public :: struct_write_tessel
   public :: struct_write_critic
   public :: struct_write_cif
+  public :: struct_write_d12
   public :: struct_write_escher
   public :: struct_write_gulp
   public :: struct_write_lammps
@@ -91,7 +92,7 @@ contains
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
     integer :: i, j, k, l, m, nmol, icel, lvec(3), ncm
-    integer :: ncomb, nlimi, nlimj
+    integer :: ncomb, nlimi, nlimj, icount
     integer, allocatable :: icomb(:), origmol(:)
     character(len=:), allocatable :: wroot, file0, aux
     logical :: doagain
@@ -225,7 +226,6 @@ contains
        wroot = file(:index(file,'.',.true.)-1)
        do i = 1, nmer
           if (i == 1) then
-             write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol), string(i)
              if (nmer == 1) then
                 nlimj = nmol
              else
@@ -236,14 +236,16 @@ contains
                 file0 = trim(wroot) // "_" // string(j) // "." // fmt
                 call dowrite(file0,fr0(j))
              end do
+             write (uout,'("+ Written ",A," ",A,"-mers")') string(c%nmol), string(i)
           elseif (i == nmer) then
              ! n-mers
-             write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol * nchoosek(nmol,i-1)), string(i)
              allocate(icomb(i-1))
+             icount = 0
              do l = 1, c%nmol
                 ncomb = nchoosek(nmol,i-1)
                 do j = 1, ncomb
                    call comb(nmol,i-1,j,icomb)
+                   if (any(icomb == l)) cycle
                    file0 = trim(wroot) // "_" // string(l)
                    fr = fr0(l)
                    do k = 1, i-1
@@ -254,14 +256,16 @@ contains
                    aux = trim(file0) // "." // fmt
                    file0 = aux
                    call dowrite(file0,fr)
+                   icount = icount + 1
                 end do
              end do
              deallocate(icomb)
+             write (uout,'("+ Written ",A," ",A,"-mers")') string(icount), string(i)
           else
              ! everything in between
              ncomb = nchoosek(nmol,i)
-             write (uout,'("+ Writing ",A," ",A,"-mers")') string(ncomb), string(i)
              allocate(icomb(i))
+             icount = 0
              do j = 1, ncomb
                 call comb(nmol,i,j,icomb)
                 file0 = wroot 
@@ -274,8 +278,10 @@ contains
                 aux = trim(file0) // "." // fmt
                 file0 = aux
                 call dowrite(file0,fr)
+                icount = icount + 1
              end do
              deallocate(icomb)
+             write (uout,'("+ Written ",A," ",A,"-mers")') string(icount), string(i)
           end if
        end do
     end if
@@ -881,6 +887,97 @@ contains
     call fclose(lu)
 
   end subroutine struct_write_cif
+
+  !> Write a simple cif file
+  subroutine struct_write_d12(file,c)
+    use struct_basic, only: crystal, pointgroup_info, holo_unk, holo_tric,&
+       holo_mono, holo_ortho, holo_tetra, holo_trig, holo_hex, holo_cub
+    use tools_io, only: fopen_write, fclose, string, ferror, faterr
+    use global, only: symprec
+    use param, only: bohrtoa
+
+    character*(*), intent(in) :: file
+    type(crystal), intent(in) :: c
+
+    integer :: holo, laue, i, j
+    character(len=3) :: schpg
+    type(crystal) :: nc
+    integer :: lu, nmin
+    real*8 :: xmin(6)
+    logical :: ok
+
+    ! we need symmetry for this
+    nc = c
+    if (nc%havesym < 1) &
+       call nc%struct_fill(.false.,.false.,1,0,.false.,.false.,.false.)
+
+    call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
+    xmin = 0d0
+    if (holo == holo_unk) then
+       call ferror("struct_write_d12","unknown holohedry",faterr)
+    elseif (holo == holo_tric) then
+       nmin = 6
+       xmin(1:3) = nc%aa * bohrtoa
+       xmin(4:6) = nc%bb
+    elseif (holo == holo_mono) then
+       nmin = 4
+       xmin(1:3) = nc%aa * bohrtoa
+       ok = .false.
+       do i = 1, 3
+          if (abs(nc%bb(i) - 90d0) > symprec) then
+             xmin(4) = nc%bb(i)
+             ok = .true.
+             exit
+          end if
+       end do
+       if (.not.ok) &
+          call ferror("struct_write_d12","could not find unique axis for monoclinic",faterr)
+    elseif (holo == holo_ortho) then
+       nmin = 3
+       xmin(1:3) = nc%aa * bohrtoa
+    elseif (holo == holo_tetra) then
+       nmin = 2
+       xmin(1) = nc%aa(1) * bohrtoa
+       xmin(2) = nc%aa(3) * bohrtoa
+    elseif (holo == holo_trig) then
+       nmin = 2
+       xmin(1) = nc%aa(1) * bohrtoa
+       xmin(2) = nc%bb(1)
+    elseif (holo == holo_hex) then
+       nmin = 2
+       xmin(1) = nc%aa(1) * bohrtoa
+       xmin(2) = nc%aa(3) * bohrtoa
+    elseif (holo == holo_cub) then
+       nmin = 1
+       xmin(1) = nc%aa(1) * bohrtoa
+    end if
+
+    lu = fopen_write(file)
+    write (lu,'("Title")')
+    write (lu,'("CRYSTAL")')
+    write (lu,'("0 0 0")')
+    write (lu,'(A)') string(nc%spg%spacegroup_number)
+    write (lu,'(6(A,X))') (string(xmin(i),'f',15,8),i=1,nmin)
+    write (lu,'(A)') string(nc%nneq)
+    do i = 1, nc%nneq
+       write (lu,'(4(A,X))') string(nc%at(i)%z), (string(nc%at(i)%x(j),'f',15,8),j=1,3)
+    end do
+    write (lu,'("SETPRINT")')
+    write (lu,'("1")')
+    write (lu,'("3 1")')
+    write (lu,'("END")')
+    write (lu,'("xx basis xx")')
+    write (lu,'("99 0")')
+    write (lu,'("END")')
+    write (lu,'("SHRINK")')
+    write (lu,'("4 4")')
+    write (lu,'("TOLDEE")')
+    write (lu,'("7")')
+    write (lu,'("END")')
+
+    call fclose(lu)
+
+  end subroutine struct_write_d12
 
   !> Write an escher octave script
   subroutine struct_write_escher(file,c)

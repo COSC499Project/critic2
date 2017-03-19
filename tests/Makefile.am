@@ -1,6 +1,7 @@
 SUBDIRS=
 TESTS=\
 001_arithmetic.sh 001_arithmetic2.sh 001_dosinput.sh\
+001_caps_input.sh\
 002_read_abden.sh 002_read_chgcar.sh 002_read_chg.sh\
 002_read_res.sh 002_read_cif.sh 002_read_crinput1.sh\
 002_read_crinput2.sh 002_read_crinput3.sh\
@@ -10,10 +11,12 @@ TESTS=\
 002_read_poscar_potcar.sh 002_read_poscar.sh 002_read_qeout.sh 002_read_struct.sh\
 002_read_struct_sym.sh 002_read_vasp.sh 002_read_vasp2.sh 002_read_vasp3.sh\
 002_read_wfn.sh 002_read_wfx.sh 002_read_xyz.sh 002_read_fchk.sh 002_read_molden.sh\
+002_read_xsf1.sh\
+002_read_crystal1.sh\
 002_read_qein1.sh 002_read_qein2.sh\
 002_read_dftbp1.sh 002_read_dftbp2.sh\
 002_read_siesta.sh 002_read_multiple.sh 002_read_reset.sh\
-002_read_newcell.sh 002_read_primitive.sh 002_read_molecule.sh\
+002_read_newcell.sh 002_read_newcell2.sh 002_read_primitive.sh 002_read_molecule.sh\
 003_wigner_bcc.sh 003_wigner_fcc_nosym1.sh 003_wigner_fcc_nosym2.sh 003_wigner_fcc.sh\
 003_wigner_hcp.sh 003_wigner_sc.sh 003_wigner_hard1.sh 003_wigner_hard2.sh\
 004_ewald1.sh 004_ewald2.sh\
@@ -31,7 +34,8 @@ TESTS=\
 006_load_abinit.sh 006_load_cast_unload.sh 006_load_chgcar.sh 006_load_chg.sh\
 006_load_core_expr.sh 006_load_cube_opt1.sh 006_load_cube_opt2.sh\
 006_load_cube_opt3.sh 006_load_cube.sh\
-006_load_elk.sh 006_load_expression.sh 006_load_grid_grad.sh 006_load_grid_lap.sh\
+006_load_elk1.sh 006_load_elk2.sh\
+006_load_expression.sh 006_load_grid_grad.sh 006_load_grid_lap.sh\
 006_load_pi_opts.sh 006_load_pi.sh 006_load_pro_expr.sh 006_load_promolecular.sh\
 006_load_reference.sh 006_load_wfn.sh 006_load_wfn_mo.sh \
 006_load_wfn_mp2.sh 006_load_wfx.sh \
@@ -49,7 +53,7 @@ TESTS=\
 011_auto11.sh 011_auto12.sh 011_auto13.sh\
 012_powder.sh 012_rdf.sh\
 013_pointprop1.sh 013_pointprop2.sh 013_pointprop3.sh\
-014_compare.sh\
+014_compare1.sh 014_compare2.sh\
 015_environ.sh\
 016_identify1.sh 016_identify2.sh\
 017_hirshfeld.sh\
@@ -66,7 +70,7 @@ TESTS=\
 027_qtree1.sh\
 028_xdm1.sh 028_xdm2.sh 028_xdm3.sh\
 029_bader1.sh 029_bader2.sh 029_bader3.sh 029_bader4.sh 029_bader5.sh 029_bader6.sh\
-030_yt1.sh 030_yt2.sh 030_yt3.sh 030_yt4.sh 030_yt5.sh 030_yt6.sh\
+030_yt1.sh 030_yt2.sh 030_yt3.sh 030_yt4.sh 030_yt5.sh 030_yt6.sh 030_yt7.sh\
 031_libxc1.sh\
 032_stm1.sh 032_stm2.sh\
 033_molcell1.sh\
