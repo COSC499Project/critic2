@@ -11,6 +11,14 @@
 #include "matrix_math.cpp"
 #include "tinyfiledialogs.h"
 
+#ifdef WINDOWS
+  #include <direct.h>
+  #define GetCurrentDir _getcwd
+#else
+  #include <unistd.h>
+  #define GetCurrentDir getcwd
+#endif
+
 extern "C" void initialize();
 extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule);
@@ -378,9 +386,9 @@ void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB,
 {
   for (size_t x = 1; x < loadedAtomsAmount; x++){
     int numBonds = sizeof(loadedAtoms[x].loadedBonds) / sizeof(loadedAtoms[x].loadedBonds[0]);
-    std::cout << numBonds << " num of bonds\n";
+    //std::cout << numBonds << " num of bonds\n";
     for (size_t i = 0; i < numBonds; i++) {
-      std::cout << i << " atom bond " << loadedAtoms[x].loadedBonds[i] << "\n";
+      //std::cout << i << " atom bond " << loadedAtoms[x].loadedBonds[i] << "\n";
       if (loadedAtoms[x].loadedBonds[i] < loadedAtomsAmount && loadedAtoms[x].loadedBonds[i] > -1) {
         DrawBondLighted(p, CylVB, CylIB, loadedAtoms[x].atomPosition, loadedAtoms[loadedAtoms[x].loadedBonds[i]].atomPosition, SphereVB, SphereIB);
       }
@@ -798,17 +806,19 @@ static void ShowMenuFile()
     ImGui::MenuItem("(dummy menu)", NULL, false, false);
     if (ImGui::MenuItem("Molecule")) {
       char const * lTheOpenFileName = tinyfd_openFileDialog(
-    		"Select Crystal file",
+    		"Select Molecule file",
     		"",
     		0,
     		NULL,
     		NULL,
     		0);
 
-      printf("* File: %s \n", lTheOpenFileName);
-      char const *filename = "../../examples/data/pyridine.wfx";
+      if (lTheOpenFileName == NULL) {
+        return;
+      }
+
       init_struct();
-      call_structure(filename, (int) strlen(filename), 1);
+      call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       loadAtoms();
       loadBonds();
     }
@@ -821,10 +831,12 @@ static void ShowMenuFile()
     		NULL,
     		0);
 
-      printf("* File: %s \n", lTheOpenFileName);
-      char const *filename = "../../examples/data/pyridine.wfx";
+        if (lTheOpenFileName == NULL) {
+          return;
+        }
+
       init_struct();
-      call_structure(filename, (int) strlen(filename), 0);
+      call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
       loadAtoms();
     }
 }
