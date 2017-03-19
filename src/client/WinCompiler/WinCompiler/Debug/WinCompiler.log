@@ -1,1 +1,81 @@
-﻿..\..\interface.o : fatal error LNK1112: module machine type 'x64' conflicts with target machine type 'X86'
+﻿  imgui.cpp
+  imgui_demo.cpp
+  imgui_draw.cpp
+  imgui_impl_glfw_gl3.cpp
+  main.cpp
+..\..\matrix_math.cpp(317): message #181: argument of type "unsigned int *" is incompatible with format "%d", expecting argument of type "int *"
+    		sscanf(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
+    		                                ^
+  
+..\..\matrix_math.cpp(317): message #181: argument of type "unsigned int *" is incompatible with format "%d", expecting argument of type "int *"
+    		sscanf(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
+    		                                    ^
+  
+..\..\matrix_math.cpp(317): message #181: argument of type "unsigned int *" is incompatible with format "%d", expecting argument of type "int *"
+    		sscanf(t.c_str(), "%d %d %d\n", &a, &b, &c); //string is converted to constant char
+    		                                        ^
+  
+..\..\main.cpp(31): message #181: argument of type "size_t={unsigned int}" is incompatible with format "%d", expecting argument of type "int"
+    	int len = sprintf(buffer, "%d", t);
+    	                                ^
+  
+..\..\main.cpp(73): message #181: argument of type "GLenum={unsigned int}" is incompatible with format "%d", expecting argument of type "int"
+    		fprintf(stderr, "Error creating shader type %d\n", ShaderType);
+    		                                                   ^
+  
+..\..\main.cpp(88): message #181: argument of type "GLenum={unsigned int}" is incompatible with format "%d", expecting argument of type "int"
+    		fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
+    		                                                          ^
+  
+..\..\main.cpp(212): message #869: parameter "window" was never referenced
+    void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
+                                     ^
+  
+..\..\main.cpp(212): message #869: parameter "xoffset" was never referenced
+    void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
+                                                    ^
+  
+..\..\main.cpp(313): message #2557: comparison between signed and unsigned operands
+    	for (size_t x = 0; x < loadedAtomsAmount; x++) {
+    	                     ^
+  
+..\..\main.cpp(333): warning #1251: returning pointer to local variable
+    		return col; //white
+    		       ^
+  
+..\..\main.cpp(336): warning #1251: returning pointer to local variable
+    		return col;//red
+    		       ^
+  
+..\..\main.cpp(339): warning #1251: returning pointer to local variable
+    		return col; //brown
+    		       ^
+  
+..\..\main.cpp(330): message #869: parameter "col" was never referenced
+    const GLfloat* getAtomColor(int atomicNumber,float colorIntesity, GLfloat col[4]) {
+                                                                              ^
+  
+..\..\main.cpp(344): message #869: parameter "vertexLocation" was never referenced
+    float* getScreenPositionOfVertex(float *vertexLocation) {
+                                            ^
+  
+..\..\main.cpp(409): message #2557: comparison between signed and unsigned operands
+    	for (size_t x = 0; x < loadedAtomsAmount; x++){
+    	                     ^
+  
+..\..\main.cpp(417): message #869: parameter "p" was never referenced
+    void lookAtAtom(int atomNumber, Pipeline p) {
+                                             ^
+  
+..\..\main.cpp(497): message #2557: comparison between signed and unsigned operands
+    	for (size_t x = 0; x < loadedAtomsAmount; x++){
+    	                     ^
+  
+..\..\main.cpp(511): message #2557: comparison between signed and unsigned operands
+    	for (size_t y = 0; y < loadedAtomsAmount; y++) { //close all tree nodes exept the current one
+    	                     ^
+  
+ipo: : error #11018: Cannot open criticlib.a
+ipo: : warning #11082: glfw3.lib(context.obj): locally defined symbol __imp__sscanf imported
+ipo: : warning #11082: MSVCRTD.lib(vsnprintf.obj): locally defined symbol __imp___vsnprintf imported
+LINK : fatal error LNK1104: cannot open file 'criticlib.a'

@@ -43,8 +43,8 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Object Include="..\..\interface.o">
+    <None Include="..\..\interface.f90">
       <Filter>Source Files</Filter>
-    </Object>
+    </None>
   </ItemGroup>
 </Project>

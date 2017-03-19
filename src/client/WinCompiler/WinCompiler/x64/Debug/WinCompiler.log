@@ -1,4 +1,34 @@
-﻿imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetWindowSize referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
+﻿  main.cpp
+c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(91): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(92): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(93): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+c:\499drive\critic2\src\client\matrix_math.cpp(140): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(31): warning C4477: 'sprintf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'std::size_t'
+  c:\499drive\critic2\src\client\main.cpp(31): note: consider using '%zd' in the format string
+c:\499drive\critic2\src\client\main.cpp(80): warning C4267: '=': conversion from 'size_t' to 'GLint', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(214): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(302): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(303): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(304): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(292): warning C4101: 'atomName': unreferenced local variable
+c:\499drive\critic2\src\client\main.cpp(411): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(412): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(501): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(502): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(667): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\499drive\critic2\src\client\main.cpp(668): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+  imgui_impl_glfw_gl3.cpp
+  imgui_draw.cpp
+  imgui_demo.cpp
+  imgui.cpp
+  Generating Code...
+c:\499drive\critic2\src\client\main.cpp(333): warning C4172: returning address of local variable or temporary: col
+c:\499drive\critic2\src\client\main.cpp(336): warning C4172: returning address of local variable or temporary: col
+c:\499drive\critic2\src\client\main.cpp(339): warning C4172: returning address of local variable or temporary: col
+imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetWindowSize referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
 imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetFramebufferSize referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
 main.obj : error LNK2001: unresolved external symbol glfwGetFramebufferSize
 imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetWindowAttrib referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
@@ -15,7 +45,6 @@ main.obj : error LNK2001: unresolved external symbol glfwSetScrollCallback
 imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwSetClipboardString referenced in function "void __cdecl ImGui_ImplGlfwGL3_SetClipboardText(char const *)" (?ImGui_ImplGlfwGL3_SetClipboardText@@YAXPEBD@Z)
 imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetClipboardString referenced in function "char const * __cdecl ImGui_ImplGlfwGL3_GetClipboardText(void)" (?ImGui_ImplGlfwGL3_GetClipboardText@@YAPEBDXZ)
 imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetTime referenced in function "void __cdecl ImGui_ImplGlfwGL3_NewFrame(void)" (?ImGui_ImplGlfwGL3_NewFrame@@YAXXZ)
-imgui_impl_glfw_gl3.obj : error LNK2019: unresolved external symbol glfwGetWin32Window referenced in function "bool __cdecl ImGui_ImplGlfwGL3_Init(struct GLFWwindow *,bool)" (?ImGui_ImplGlfwGL3_Init@@YA_NPEAUGLFWwindow@@_N@Z)
 imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wActiveTexture
 imgui_impl_glfw_gl3.obj : error LNK2001: unresolved external symbol gl3wAttachShader
 main.obj : error LNK2001: unresolved external symbol gl3wAttachShader
@@ -126,4 +155,4 @@ interface.o : error LNK2001: unresolved external symbol __global_MOD_refden
 interface.o : error LNK2001: unresolved external symbol __tools_io_MOD_uout
 interface.o : error LNK2001: unresolved external symbol __struct_basic_MOD_cr
 interface.o : error LNK2001: unresolved external symbol __struct_basic_MOD___vtab_struct_basic_Crystal
-C:\499Drive\critic2\src\client\WinCompiler\x64\Debug\WinCompiler.exe : fatal error LNK1120: 105 unresolved externals
+C:\499Drive\critic2\src\client\WinCompiler\x64\Debug\WinCompiler.exe : fatal error LNK1120: 104 unresolved externals

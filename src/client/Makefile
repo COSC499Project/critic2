@@ -9,10 +9,10 @@
 #   brew install glfw            # Mac OS X
 #
 
-#CXX = g++
+CXX = g++ 
 
 EXE = critic2
-OBJS = main.o imgui_impl_glfw_gl3.o
+OBJS = compat.o main.o imgui_impl_glfw_gl3.o
 OBJS += imgui.o imgui_demo.o imgui_draw.o ../interface.o
 OBJS += libs/gl3w/GL/gl3w.o
 
@@ -47,19 +47,19 @@ endif
 ifeq ($(UNAME_S), CYGWIN_NT-10.0)
    ECHO_MESSAGE = "Windows"
    %.o: %.mod
-   LIBS = ./GLFW/libglfw3.a ./GLFW/libglfw.dll.a
-   LIBS += -lGL -lGLU -lXrandr -lXext -lX11 -lgdi32 -lopengl32 -limm32 -lXi -lXinerama -lXcursor -lrt -lm -pthread
+   LIBS = ./libopengl32.a ./GLFW/libglfw3dll.a ./GLFW/libglfw3.a ./GLFW/glfw3.dll
+   LIBS += -lGL -lGLU -lXrandr -lXext -lX11 -lgdi32 -limm32 -lXi -lXinerama -lXcursor -lrt -lm -pthread
    LIBS += ../criticlib.a -lgfortran ../qhull/libqhull_critic.a ../cubpack/libcubpack.a ../ciftbx/libciftbx.a ../oldlibs/libmisc.a -lgomp
    
    CXXFLAGS = -I./ -L./GLFW/libglfw3 -I./GLFW/ -I./libs/gl3w/
    CXXFLAGS += -Wall -Wformat
-   CXXFLAGS += -DWIN32
+   CXXFLAGS += -DWIN32 -D_WIN32
    CFLAGS = $(CXXFLAGS)
 endif
 
 
 .cpp.o:
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $< 
 
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)

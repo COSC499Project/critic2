@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <math.h>
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
@@ -144,10 +145,10 @@ static GLuint LightingShader() {
 static GLuint CompileShaders()
 {
 	GLuint ShaderProgram = glCreateProgram();
+
 	if (ShaderProgram == 0) {
 		exit(1);
 	}
-
 
 	const char * vs = "#version 330 \n \
       layout (location = 0) in vec3 Position; \n \
@@ -327,7 +328,7 @@ void loadAtoms() {
 
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
-const GLfloat* getAtomColor(int atomicNumber,float colorIntesity) {
+const GLfloat* getAtomColor(int atomicNumber,float colorIntesity, GLfloat col[4]) {
 	if (atomicNumber == 7) {
 		GLfloat col[] = { .8f, .8f, .8f, colorIntesity };
 		return col; //white
@@ -365,13 +366,13 @@ const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
 
 GLuint gWorldLocation; //made global to make Drawing via methods easer
 GLuint mColorLocation;
-void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], Pipeline p) {
+void drawAtomInstance(int identifyer, float * posVector,const GLfloat* color, Pipeline p) {
 	//selection start
 	float inc = 1.f;
 	if (loadedAtoms[identifyer].selected) { //selection is color based
 		inc = 1.5f;
 	}
-	//const GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
+	GLfloat n_Color[] = { color[0],color[1],color[2],color[3] };
 	//selection end
 
 	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
@@ -389,7 +390,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 	glBindBuffer(GL_ARRAY_BUFFER, atomVB);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, atomIB);
-	glUniform4fv(mColorLocation, 1, (const GLfloat *)&color);
+	glUniform4fv(mColorLocation, 1, (const GLfloat *)&n_Color);
 	glDrawElements(GL_TRIANGLES, numbIndeces, GL_UNSIGNED_INT, 0);
 
 	//TODO draw atom ID number
@@ -407,7 +408,9 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4], 
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline p) {
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-		drawAtomInstance(x,loadedAtoms[x].atomPosition,getAtomColor(loadedAtoms[x].atomicNumber, 0.6f),p);
+		GLfloat c[4] = {0,0,0,0};
+		getAtomColor(x, 0.6, c);
+		drawAtomInstance(x,loadedAtoms[x].atomPosition,c,p);
 	}
 }
 
@@ -522,7 +525,7 @@ void drawAtomTreeView(Pipeline p) {
 
 int main(int, char**)
 {
-    // Setup window
+	// Setup window
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
         return 1;
@@ -530,23 +533,22 @@ int main(int, char**)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
 #if WIN32
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #else
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #endif
 #if __APPLE__ 
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Critic2", NULL, NULL);
+
+	GLFWwindow* window = glfwCreateWindow(1280, 720, "Critic2", NULL, NULL);
 
 	glfwMakeContextCurrent(window);
-    gl3wInit();
+	gl3wInit();
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
-
     // Event callbacks
     glfwSetScrollCallback(window, ScrollCallback);
-
 
     //Setup up OpenGL stuff
     GLuint VertexArray;
@@ -554,8 +556,9 @@ int main(int, char**)
     glBindVertexArray(VertexArray);
 
     GLuint trishader = CompileShaders();
-    gWorldLocation = glGetUniformLocation(trishader, "gWorld");
+	gWorldLocation = glGetUniformLocation(trishader, "gWorld");
     mColorLocation = glGetUniformLocation(trishader, "mColor");
+
 
 	//glEnables
     glEnable(GL_DEPTH_TEST);
@@ -575,8 +578,9 @@ int main(int, char**)
     const GLfloat grey[4] = {.5f, .5f, .5f, colorIntesity};
 
 	//load all atom information ---------------------------------------------
-	loadAtomObject();
 
+	loadAtomObject();
+	
 	//this section will be replaced by the loadAtoms function
 #pragma region atom loading test
 	// loadedAtomsAmount = 3;
