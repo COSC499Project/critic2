@@ -54,7 +54,7 @@ ifeq ($(UNAME_S), CYGWIN_NT-10.0)
    
    CXXFLAGS = -I./ -L./GLFW/libglfw3 -I./GLFW/ -I./libs/gl3w/
    CXXFLAGS += -Wall -Wformat
-   CXXFLAGS += -DWIN32 -D_WIN32
+   CXXFLAGS += -DWIN32
    CFLAGS = $(CXXFLAGS)
 endif
 
