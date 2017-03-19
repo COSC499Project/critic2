@@ -12,14 +12,6 @@
 #include "matrix_math.cpp"
 #include "tinyfiledialogs.h"
 
-#ifdef WINDOWS
-  #include <direct.h>
-  #define GetCurrentDir _getcwd
-#else
-  #include <unistd.h>
-  #define GetCurrentDir getcwd
-#endif
-
 extern "C" void initialize();
 extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule);
