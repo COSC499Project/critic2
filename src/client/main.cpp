@@ -83,6 +83,7 @@ struct atom{
 	string atomTreeName; //must be saved to preserve imgui tree Id's
   int numberOfBonds;
   int * loadedBonds;
+  int atomTreePosition;
 };
 
 struct bond{
@@ -95,6 +96,7 @@ struct bond{
 
 struct criticalPoint{
 	float location[3];
+	string pointName;
 	int pointType;
 };
 
@@ -102,6 +104,9 @@ bond * Bonds;
 atom * loadedAtoms;
 int loadedAtomsAmount = 0;
 int loadedBondsAmount = 0;
+
+criticalPoint * loadedCPoints;
+int loadedCPointsAmount;
 
 
 static void error_callback(int error, const char* description)
@@ -395,6 +400,7 @@ void loadAtoms() {
 		nodeName += "##TreeID = "; //extra info for imgui to find selection
 		nodeName += charConverter(x);
 		loadedAtoms[x].atomTreeName = nodeName;
+		loadedAtoms[x].atomTreePosition = x;
 	}
 
 }
@@ -617,21 +623,46 @@ void drawAtomTreeView(Pipeline p) {
 	ImGui::Begin("tree view",false);
 
 	int closeOthers = -1; //id's are context dependent so other tree nodes must be closed outside the main loop
-	for (size_t x = 0; x < loadedAtomsAmount; x++){
+	for (size_t x = 0; x < loadedAtomsAmount; x++){ //all atoms
 		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {
 			if (loadedAtoms[x].selected == false) { // not currently true must set all others to false
 				loadedAtoms[x].selected = true; //this loop is only run on the frame this tree node is clicked
 				lookAtAtom(x, p);
 				closeOthers = x;
 			}
+
+			//selection based on atoms bonds
+			for (size_t i = 0; i < loadedBondsAmount; i++){
+				if (Bonds[i].a1 == &loadedAtoms[x]) {
+					string bondName = "bondedTo" + Bonds[i].a2->name;
+					if (ImGui::TreeNode(bondName.c_str())){
+						//select a2
+						closeOthers = Bonds[i].a2->atomTreePosition;
+					}
+				} else if (Bonds[i].a2 == &loadedAtoms[x]) {
+					string bondName = "bondedTo" + Bonds[i].a1->name;
+					if (ImGui::TreeNode(bondName.c_str())) {
+						//select a1
+						closeOthers = Bonds[i].a1->atomTreePosition;
+					}
+				}
+			}
+
 			ImGui::TreePop();
 		}else{
 			loadedAtoms[x].selected = false;
 		}
 	}
+	
+	for (size_t i = 0; i < loadedCPointsAmount; i++){
+		if (ImGui::TreeNode(loadedCPoints[i].pointName.c_str())) { //critical point tree node
+			//TODO: critical point information
+		}
+	}
+
 
 	if(closeOthers != -1)
-	for (size_t y = 0; y < loadedAtomsAmount; y++) { //close all tree nodes exept the current one
+	for (size_t y = 0; y < loadedAtomsAmount; y++) { //close all atom tree nodes exept the current one
 		if (closeOthers != y) {
 			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[y].atomTreeName.c_str()), 0); //close tab
 		}
@@ -815,7 +846,7 @@ int main(int, char**)
 
         ShowAppMainMenuBar();
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
-        if (show_test_window)
+        if (!show_test_window)
         {
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
             ImGui::ShowTestWindow(&show_test_window);
