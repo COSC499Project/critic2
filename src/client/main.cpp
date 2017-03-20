@@ -5,8 +5,10 @@
 #include <stdio.h>
 #include <string>
 #include <stdlib.h>
+#include <synchapi.h>
 #include <stdarg.h>
 #include <math.h>
+#include <time.h>
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
@@ -89,6 +91,11 @@ struct bond{
     Vector3f center;
     Matrix4f rotation;
     float length;
+};
+
+struct criticalPoint{
+	float location[3];
+	int pointType;
 };
 
 bond * Bonds;
@@ -423,8 +430,6 @@ void loadBonds() {
       }
 
     }
-
-
   }
 
 }
@@ -556,8 +561,6 @@ void drawSelectedAtomStats() {
 	ImGui::Text("Name"); ImGui::NextColumn();
 	//TODO: this section should be dynamic based on what the user wants
 	ImGui::Text("Charge"); ImGui::NextColumn(); //change to reflect informati=n
-	//
-
 
 	ImGui::Separator();
 
@@ -572,8 +575,7 @@ void drawSelectedAtomStats() {
 		//this section should change swith the section above
 		
 		ImGui::Text(charConverter(i).c_str()); ImGui::NextColumn(); //atom information
-
-		//
+		
 
 	}
 
@@ -770,12 +772,23 @@ int main(int, char**)
     cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
     cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
 
-
+	time_t lastTime = time(0);
+	time_t curTime = lastTime;
+	double frameTime = 35.0;
     bool show_test_window = true;
     // Main loop ------------------------------------------------------------------
     while (!glfwWindowShouldClose(window))
     {
-        glfwPollEvents();
+#pragma region frame limiter
+		curTime = time(0);
+		if ((difftime(lastTime, curTime) < frameTime)) {
+			Sleep(frameTime - difftime(lastTime, curTime));
+		}
+		lastTime = curTime;
+
+#pragma endregion
+
+		glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
         ImGuiIO& io = ImGui::GetIO();
 
@@ -802,7 +815,7 @@ int main(int, char**)
 
         ShowAppMainMenuBar();
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
-        if (!show_test_window)
+        if (show_test_window)
         {
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
             ImGui::ShowTestWindow(&show_test_window);
