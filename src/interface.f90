@@ -55,7 +55,7 @@ contains
   subroutine init_struct() bind (c,name="init_struct")
     use fields, only: fields_init, fields_end
     use struct_basic, only: cr
-    use autocp, only init_cplist
+    use autocp, only: init_cplist
 
     if (cr%isinit) then
       call cr%end()
@@ -221,8 +221,12 @@ contains
 
   end subroutine share_bond
 
-  subroutine auto_cp() bin (c, name="auto_cp")
+  subroutine auto_cp() bind (c, name="auto_cp")
     use struct_basic, only: cr
   end subroutine auto_cp
+
+  subroutine get_crit_points() bind (c, name="get_crit_points")
+    use struct_basic, only: cr
+  end subroutine get_crit_points
 
 end module interface
