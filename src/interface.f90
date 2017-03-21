@@ -141,8 +141,8 @@ contains
     integer(c_int), intent(out) :: n
     type(c_ptr), intent(out) :: z
     type(c_ptr), intent(out) :: x
-    integer(c_int), allocatable, target, save :: iz(:)
-    real(c_double), allocatable, target, save :: ix(:,:)
+    integer(c_int), allocatable, target :: iz(:)
+    real(c_double), allocatable, target :: ix(:,:)
 
     integer :: i, j
 
