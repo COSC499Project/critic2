@@ -556,39 +556,62 @@ void lookAtAtom(int atomNumber, Pipeline p) {
 #pragma endregion
 
 #pragma region IMGUI
+///information to display in the stats list
+int selectedAtom = 0;
+
+
+#pragma region display stats methods
+void displayCol(string * displayStats, int numberOfCol) {
+	for (size_t i = 0; i < numberOfCol; i++) {
+		ImGui::Text(displayStats[i].c_str());
+		ImGui::NextColumn();
+	}
+}
+
+void atomBondAmountInfo(string * displayVars, int atomNumber) {
+	displayVars[0] = "number of bonds";
+	displayVars[1] = charConverter(loadedAtoms[atomNumber].numberOfBonds);
+	displayVars[2] = "";
+}
+
+void atomAtomicNumberInfo(string * displayVars, int atomNumber) {
+	displayVars[0] = "atomic number";
+	displayVars[1] = charConverter(loadedAtoms[atomNumber].atomicNumber);
+	displayVars[2] = "";
+}
+
+#pragma endregion
+
 
 void drawSelectedAtomStats() {
-	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
-	ImGui::Begin("atom information", false);
-
-	ImGui::Columns(3, "mycolumns");
-	ImGui::Separator();
-	ImGui::Text("ID"); ImGui::NextColumn();
-	ImGui::Text("Name"); ImGui::NextColumn();
-	//TODO: this section should be dynamic based on what the user wants
-	ImGui::Text("Charge"); ImGui::NextColumn(); //change to reflect informati=n
-
-	ImGui::Separator();
-
-	static int selected = -1; //TODO connect selection to tree view or new selection system
-	for (int i = 0; i < loadedAtomsAmount; i++) {
-		char label[32];
-		sprintf(label, "%04d", i);
-		if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SpanAllColumns))
-			selected = i;
-		ImGui::NextColumn();
-		ImGui::Text(loadedAtoms[i].name.c_str()); ImGui::NextColumn(); // atom names
-		//this section should change swith the section above
-		
-		ImGui::Text(charConverter(i).c_str()); ImGui::NextColumn(); //atom information
-		
-
+	if (loadedAtomsAmount == 0) {
+		return;
 	}
+	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
+	ImGui::Begin("Selected Information", false);
+	const int numberOfColums = 3;
 
 
+	ImGui::Columns(numberOfColums, "mycolumns");
+	ImGui::Separator();
+	ImGui::Text("Info Type"); ImGui::NextColumn();
+	ImGui::Text("Value1"); ImGui::NextColumn(); 
+	ImGui::Text("Value2"); ImGui::NextColumn();
+	ImGui::Separator();
+	
+	string displayStats[numberOfColums];
+
+	
+	atomBondAmountInfo(displayStats, selectedAtom);
+	displayCol(displayStats, numberOfColums);
+
+	atomAtomicNumberInfo(displayStats, selectedAtom);
+	displayCol(displayStats, numberOfColums);
 
 	ImGui::End();
 }
+
+
 
 void printCamStats() {
 	ImGui::SetNextWindowSize(ImVec2(300, 75), ImGuiSetCond_Appearing);
@@ -665,6 +688,8 @@ void drawAtomTreeView(Pipeline p) {
 	for (size_t y = 0; y < loadedAtomsAmount; y++) { //close all atom tree nodes exept the current one
 		if (closeOthers != y) {
 			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[y].atomTreeName.c_str()), 0); //close tab
+		} else {
+			selectedAtom = closeOthers;
 		}
 	}
 
