@@ -24,6 +24,8 @@ extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule);
 extern "C" void get_positions(int *n,int **z,double **x);
 //extern "C" void get_atomic_name(const char *atomName, int atomNum);
+extern "C" void get_num_atoms(int *n);
+extern "C" void get_atom_position(int n, int *atomicN, double *x, double *y, double *z);
 extern "C" void share_bond(int n_atom, int **connected_atom);
 
 static void ShowAppMainMenuBar();
@@ -332,37 +334,25 @@ void deselectAll() {
 //the atoms should be loaded into the above array
 void loadAtoms() {
   //fill loadedAtoms array
-  int *z; // atomic numbers
-  double *x; // atomic positions
   int n; // number of atoms
+  get_num_atoms(&n);
 
-  get_positions(&n,&z,&x);
 
   loadedAtomsAmount = n;
-	loadedAtoms = new atom[loadedAtomsAmount];
+  loadedAtoms = new atom[loadedAtomsAmount];
   for (int i=0;i<n;i++) {
-    // share_bond(i, &connected_atoms);
-    loadedAtoms[i].atomicNumber = z[i];
-    loadedAtoms[i].atomPosition[0] = x[i*3+0];
-  	loadedAtoms[i].atomPosition[1] = x[i*3+1];
-  	loadedAtoms[i].atomPosition[2] = x[i*3+2];
+    int atomicN;
+    double x;
+    double y;
+    double z;
 
-    // loadedAtoms[i].bondedAtoms = connected_atoms;
-    // int *connected_atoms;
-    // int size = sizeof(loadedAtoms[i].bondedAtoms)
-    //
-    // printf(loadedAtoms[i].bondedAtoms);
+    get_atom_position(i+1, &atomicN, &x, &y, &z);
+    loadedAtoms[i].atomicNumber = atomicN;
+    loadedAtoms[i].atomPosition[0] = x;
+  	loadedAtoms[i].atomPosition[1] = y;
+  	loadedAtoms[i].atomPosition[2] = z;
   }
 
-  // for (int i=0; i<n; i++) {
-  //
-  // }
-
-	// loadedAtoms[0].atomicNumber = 1;
-	// loadedAtoms[0].atomPosition[0] = 0.f;
-	// loadedAtoms[0].atomPosition[1] = -1.f;
-	// loadedAtoms[0].atomPosition[2] = 0.f;
-  //tree names must be constant
 	for (size_t x = 0; x < loadedAtomsAmount; x++) {
 		std::string nodeName = "";
 		nodeName += "Elem Name: ";

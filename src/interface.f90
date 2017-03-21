@@ -7,6 +7,8 @@ module interface
   public :: init_struct
   public :: call_structure
   public :: get_positions
+  public :: get_atom_position
+  public :: get_num_atoms
   public :: share_bond
 
 contains
@@ -168,23 +170,33 @@ contains
 
   end subroutine get_positions
 
-  !subroutine get_atomic_name(atomName, atomNum) bind (c, name="get_atomic_name")
-    !use struct_basic, only: cr
-    !implicit none
-    !character (kind=c_char, len=1), dimension(10), intent (out) :: atomName
-    !integer (kind=c_int), value :: atomNum
+  subroutine get_num_atoms(n) bind (c, name="get_num_atoms")
+    use struct_basic, only: cr
 
-    !character(len=:), allocatable, target, save :: iname
+    integer(c_int), intent(out) :: n
 
-    !print*,"asdasda"
+    n = cr%ncel
 
+  end subroutine get_num_atoms
 
-    !allocate(iname(size(cr%at(cr%atcel(atomNum)%idx)%name)))
+  subroutine get_atom_position(index, atomicN, x, y, z) bind (c, name="get_atom_position")
+    use struct_basic, only: cr
+    use types, only: celatom
+    use global, only: dunit
 
-    !print*,iname
-    !atomName = c_loc(iname)
+    integer (kind=c_int), value :: index
+    integer(c_int), intent(out) :: atomicN
+    real(c_double), intent(out) :: x
+    real(c_double), intent(out) :: y
+    real(c_double), intent(out) :: z
 
-  !end subroutine get_atomic_name
+    atomicN = int(cr%at(cr%atcel(index)%idx)%z, c_int)
+
+    x = real((cr%atcel(index)%r(1)+cr%molx0(1))*dunit,c_double)
+    y = real((cr%atcel(index)%r(2)+cr%molx0(2))*dunit,c_double)
+    z = real((cr%atcel(index)%r(3)+cr%molx0(3))*dunit,c_double)
+
+  end subroutine get_atom_position
 
   subroutine share_bond(n_atom, connected_atoms) bind (c, name="share_bond")
     use struct_basic, only: cr
