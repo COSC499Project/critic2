@@ -23,6 +23,10 @@ extern "C" void share_bond(int n_atom, int **connected_atom);
 static void ShowAppMainMenuBar();
 static void ShowMenuFile();
 
+
+//
+//  Global Variables and Structs
+//
 struct {
   bool LeftMouseButton = 0;
   bool RightMouseButton = 0;
@@ -49,6 +53,30 @@ struct {
   GLuint lDirectionLocation;
   GLuint fAmbientIntensityLocation;
 } ShaderVarLocations;
+
+struct atom{
+	string name = "";
+	bool selected = false;
+	int atomicNumber;
+	float atomPosition[3];
+	string atomTreeName; //must be saved to preserve imgui tree Id's
+  int numberOfBonds;
+  int * loadedBonds;
+};
+
+struct bond{
+    atom * a1;
+    atom * a2;
+    Vector3f center;
+    Matrix4f rotation;
+    float length;
+};
+
+bond * Bonds;
+atom * loadedAtoms;
+int loadedAtomsAmount = 0;
+int loadedBondsAmount = 0;
+
 
 static void error_callback(int error, const char* description)
 {
@@ -114,7 +142,6 @@ static GLuint LightingShader()
       }";
 
 //outputColor = vColor * vec4(lColor * (fAmbientIntensity+fDiffuseIntensity), 1.0);
-
 //      outputColor = vColor;
 
   AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
@@ -154,20 +181,16 @@ void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
   cam.Pos[2] += yoffset * 0.5f;
 }
 
-void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
-                     const float p1[3], const float p2[3],
-                     GLuint SphereVB, GLuint SphereIB)
+void GenerateBondInfo(bond * b, atom * a1, atom * a2)
 {
+  b->a1 = a1;
+  b->a2 = a2;
+  float p1[3] = {a1->atomPosition[0], a1->atomPosition[1], a1->atomPosition[2]};
+  float p2[3] = {a2->atomPosition[0], a2->atomPosition[1], a2->atomPosition[2]};
   float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
-  float grey[3] = {.5, .5, .5};
-  float white[3] = {1, 1, 1};
-
   float q[3] = {(p1[0]-mid[0]), (p1[1]-mid[1]), (p1[2]-mid[2])};
   float d = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2]);
-
-
-//  q2 = Vector3f(q);
-
+  b->length = d;
   Vector3f n_q = Vector3f(q);
   n_q.Normalize();
 
@@ -201,11 +224,20 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB,
   Rot.m[3][1] = 0;
   Rot.m[3][2] = 0;
 
-  //RotView = Rot;
+  b->center = Vector3f(mid[0], mid[1], mid[2]);
+  b->rotation = Rot;
+}
 
-  p->Scale(0.05f, 0.05f, d);
-  p->Translate(mid[0], mid[1], mid[2]);
-  p->SetRotationMatrix(Rot);
+
+void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b,
+                     GLuint SphereVB, GLuint SphereIB)
+{
+  float grey[3] = {.5, .5, .5};
+  float white[3] = {1, 1, 1};
+
+  p->Scale(0.05f, 0.05f, b->length);
+  p->Translate(b->center.x, b->center.y, b->center.z);
+  p->SetRotationMatrix(b->rotation);
 
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
@@ -277,21 +309,6 @@ void loadAtomObject() {
 		numbVerteces, numbIndeces);
 }
 
-struct atom{
-	string name = "";
-	bool selected = false;
-	int atomicNumber;
-	float atomPosition[3];
-	string atomTreeName; //must be saved to preserve imgui tree Id's
-  int numberOfBonds;
-  int *loadedBonds;
-};
-
-int loadedAtomsAmount = 0;
-atom *loadedAtoms;
-
-int loadedBondsAmount = 0;
-
 #pragma region atom selection
 void selectAtom() {
 
@@ -360,8 +377,25 @@ void loadBonds() {
     for (int j = 0; j < numBonds; j++) {
       if (connected_atoms[j] >= 0 && connected_atoms[j] <= loadedAtomsAmount) {
         loadedAtoms[i].loadedBonds[j] = connected_atoms[j];
+
       }
     }
+  }
+
+  Bonds = new bond[loadedBondsAmount];
+  int bondidx = 0;
+  for (int i=1; i<loadedAtomsAmount; i++){
+    int numBonds = sizeof(loadedAtoms[i].loadedBonds) / sizeof(loadedAtoms[i].loadedBonds[0]);
+    for (int j=0; j<numBonds; j++){
+      if (loadedAtoms[i].loadedBonds[j] < loadedAtomsAmount && loadedAtoms[i].loadedBonds[j] > -1) {
+        GenerateBondInfo(&Bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].loadedBonds[j]]);
+        bondidx += 1;
+
+      }
+
+    }
+
+
   }
 
 }
@@ -369,6 +403,7 @@ void loadBonds() {
 void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB,
                      GLuint SphereVB, GLuint SphereIB)
 {
+    /*
   for (size_t x = 1; x < loadedAtomsAmount; x++){
     int numBonds = sizeof(loadedAtoms[x].loadedBonds) / sizeof(loadedAtoms[x].loadedBonds[0]);
     //std::cout << numBonds << " num of bonds\n";
@@ -379,6 +414,10 @@ void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB,
       }
     }
 	}
+   */
+   for (int i=0; i< loadedBondsAmount; i++){
+       DrawBondLighted(p, CylVB, CylIB, &Bonds[i], SphereVB, SphereIB);
+   }
 }
 
 ///returns the color of an atom based on the atomic number
@@ -749,11 +788,7 @@ int main(int, char**)
 		printCamStats();
 		drawSelectedAtomStats();
 
-        //static float p1[3] = {-1, 0, 0};
-        //static float p2[3] = {1, 0, 0};
-        // drawAllBonds(&p, CylVB, CylIB, SphereVB, SphereIB);
-        //DrawBondLighted(&p, CylVB, CylIB, p1, p2, SphereVB, SphereIB);
-
+        drawAllBonds(&p, CylVB, CylIB, SphereVB, SphereIB);
 
 
         glDisableVertexAttribArray(0);
