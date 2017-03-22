@@ -9,7 +9,6 @@ module interface
   public :: get_positions
   public :: get_atom_position
   public :: get_num_atoms
-  public :: share_bond
   public :: auto_cp
   public :: get_crit_points
 
@@ -202,24 +201,18 @@ contains
 
   end subroutine get_atom_position
 
-  subroutine share_bond(n_atom, connected_atoms) bind (c, name="share_bond")
+  subroutine num_of_bonds(n_atom, nstarNum) bind (c, name="num_of_bonds")
     use struct_basic, only: cr
+    use types, only: neighstar
     integer (kind=c_int), value :: n_atom
-    type(c_ptr), intent(out) :: connected_atoms
-    integer(c_int), allocatable, target, save :: iz(:)
-    integer :: i
-    print*,"asdsadasdasd"
+    integer(c_int), intent(out) :: nstarNum
+
     call cr%find_asterisms()
 
-    allocate(iz(size(cr%nstar(n_atom)%idcon)))
-    do i = 1, size(cr%nstar(n_atom)%idcon)
-      iz(i) = int(cr%nstar(n_atom)%idcon(i))
-    end do
+    print*,cr%isast
+    nstarNum = cr%nstar(5)%ncon
 
-    connected_atoms = c_loc(iz)
-    deallocate(iz)
-
-  end subroutine share_bond
+  end subroutine num_of_bonds
 
   subroutine auto_cp() bind (c, name="auto_cp")
     use struct_basic, only: cr

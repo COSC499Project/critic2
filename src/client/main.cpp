@@ -18,7 +18,7 @@ extern "C" void call_structure(const char *filename, int size, int isMolecule);
 extern "C" void get_num_atoms(int *n);
 extern "C" void get_atom_position(int n, int *atomicN, double *x, double *y, double *z);
 //extern "C" void get_atomic_name(const char *atomName, int atomNum);
-extern "C" void share_bond(int n_atom, int **connected_atom);
+//extern "C" void share_bond(int n_atom, int **connected_atom);
 
 static void ShowAppMainMenuBar();
 static void ShowMenuFile();
@@ -367,7 +367,7 @@ void loadBonds() {
 
   for (int i = 1; i < loadedAtomsAmount; i++) {
     int *connected_atoms;
-    share_bond(i, &connected_atoms);
+    //share_bond(i, &connected_atoms);
 
     int numBonds = sizeof(connected_atoms) / sizeof(connected_atoms[0]);
     loadedAtoms[i].loadedBonds = new int[numBonds];
