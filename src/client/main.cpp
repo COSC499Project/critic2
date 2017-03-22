@@ -11,6 +11,14 @@
 #include "matrix_math.cpp"
 #include "tinyfiledialogs.h"
 
+#ifdef WINDOWS
+  #include <direct.h>
+  #define GetCurrentDir _getcwd
+#else
+  #include <unistd.h>
+  #define GetCurrentDir getcwd
+#endif
+
 extern "C" void initialize();
 extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule);
@@ -227,13 +235,11 @@ void GenerateBondInfo(bond * b, atom * a1, atom * a2)
   b->rotation = Rot;
 }
 
-
-void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b,
-                     GLuint SphereVB, GLuint SphereIB)
+void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
 {
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
-
+  
   p->Scale(0.05f, 0.05f, b->length);
   p->Translate(b->center.x, b->center.y, b->center.z);
   p->SetRotationMatrix(b->rotation);
@@ -252,43 +258,57 @@ void DrawBondLighted(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b,
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
+}
 
-/*
+void DrawRotationAxes(Pipeline * p, GLuint CylVB, GLuint CylIB)
+{
+  float white[3] = {1, 1, 1};
   float red[3] = {1, 0, 0};
   float green[3] = {0, 1, 0};
   float blue[3] = {0, 0, 1};
-        p->Scale(0.1f, 0.1f, 0.1f);
-        p->Translate(p1[0], p1[1], p1[2]);
-        p->Rotate(0.f, 0.f, 0.f);
-        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  
+  float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
+  glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
+  glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
+  glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
+  glBindBuffer(GL_ARRAY_BUFFER, CylVB);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+  // X axis - red
+  p->Scale(1, 1, 0.05);
+  p->Translate(0, 0, 0);
+  p->Rotate(0, 90, 0);
+  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWorldTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&red);
-        glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-        glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 
-
-        p->Translate(p2[0], p2[1], p2[2]);
-        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
-        glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
-
-        p->Translate(mid[0], mid[1], mid[2]);
-        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  // Y axis - green
+  p->Scale(1, 1, 0.05);
+  p->Translate(0, 0, 0);
+  p->Rotate(90, 0, 0);
+  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWorldTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&green);
-         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 
-        p->Scale(0.05f, 0.05f, 0.05f);
-        p->Translate(n_q.x, n_q.y, n_q.z);
-        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  // Z axis - blue
+  p->Scale(1, 1, 0.05);
+  p->Translate(0, 0, 0);
+  p->Rotate(0, 0, 0);
+  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWorldTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
-         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 
-        p->Scale(0.05f, 0.05f, 0.05f);
-        p->Translate(0, 0, 0);
-        glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
-         glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
-*/
+
 }
 
 #pragma region atom loading and drawing
@@ -393,23 +413,10 @@ void loadBonds() {
   }
 }
 
-void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB,
-                     GLuint SphereVB, GLuint SphereIB)
+void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
-    /*
-  for (size_t x = 1; x < loadedAtomsAmount; x++){
-    int numBonds = sizeof(loadedAtoms[x].loadedBonds) / sizeof(loadedAtoms[x].loadedBonds[0]);
-    //std::cout << numBonds << " num of bonds\n";
-    for (size_t i = 0; i < numBonds; i++) {
-      //std::cout << i << " atom bond " << loadedAtoms[x].loadedBonds[i] << "\n";
-      if (loadedAtoms[x].loadedBonds[i] < loadedAtomsAmount && loadedAtoms[x].loadedBonds[i] > -1) {
-        DrawBondLighted(p, CylVB, CylIB, loadedAtoms[x].atomPosition, loadedAtoms[loadedAtoms[x].loadedBonds[i]].atomPosition, SphereVB, SphereIB);
-      }
-    }
-	}
-   */
    for (int i=0; i< loadedBondsAmount; i++){
-       DrawBondLighted(p, CylVB, CylIB, &Bonds[i], SphereVB, SphereIB);
+       DrawBond(p, CylVB, CylIB, &Bonds[i]);
    }
 }
 
@@ -437,7 +444,7 @@ float inc = 1.f;
 if (loadedAtoms[identifyer].selected) { //selection is color based
 inc = .5f;
 }
-const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
+const GLfloat n_Color[4]{color[0] * inc,color[1] *k inc,color[2] * inc,color[3]};
 
 increase color
 float inc = 1.f;
@@ -608,6 +615,18 @@ void drawAtomTreeView(Pipeline p) {
 int main(int, char**)
 {
     initialize();
+
+
+      char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
+      init_struct();
+      call_structure(file, (int) strlen(file), 1);
+      loadAtoms();
+      loadBonds();
+ 
+
+
+
+
     // Setup window
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
@@ -651,42 +670,6 @@ int main(int, char**)
     // initialize pipeline
     Pipeline p;
 
-    //define some colors
-	float colorIntesity = 0.6f;
-    GLfloat color[4] = {0.f, 0.f, 0.f, 1.f};
-    const GLfloat red[4] = {1.f, 0.f, 0.f, colorIntesity};
-    const GLfloat green[4] = {0.f, 1.f, 0.f, colorIntesity};
-    const GLfloat blue[4] = {0.f, 0.f, 1.f, colorIntesity};
-    const GLfloat black[4] = {0.f, 0.f, 0.f, colorIntesity};
-    const GLfloat white[4] = {1.f, 1.f, 1.f, colorIntesity};
-    const GLfloat grey[4] = {.5f, .5f, .5f, colorIntesity};
-
-	//load all atom information ---------------------------------------------
-	loadAtomObject();
-
-	//this section will be replaced by the loadAtoms function
-#pragma region atom loading test
-	// loadedAtomsAmount = 3;
-	// loadedAtoms = new atom[loadedAtomsAmount];
-	// loadedAtoms[0].atomicNumber = 1;
-	// loadedAtoms[0].atomPosition[0] = 0.f;
-	// loadedAtoms[0].atomPosition[1] = -1.f;
-	// loadedAtoms[0].atomPosition[2] = 0.f;
-  //
-  //
-	// loadedAtoms[1].atomicNumber = 1;
-	// loadedAtoms[1].atomPosition[0] = -1.29f;
-	// loadedAtoms[1].atomPosition[1] = 1.16f;
-	// loadedAtoms[1].atomPosition[2] = 0.f;
-  //
-  //
-	// loadedAtoms[2].atomicNumber = 8;
-	// loadedAtoms[2].atomPosition[0] = 0.f;
-	// loadedAtoms[2].atomPosition[1] = .715f;
-	// loadedAtoms[2].atomPosition[2] = 0.f;
-	//loadAtoms();
-#pragma endregion
-
     // Load sphere mesh
     GLuint SphereIB;
     GLuint SphereVB;
@@ -709,7 +692,7 @@ int main(int, char**)
     CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
 
     // input variables;
-    // c means for current loop, l means last loop
+    // c means for current loop, l means last loop, p means last pressed
     static int cLMB;
     static int cRMB;
     static int lLMB;
@@ -718,11 +701,37 @@ int main(int, char**)
     static double cMPosY;
     static double lMPosX;
     static double lMPosY;
+    static double pMPosX;
+    static double pMPosY;
     static double scrollY;
 
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -3.f;
+    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
     cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
     cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
+
+    static float postRotX = 0;
+    static float postRotY = 0;
+    static float postRotZ = 0;
+
+    Vector3f curRotAxis = Vector3f(0, 0, 0);
+    Vector3f lastRotAxis = Vector3f(0, 0, 0);
+    Vector3f rotAxis = Vector3f(0, 0, 0);
+
+    static float lastRotAng = 0;
+    static float curRotAng = 0;
+    static float rotAng = 0;
+
+    static float midX;
+    static float midY;
+    static float diffX;
+    static float diffY;
+
+    Matrix4f lastRot;
+    Matrix4f curRot;
+    Matrix4f rot;
+    lastRot.InitIdentity();
+    curRot.InitIdentity();
+    rot.InitIdentity();
 
 
     bool show_test_window = true;
@@ -731,11 +740,10 @@ int main(int, char**)
     {
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
-        ImGuiIO& io = ImGui::GetIO();
 
 		drawAtomTreeView(p);
-
         // get input
+        ImGuiIO& io = ImGui::GetIO();
         lLMB = cLMB;
         lRMB = cRMB;
         cLMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
@@ -744,13 +752,39 @@ int main(int, char**)
         lMPosY = cMPosY;
         glfwGetCursorPos(window, &cMPosX, &cMPosY);
 
-
         float camPanFactor = 0.008f;
         float camZoomFactor = 1.f;
+        float camRotateVectorFactor = 0.05f;
+        float camRotateAngleFactor = 0.05f;
         if (!io.WantCaptureMouse) {
-          if (cLMB == GLFW_PRESS){
-            cam.Pos[0] += camPanFactor * (cMPosX - lMPosX);
+          if (cRMB == GLFW_PRESS){
+            cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
             cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
+          }
+          if (cLMB == GLFW_PRESS){
+            if (lLMB != GLFW_PRESS){
+              pMPosX = cMPosX;
+              pMPosY = cMPosY;
+
+              lastRot = rot;
+            } else {
+            
+            diffX = (float)(cMPosX - pMPosX);
+            diffY = (float)(cMPosY - pMPosY);
+
+//            postRotX = diffY;
+//            postRotY = -diffX;
+
+            curRotAxis = Vector3f(diffX, -diffY, 0);
+            curRotAxis = curRotAxis.Cross(Vector3f(0, 0, 1));
+
+            curRotAng = curRotAxis.Length() * camRotateAngleFactor;
+
+            curRotAxis.Normalize();
+
+            curRot.InitRotateAxisTransform(curRotAxis, curRotAng);
+            rot = curRot * lastRot;
+            }
           }
         }
 
@@ -763,6 +797,29 @@ int main(int, char**)
         }
 
 
+        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
+        ImGui::Begin("posrotate", false);
+        float deg = 0.5;
+        ImGui::DragFloat("midX: ", &midX, deg);
+        ImGui::DragFloat("midY: ", &midY, deg);
+//        ImGui::DragFloat("Z: ", &, deg);
+
+        ImGui::DragFloat("diffX: ", &diffX, deg);
+        ImGui::DragFloat("diffY: ", &diffY, deg);
+//        ImGui::DragFloat("Z: ", &c.z, deg);
+
+        ImGui::Text("lastmousepressX: %.04f", pMPosX);
+        ImGui::Text("lastmousepressY: %.04f", pMPosY);
+//        ImGui::DragFloat("Z: ", &u.z, deg);
+
+        ImGui::Text("cmX: %.04f", cMPosX);
+        ImGui::Text("cmY: %.04f", cMPosY);
+
+
+     
+        ImGui::End();
+
+
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -771,8 +828,14 @@ int main(int, char**)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-        p.SetPersProjInfo(45, 500, 500, 1.f, 1000.f);
+        p.SetPersProjInfo(45, display_w, display_h, 1.f, 1000.f);
         p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
+
+        
+        p.SetPostRotationMatrix(rot);
+//        p.PostRotate(postRotX, postRotY, postRotZ);
+
+
         p.SetCamera(cam);
 
 
@@ -781,8 +844,7 @@ int main(int, char**)
 		printCamStats();
 		drawSelectedAtomStats();
 
-        drawAllBonds(&p, CylVB, CylIB, SphereVB, SphereIB);
-
+        drawAllBonds(&p, CylVB, CylIB);
 
         glDisableVertexAttribArray(0);
 
