@@ -41,10 +41,77 @@ struct OrthoProjInfo
   float zFar;
 };
 
+struct Vector3f
+{
+  float x;
+  float y;
+  float z;
+  Vector3f(){}
+  Vector3f(float _x, float _y, float _z){
+    x = _x;
+    y = _y;
+    z = _z;
+  }
+
+  Vector3f(const float * pFloat){
+    x = pFloat[0];
+    y = pFloat[1];
+    z = pFloat[2];
+  }
+
+  Vector3f (float f){
+    x = y = z= f;
+  }
+
+  inline Vector3f operator+(const Vector3f& Right) const
+  {
+    Vector3f Ret;
+    Ret.x = x + Right.x;
+    Ret.y = y + Right.y;
+    Ret.z = z + Right.z;
+    return Ret;
+  }
+
+  Vector3f& operator += (const Vector3f& r){
+    x += r.x;
+    y += r.y;
+    z += r.z;
+    return *this;
+  }
+
+  Vector3f& operator -= (const Vector3f& r){
+    x -= r.x;
+    y -= r.y;
+    z -= r.z;
+    return *this;
+  }
+
+  Vector3f& operator *= (const Vector3f& r){
+    x *= r.x;
+    y *= r.y;
+    z *= r.z;
+    return *this;
+  }
+
+  operator const float*() const{
+    return &(x);
+  }
+
+  Vector3f Cross(const Vector3f &v) const;
+  Vector3f& Normalize();
+  float Dot(const Vector3f &v) const;
+  float Length();
+  void Rotate(float Angle, const Vector3f& Axis);
+  void Print() const {
+    printf("(%.02f, %.02f, %.02f)\n", x, y ,z);
+  }
+};
+
 struct Quaternion
 {
   float x, y, z, w;
   Quaternion(float _x, float _y, float _z, float _q);
+  Quaternion(Vector3f axis, float angle);
   void Normalize();
   Quaternion Conjugate();
   void ToDegrees(float * result);
@@ -55,6 +122,14 @@ Quaternion::Quaternion(float _x, float _y, float _z, float _w){
   y = _y;
   z = _z;
   w = _w;
+}
+
+Quaternion::Quaternion(Vector3f axis, float angle){
+  float s = sinf(angle/2.0f);
+  x = axis.x * s;
+  y = axis.y * s;
+  z = axis.z * s;
+  w = cosf(angle/2.0f);
 }
 
 void Quaternion::Normalize(){
@@ -94,62 +169,6 @@ void Quaternion::ToDegrees(float * f){
   f[2] = atan2(x*z - y*w, x*w + y*z);
 }
 
-struct Vector3f
-{
-  float x;
-  float y;
-  float z;
-  Vector3f(){}
-  Vector3f(float _x, float _y, float _z){
-    x = _x;
-    y = _y;
-    z = _z;
-  }
-
-  Vector3f(const float * pFloat){
-    x = pFloat[0];
-    y = pFloat[1];
-    z = pFloat[2];
-  }
-
-  Vector3f (float f){
-    x = y = z= f;
-  }
-
-  Vector3f& operator += (const Vector3f& r){
-    x += r.x;
-    y += r.y;
-    z += r.z;
-    return *this;
-  }
-
-  Vector3f& operator -= (const Vector3f& r){
-    x -= r.x;
-    y -= r.y;
-    z -= r.z;
-    return *this;
-  }
-
-  Vector3f& operator *= (const Vector3f& r){
-    x *= r.x;
-    y *= r.y;
-    z *= r.z;
-    return *this;
-  }
-
-  operator const float*() const{
-    return &(x);
-  }
-
-  Vector3f Cross(const Vector3f &v) const;
-  Vector3f& Normalize();
-  float Dot(const Vector3f &v) const;
-  void Rotate(float Angle, const Vector3f& Axis);
-  void Print() const {
-    printf("(%.02f, %.02f, %.02f)\n", x, y ,z);
-  }
-};
-
 Vector3f Vector3f::Cross(const Vector3f& v) const {
   const float _x = y * v.z - z * v.y;
   const float _y = z * v.x - x * v.z;
@@ -162,6 +181,10 @@ float Vector3f::Dot(const Vector3f& v) const {
   const float _y = y * v.y;
   const float _z = z * v.z;
   return _x + _y + _z;
+}
+
+float Vector3f::Length() {
+  return sqrt(x*x + y*y + z*z);
 }
 
 Vector3f& Vector3f::Normalize(){
@@ -255,6 +278,7 @@ public:
 
   void InitScaleTransform(float sx, float sy, float sz);
   void InitRotateTransform(float rx, float ry, float rz);
+  void InitRotateAxisTransform(Vector3f u, float th);
   void InitRotateTransform(const Quaternion& quat);
   void InitTranslateTransform(float x, float y, float z);
   void InitCameraTransform(const float Target[3], const float Up[3]);
@@ -295,6 +319,34 @@ void Matrix4f::InitRotateTransform(float RotateX, float RotateY, float RotateZ)
 
     *this = rz * ry * rx;
 }
+
+void Matrix4f::InitRotateAxisTransform(Vector3f u, float th)
+{
+  Matrix4f R;
+
+  R.m[0][0] = cosf(th) + u.x*u.x*(1.0f - cosf(th));
+  R.m[0][1] = u.x*u.y*(1 - cosf(th)) - u.z*sinf(th);
+  R.m[0][2] = u.x*u.z*(1 - cosf(th)) + u.y*sinf(th);
+  R.m[0][3] = 0;
+
+  R.m[1][0] = u.x*u.y*(1 - cosf(th)) + u.z*sinf(th);
+  R.m[1][1] = cosf(th) + u.y*u.y*(1.0f - cosf(th));
+  R.m[1][2] = u.y*u.z*(1 - cosf(th)) - u.x*sinf(th);
+  R.m[1][3] = 0;
+
+  R.m[2][0] = u.x*u.z*(1 - cosf(th)) - u.y*sinf(th);
+  R.m[2][1] = u.z*u.y*(1 - cosf(th)) + u.x*sinf(th);
+  R.m[2][2] = cosf(th) + u.z*u.z*(1.0f - cosf(th));
+  R.m[2][3] = 0;
+
+  R.m[3][0] = 0;
+  R.m[3][1] = 0;
+  R.m[3][2] = 0;
+  R.m[3][3] = 1;
+  
+    *this = R;
+}
+
 
 void Matrix4f::InitRotateTransform(const Quaternion& quat)
 {
@@ -397,6 +449,10 @@ public:
     m_rotate[0] = x; m_rotate[1] = y; m_rotate[2] = z;
   }
 
+  void RotateAxis(Vector3f u, float th){
+    m_rotate_trans.InitRotateAxisTransform(u, th);
+  }
+
   void PostRotate(float x, float y, float z){
     m_post_rotate_trans.InitRotateTransform(x, y, z);
     m_post_rotate[0] = x; m_post_rotate[1] = y; m_post_rotate[2] = z;
@@ -447,6 +503,7 @@ public:
   const Matrix4f * GetWVPTrans();
 
   void SetRotationMatrix(const Matrix4f _m);
+  void SetPostRotationMatrix(const Matrix4f _m);
 
 private:
   float m_scale[3];
@@ -654,6 +711,26 @@ void Pipeline::SetRotationMatrix(const Matrix4f _m)
   m_rotate_trans.m[3][3] = _m.m[3][3];
 }
 
+void Pipeline::SetPostRotationMatrix(const Matrix4f _m)
+{
+  m_post_rotate_trans.m[0][0] = _m.m[0][0];
+  m_post_rotate_trans.m[0][1] = _m.m[0][1];
+  m_post_rotate_trans.m[0][2] = _m.m[0][2];
+  m_post_rotate_trans.m[0][3] = _m.m[0][3];
+  m_post_rotate_trans.m[1][0] = _m.m[1][0];
+  m_post_rotate_trans.m[1][1] = _m.m[1][1];
+  m_post_rotate_trans.m[1][2] = _m.m[1][2];
+  m_post_rotate_trans.m[1][3] = _m.m[1][3];
+  m_post_rotate_trans.m[2][0] = _m.m[2][0];
+  m_post_rotate_trans.m[2][1] = _m.m[2][1];
+  m_post_rotate_trans.m[2][2] = _m.m[2][2];
+  m_post_rotate_trans.m[2][3] = _m.m[2][3];
+  m_post_rotate_trans.m[3][0] = _m.m[3][0];
+  m_post_rotate_trans.m[3][1] = _m.m[3][1];
+  m_post_rotate_trans.m[3][2] = _m.m[3][2];
+  m_post_rotate_trans.m[3][3] = _m.m[3][3];
+}
+
 const Matrix4f * Pipeline::GetProjTrans(){
   m_ProjTransformation.InitPersProjTransform(m_projInfo);
 //  m_ProjTransformation.InitOrthoProjTransform(m_orthoInfo);
@@ -671,9 +748,8 @@ const Matrix4f * Pipeline::GetViewTrans(){
 const Matrix4f * Pipeline::GetWorldTrans(){
   Matrix4f ScaleTrans, RotateTrans, TranslateTrans, PostRotateTrans;
   ScaleTrans.InitScaleTransform(m_scale[0], m_scale[1], m_scale[2]);
-  PostRotateTrans.InitRotateTransform(m_post_rotate[0], m_post_rotate[1], m_post_rotate[2]);
   TranslateTrans.InitTranslateTransform(m_pos[0], m_pos[1], m_pos[2]);
-  m_Wtransformation = PostRotateTrans * TranslateTrans * m_rotate_trans * ScaleTrans;
+  m_Wtransformation = m_post_rotate_trans * TranslateTrans * m_rotate_trans * ScaleTrans;
   return &m_Wtransformation;
 }
 

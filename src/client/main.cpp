@@ -675,16 +675,6 @@ int main(int, char**)
     // initialize pipeline
     Pipeline p;
 
-    //define some colors
-	float colorIntesity = 0.6f;
-    GLfloat color[4] = {0.f, 0.f, 0.f, 1.f};
-    const GLfloat red[4] = {1.f, 0.f, 0.f, colorIntesity};
-    const GLfloat green[4] = {0.f, 1.f, 0.f, colorIntesity};
-    const GLfloat blue[4] = {0.f, 0.f, 1.f, colorIntesity};
-    const GLfloat black[4] = {0.f, 0.f, 0.f, colorIntesity};
-    const GLfloat white[4] = {1.f, 1.f, 1.f, colorIntesity};
-    const GLfloat grey[4] = {.5f, .5f, .5f, colorIntesity};
-
     // Load sphere mesh
     GLuint SphereIB;
     GLuint SphereVB;
@@ -707,7 +697,7 @@ int main(int, char**)
     CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
 
     // input variables;
-    // c means for current loop, l means last loop
+    // c means for current loop, l means last loop, p means last pressed
     static int cLMB;
     static int cRMB;
     static int lLMB;
@@ -716,6 +706,8 @@ int main(int, char**)
     static double cMPosY;
     static double lMPosX;
     static double lMPosY;
+    static double pMPosX;
+    static double pMPosY;
     static double scrollY;
 
     cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
@@ -725,6 +717,26 @@ int main(int, char**)
     static float postRotX = 0;
     static float postRotY = 0;
     static float postRotZ = 0;
+
+    Vector3f curRotAxis = Vector3f(0, 0, 0);
+    Vector3f lastRotAxis = Vector3f(0, 0, 0);
+    Vector3f rotAxis = Vector3f(0, 0, 0);
+
+    static float lastRotAng = 0;
+    static float curRotAng = 0;
+    static float rotAng = 0;
+
+    static float midX;
+    static float midY;
+    static float diffX;
+    static float diffY;
+
+    Matrix4f lastRot;
+    Matrix4f curRot;
+    Matrix4f rot;
+    lastRot.InitIdentity();
+    curRot.InitIdentity();
+    rot.InitIdentity();
 
 
     bool show_test_window = true;
@@ -747,10 +759,37 @@ int main(int, char**)
 
         float camPanFactor = 0.008f;
         float camZoomFactor = 1.f;
+        float camRotateVectorFactor = 0.05f;
+        float camRotateAngleFactor = 0.05f;
         if (!io.WantCaptureMouse) {
-          if (cLMB == GLFW_PRESS){
+          if (cRMB == GLFW_PRESS){
             cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
             cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
+          }
+          if (cLMB == GLFW_PRESS){
+            if (lLMB != GLFW_PRESS){
+              pMPosX = cMPosX;
+              pMPosY = cMPosY;
+
+              lastRot = rot;
+            } else {
+            
+            diffX = (float)(cMPosX - pMPosX);
+            diffY = (float)(cMPosY - pMPosY);
+
+//            postRotX = diffY;
+//            postRotY = -diffX;
+
+            curRotAxis = Vector3f(diffX, -diffY, 0);
+            curRotAxis = curRotAxis.Cross(Vector3f(0, 0, 1));
+
+            curRotAng = curRotAxis.Length() * camRotateAngleFactor;
+
+            curRotAxis.Normalize();
+
+            curRot.InitRotateAxisTransform(curRotAxis, curRotAng);
+            rot = curRot * lastRot;
+            }
           }
         }
 
@@ -766,9 +805,23 @@ int main(int, char**)
         ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("posrotate", false);
         float deg = 0.5;
-        ImGui::DragFloat("X: ", &postRotX, deg);
-        ImGui::DragFloat("Y: ", &postRotY, deg);
-        ImGui::DragFloat("Z: ", &postRotZ, deg);
+        ImGui::DragFloat("midX: ", &midX, deg);
+        ImGui::DragFloat("midY: ", &midY, deg);
+//        ImGui::DragFloat("Z: ", &, deg);
+
+        ImGui::DragFloat("diffX: ", &diffX, deg);
+        ImGui::DragFloat("diffY: ", &diffY, deg);
+//        ImGui::DragFloat("Z: ", &c.z, deg);
+
+        ImGui::Text("lastmousepressX: %.04f", pMPosX);
+        ImGui::Text("lastmousepressY: %.04f", pMPosY);
+//        ImGui::DragFloat("Z: ", &u.z, deg);
+
+        ImGui::Text("cmX: %.04f", cMPosX);
+        ImGui::Text("cmY: %.04f", cMPosY);
+
+
+     
         ImGui::End();
 
 
@@ -782,7 +835,12 @@ int main(int, char**)
 
         p.SetPersProjInfo(45, display_w, display_h, 1.f, 1000.f);
         p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
-        p.PostRotate(postRotX, postRotY, postRotZ);
+
+        
+        p.SetPostRotationMatrix(rot);
+//        p.PostRotate(postRotX, postRotY, postRotZ);
+
+
         p.SetCamera(cam);
 
 
@@ -792,8 +850,6 @@ int main(int, char**)
 		drawSelectedAtomStats();
 
         drawAllBonds(&p, CylVB, CylIB);
-
-//        DrawRotationAxes(&p, CylVB, CylIB);
 
         glDisableVertexAttribArray(0);
 
