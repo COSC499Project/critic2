@@ -630,11 +630,11 @@ void drawCrystalTree() {
 
 
 void drawAtomTreeView(Pipeline p) {
-	ImGui::SetNextWindowSize(ImVec2(300,500),ImGuiSetCond_Appearing); //this section will be moved to crystle once that section is done
-	ImGui::Begin("tree view",false);
+	ImGui::SetNextWindowSize(ImVec2(300, 500), ImGuiSetCond_Appearing); //this section will be moved to crystle once that section is done
+	ImGui::Begin("tree view", false);
 
 	int closeOthers = -1; //id's are context dependent so other tree nodes must be closed outside the main loop
-	for (size_t x = 0; x < loadedAtomsAmount; x++){ //all atoms
+	for (size_t x = 0; x < loadedAtomsAmount; x++) { //all atoms
 		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {
 			if (loadedAtoms[x].selected == false) { // not currently true must set all others to false
 				loadedAtoms[x].selected = true; //this loop is only run on the frame this tree node is clicked
@@ -643,43 +643,48 @@ void drawAtomTreeView(Pipeline p) {
 			}
 
 			//selection based on atoms bonds
-			for (size_t i = 0; i < loadedBondsAmount; i++){
-				if (Bonds[i].a1 == &loadedAtoms[x]) {
-					string bondName = "bondedTo" + Bonds[i].a2->name;
-					if (ImGui::TreeNode(bondName.c_str())){
+			for (size_t i = 0; i < loadedBondsAmount; i++) {
+				if ( Bonds[i].a1->atomTreePosition == loadedAtoms[x].atomTreePosition) {
+					string bondName = "bondedTo" + charConverter(Bonds[i].a2->atomTreePosition);
+					if (ImGui::TreeNode(bondName.c_str())) {
 						//select a2
 						closeOthers = Bonds[i].a2->atomTreePosition;
+						cout << "going to atom" + charConverter(closeOthers) << endl;
+						ImGui::TreePop();
 					}
-				} else if (Bonds[i].a2 == &loadedAtoms[x]) {
-					string bondName = "bondedTo" + Bonds[i].a1->name;
+				} else if (Bonds[i].a2->atomTreePosition == loadedAtoms[x].atomTreePosition) {
+					string bondName = "bondedTo" + charConverter(Bonds[i].a1->atomTreePosition);
 					if (ImGui::TreeNode(bondName.c_str())) {
 						//select a1
 						closeOthers = Bonds[i].a1->atomTreePosition;
+						cout << "going to atom" + charConverter(closeOthers) << endl;
+						ImGui::TreePop();
 					}
 				}
 			}
 
 			ImGui::TreePop();
-		}else{
+		}
+		else {
 			loadedAtoms[x].selected = false;
 		}
 	}
-	
-	for (size_t i = 0; i < loadedCPointsAmount; i++){
+
+	for (size_t i = 0; i < loadedCPointsAmount; i++) {
 		if (ImGui::TreeNode(loadedCPoints[i].pointName.c_str())) { //critical point tree node
 			//TODO: critical point information
 		}
 	}
 
 
-	if(closeOthers != -1)
-	for (size_t y = 0; y < loadedAtomsAmount; y++) { //close all atom tree nodes exept the current one
-		if (closeOthers != y) {
-			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[y].atomTreeName.c_str()), 0); //close tab
-		} else {
-			selectedAtom = closeOthers;
-		}
+
+	if (closeOthers != -1) {
+		ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
+		ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[closeOthers].atomTreeName.c_str()), 1);
+		selectedAtom = closeOthers;
+		closeOthers = -1;
 	}
+
 
 	ImGui::End();
 }
