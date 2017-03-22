@@ -146,6 +146,7 @@ static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum Shad
 
 static GLuint LightingShader()
 {
+
   GLuint ShaderProgram = glCreateProgram();
   if (ShaderProgram == 0){
     exit(1);
@@ -714,14 +715,12 @@ int main(int, char**)
 #endif
 
 	GLFWwindow* window = glfwCreateWindow(1280, 720, "Critic2", NULL, NULL);
-
 	glfwMakeContextCurrent(window);
 	gl3wInit();
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
     // Event callbacks
     glfwSetScrollCallback(window, ScrollCallback);
-
     //Setup up OpenGL stuff
     GLuint VertexArray;
     glGenVertexArrays(1, &VertexArray);
@@ -940,7 +939,7 @@ static void ShowMenuFile()
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       loadAtoms();
-      // loadBonds();
+      loadBonds();
     }
     if (ImGui::MenuItem("Crystal")) {
       char const * lTheOpenFileName = tinyfd_openFileDialog(
