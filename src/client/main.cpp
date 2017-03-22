@@ -620,6 +620,18 @@ void drawAtomTreeView(Pipeline p) {
 int main(int, char**)
 {
     initialize();
+
+
+      char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
+      init_struct();
+      call_structure(file, (int) strlen(file), 1);
+      loadAtoms();
+      loadBonds();
+ 
+
+
+
+
     // Setup window
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
@@ -732,9 +744,13 @@ int main(int, char**)
     static double lMPosY;
     static double scrollY;
 
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -3.f;
+    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
     cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
     cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
+
+    static float postRotX = 0;
+    static float postRotY = 0;
+    static float postRotZ = 0;
 
 
     bool show_test_window = true;
@@ -743,11 +759,10 @@ int main(int, char**)
     {
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
-        ImGuiIO& io = ImGui::GetIO();
 
 		drawAtomTreeView(p);
-
         // get input
+        ImGuiIO& io = ImGui::GetIO();
         lLMB = cLMB;
         lRMB = cRMB;
         cLMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
@@ -755,7 +770,6 @@ int main(int, char**)
         lMPosX = cMPosX;
         lMPosY = cMPosY;
         glfwGetCursorPos(window, &cMPosX, &cMPosY);
-
 
         float camPanFactor = 0.008f;
         float camZoomFactor = 1.f;
@@ -775,6 +789,15 @@ int main(int, char**)
         }
 
 
+        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
+        ImGui::Begin("posrotate", false);
+        float deg = 0.5;
+        ImGui::DragFloat("X: ", &postRotX, deg);
+        ImGui::DragFloat("Y: ", &postRotY, deg);
+        ImGui::DragFloat("Z: ", &postRotZ, deg);
+        ImGui::End();
+
+
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -785,6 +808,7 @@ int main(int, char**)
 
         p.SetPersProjInfo(45, 500, 500, 1.f, 1000.f);
         p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
+        p.PostRotate(postRotX, postRotY, postRotZ);
         p.SetCamera(cam);
 
 

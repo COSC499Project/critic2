@@ -323,6 +323,7 @@ void Matrix4f::InitRotateTransform(const Quaternion& quat)
   m[3][3] = 1.0f;
 }
 
+
 void Matrix4f::InitTranslateTransform(float x, float y, float z)
 {
     m[0][0] = 1.0f; m[0][1] = 0.0f; m[0][2] = 0.0f; m[0][3] = x;
@@ -380,6 +381,7 @@ public:
     m_scale[0] = 1.f; m_scale[1] = 1.f, m_scale[2] = 1.f;
     m_pos[0] = 0.f; m_pos[1] = 0.f, m_pos[2] = 0.f;
     m_rotate[0] = 0.f; m_rotate[1] = 0.f, m_rotate[2] = 0.f;
+    m_post_rotate[0] = 0.f; m_post_rotate[1] = 0.f, m_post_rotate[2] = 0.f;
   }
 
   void Scale(float x, float y, float z){
@@ -393,6 +395,11 @@ public:
   void Rotate(float x, float y, float z){
     m_rotate_trans.InitRotateTransform(x, y, z);
     m_rotate[0] = x; m_rotate[1] = y; m_rotate[2] = z;
+  }
+
+  void PostRotate(float x, float y, float z){
+    m_post_rotate_trans.InitRotateTransform(x, y, z);
+    m_post_rotate[0] = x; m_post_rotate[1] = y; m_post_rotate[2] = z;
   }
 
   void SetCamera(float Pos[3], float Target[3], float Up[3]){
@@ -433,9 +440,6 @@ public:
     m_orthoInfo.zFar = f;
   }
 
-  const Matrix4f * GetTrans();
-  const Matrix4f * GetCTrans();
-
   const Matrix4f * GetProjTrans();
   const Matrix4f * GetViewTrans();
   const Matrix4f * GetWorldTrans();
@@ -450,6 +454,8 @@ private:
   float m_rotate[3];
   Matrix4f m_rotate_trans;
   Matrix4f m_transform;
+  float m_post_rotate[3];
+  Matrix4f m_post_rotate_trans;
 
   PersProjInfo m_projInfo;
   OrthoProjInfo m_orthoInfo;
@@ -648,42 +654,26 @@ void Pipeline::SetRotationMatrix(const Matrix4f _m)
   m_rotate_trans.m[3][3] = _m.m[3][3];
 }
 
-const Matrix4f * Pipeline::GetTrans(){
-  Matrix4f ScaleTrans, RotateTrans, TranslateTrans, CamTranslateTrans, CamRotateTrans,
-           PersProjTrans, OrthoProjTrans;
-  ScaleTrans.InitScaleTransform(m_scale[0], m_scale[1], m_scale[2]);
-//  RotateTrans.InitRotateTransform(m_rotate[0], m_rotate[1], m_rotate[2]);
-  TranslateTrans.InitTranslateTransform(m_pos[0], m_pos[1], m_pos[2]);
-  CamTranslateTrans.InitTranslateTransform(m_camera.Pos[0], -m_camera.Pos[1], -m_camera.Pos[2]);
-  CamRotateTrans.InitCameraTransform(m_camera.Target, m_camera.Up);
-  PersProjTrans.InitPersProjTransform(m_projInfo);
-  OrthoProjTrans.InitOrthoProjTransform(m_orthoInfo);
-
-  m_transform =  PersProjTrans * CamRotateTrans * CamTranslateTrans * TranslateTrans *
-                m_rotate_trans * ScaleTrans;
-
-  return &m_transform;
-}
-
 const Matrix4f * Pipeline::GetProjTrans(){
   m_ProjTransformation.InitPersProjTransform(m_projInfo);
+//  m_ProjTransformation.InitOrthoProjTransform(m_orthoInfo);
   return &m_ProjTransformation;
 }
 
 const Matrix4f * Pipeline::GetViewTrans(){
   Matrix4f CamTranslateTrans, CamRotateTrans;
-  CamTranslateTrans.InitTranslateTransform(m_camera.Pos[0], -m_camera.Pos[1], -m_camera.Pos[2]);
+  CamTranslateTrans.InitTranslateTransform(-m_camera.Pos[0], -m_camera.Pos[1], -m_camera.Pos[2]);
   CamRotateTrans.InitCameraTransform(m_camera.Target, m_camera.Up);
   m_Vtransformation = CamRotateTrans * CamTranslateTrans;
   return &m_Vtransformation;
 }
 
 const Matrix4f * Pipeline::GetWorldTrans(){
-  Matrix4f ScaleTrans, RotateTrans, TranslateTrans;
+  Matrix4f ScaleTrans, RotateTrans, TranslateTrans, PostRotateTrans;
   ScaleTrans.InitScaleTransform(m_scale[0], m_scale[1], m_scale[2]);
-  RotateTrans.InitRotateTransform(m_rotate[0], m_rotate[1], m_rotate[2]);
+  PostRotateTrans.InitRotateTransform(m_post_rotate[0], m_post_rotate[1], m_post_rotate[2]);
   TranslateTrans.InitTranslateTransform(m_pos[0], m_pos[1], m_pos[2]);
-  m_Wtransformation = TranslateTrans * m_rotate_trans * ScaleTrans;
+  m_Wtransformation = PostRotateTrans * TranslateTrans * m_rotate_trans * ScaleTrans;
   return &m_Wtransformation;
 }
 
