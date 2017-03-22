@@ -13,6 +13,9 @@ extern "C" void get_num_atoms(int *n);
 extern "C" void get_atom_position(int n, int *atomicN, double *x, double *y, double *z);
 extern "C" void num_of_bonds(int n, int *nstarN);
 extern "C" void get_atom_bond(int n_atom, int nstarIdx, int *connected_atom);
+extern "C" void auto_cp();
+extern "C" void num_of_crit_points(int *n_critp);
+extern "C" void get_cp_pos_type(int cpIdx, int *type, double *x, double *y, double *z);
 //extern "C" void get_3positions(int *n,int **anum,double **x, double **y, double **z);
 //extern "C" void get_atomic_name(const char *atomName, int atomNum);
 //extern "C" void share_bond(int n_atom, int *connected_atom);
@@ -64,5 +67,20 @@ int main(int argc, char ** argv)
     }
   }
 
+  auto_cp();
+
+  int numCP;
+  num_of_crit_points(&numCP);
+
+  for (int i = n+1; i <= numCP; i++) {
+    int cpType;
+    double x;
+    double y;
+    double z;
+
+    get_cp_pos_type(i, &cpType, &x, &y, &z);
+
+    printf("Critical Points: %d %d %.10f %.10f %.10f\n",i,cpType, x, y, z);
+  }
 
 }

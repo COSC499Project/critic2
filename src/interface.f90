@@ -10,7 +10,8 @@ module interface
   public :: get_atom_position
   public :: get_num_atoms
   public :: auto_cp
-  public :: get_crit_points
+  public :: num_of_crit_points
+  public :: get_cp_pos_type
 
 contains
   !xx! top-level routines
@@ -53,6 +54,8 @@ contains
 
   subroutine init_struct() bind (c,name="init_struct")
     use fields, only: fields_init, fields_end
+    use varbas, only: varbas_end
+    use grd_atomic, only: grda_end
     use struct_basic, only: cr
     use autocp, only: init_cplist
 
@@ -61,9 +64,9 @@ contains
       ! ...the fields associated to the previous structure
       call fields_end()
       ! ...the loaded radial atomic and core densities
-      !call grda_end()
+      call grda_end()
       ! ...the CP list
-      !call varbas_end()
+      call varbas_end()
     end if
 
     call cr%init()
@@ -224,10 +227,40 @@ contains
 
   subroutine auto_cp() bind (c, name="auto_cp")
     use struct_basic, only: cr
+    use autocp, only: init_cplist, autocritic
+
+    if (cr%isinit) then
+       call autocritic("")
+    end if
+
   end subroutine auto_cp
 
-  subroutine get_crit_points() bind (c, name="get_crit_points")
+  subroutine num_of_crit_points(n_critp) bind (c, name="num_of_crit_points")
     use struct_basic, only: cr
-  end subroutine get_crit_points
+    use varbas, only: ncpcel
+    integer(c_int), intent(out) :: n_critp
+
+    n_critp = ncpcel
+
+  end subroutine num_of_crit_points
+
+  subroutine get_cp_pos_type(cpIdx, type, x, y, z) bind (c, name="get_cp_pos_type")
+    use struct_basic, only: cr
+    use global, only: dunit
+    use varbas, only: cp, cpcel, ncpcel
+
+    integer (kind=c_int), value :: cpIdx
+    integer(c_int), intent(out) :: type
+    real(c_double), intent(out) :: x
+    real(c_double), intent(out) :: y
+    real(c_double), intent(out) :: z
+
+    x = (cpcel(cpIdx)%r(1) + cr%molx0(1))*dunit
+    y = (cpcel(cpIdx)%r(2) + cr%molx0(2))*dunit
+    z = (cpcel(cpIdx)%r(3) + cr%molx0(3))*dunit
+
+    type = cpcel(cpIdx)%typ
+
+  end subroutine get_cp_pos_type
 
 end module interface
