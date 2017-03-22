@@ -385,7 +385,7 @@ public:
   }
 
   void Scale(float x, float y, float z){
-    m_scale[0] = x*0.5f; m_scale[1] = y; m_scale[2] = z;
+    m_scale[0] = x; m_scale[1] = y; m_scale[2] = z;
   }
 
   void Translate(float x, float y, float z){
