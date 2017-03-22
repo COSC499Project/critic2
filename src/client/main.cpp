@@ -14,11 +14,10 @@
 extern "C" void initialize();
 extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule);
-// extern "C" void get_positions(int *n,int **z,double **x);
 extern "C" void get_num_atoms(int *n);
 extern "C" void get_atom_position(int n, int *atomicN, double *x, double *y, double *z);
-//extern "C" void get_atomic_name(const char *atomName, int atomNum);
-//extern "C" void share_bond(int n_atom, int **connected_atom);
+extern "C" void num_of_bonds(int n, int *nstarN);
+extern "C" void get_atom_bond(int n_atom, int nstarIdx, int *connected_atom);
 
 static void ShowAppMainMenuBar();
 static void ShowMenuFile();
@@ -365,39 +364,33 @@ void loadAtoms() {
 
 void loadBonds() {
 
-  for (int i = 1; i < loadedAtomsAmount; i++) {
-    int *connected_atoms;
-    //share_bond(i, &connected_atoms);
+  for (int i = 0; i < loadedAtomsAmount; i++) {
+    int nstarN;
 
-    int numBonds = sizeof(connected_atoms) / sizeof(connected_atoms[0]);
-    loadedAtoms[i].loadedBonds = new int[numBonds];
+    num_of_bonds(i+1, &nstarN);
 
-    loadedBondsAmount += numBonds;
+    loadedAtoms[i].numberOfBonds = nstarN;
+    loadedAtoms[i].loadedBonds = new int[nstarN];
+    loadedBondsAmount += nstarN;
 
-    for (int j = 0; j < numBonds; j++) {
-      if (connected_atoms[j] >= 0 && connected_atoms[j] <= loadedAtomsAmount) {
-        loadedAtoms[i].loadedBonds[j] = connected_atoms[j];
+    for (int j = 0; j < nstarN; j++) {
+        int connected_atom;
 
-      }
+        get_atom_bond(i+1, j+1, &connected_atom);
+        loadedAtoms[i].loadedBonds[j] = connected_atom-1;
+        printf("%d atom has %d bonds and one is %d\n",i, nstarN, connected_atom-1);
     }
   }
 
   Bonds = new bond[loadedBondsAmount];
   int bondidx = 0;
-  for (int i=1; i<loadedAtomsAmount; i++){
-    int numBonds = sizeof(loadedAtoms[i].loadedBonds) / sizeof(loadedAtoms[i].loadedBonds[0]);
+  for (int i=0; i<loadedAtomsAmount; i++){
+    int numBonds = loadedAtoms[i].numberOfBonds;
     for (int j=0; j<numBonds; j++){
-      if (loadedAtoms[i].loadedBonds[j] < loadedAtomsAmount && loadedAtoms[i].loadedBonds[j] > -1) {
-        GenerateBondInfo(&Bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].loadedBonds[j]]);
-        bondidx += 1;
-
-      }
-
+      GenerateBondInfo(&Bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].loadedBonds[j]]);
+      bondidx += 1;
     }
-
-
   }
-
 }
 
 void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB,
@@ -840,7 +833,7 @@ static void ShowMenuFile()
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       loadAtoms();
-      // loadBonds();
+      loadBonds();
     }
     if (ImGui::MenuItem("Crystal")) {
       char const * lTheOpenFileName = tinyfd_openFileDialog(

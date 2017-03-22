@@ -203,16 +203,24 @@ contains
 
   subroutine num_of_bonds(n_atom, nstarNum) bind (c, name="num_of_bonds")
     use struct_basic, only: cr
-    use types, only: neighstar
     integer (kind=c_int), value :: n_atom
     integer(c_int), intent(out) :: nstarNum
 
     call cr%find_asterisms()
 
-    print*,cr%isast
-    nstarNum = cr%nstar(5)%ncon
+    nstarNum = cr%nstar(n_atom)%ncon
 
   end subroutine num_of_bonds
+
+  subroutine get_atom_bond(n_atom, nstarIdx, connected_atom) bind (c, name="get_atom_bond")
+    use struct_basic, only: cr
+    integer (kind=c_int), value :: n_atom
+    integer (kind=c_int), value :: nstarIdx
+    integer(c_int), intent(out) :: connected_atom
+
+    connected_atom = cr%nstar(n_atom)%idcon(nstarIdx)
+
+  end subroutine get_atom_bond
 
   subroutine auto_cp() bind (c, name="auto_cp")
     use struct_basic, only: cr
