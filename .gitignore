@@ -70,7 +70,10 @@ COPYING
 # emacs tags
 src/TAGS
 
-
+#windows lib changes
+src/client/WinCompiler/
+src/client/libs/
+src/client/libs-oth/
 
 imgui.ini
 !src/client/Makefile

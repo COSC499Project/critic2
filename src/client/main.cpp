@@ -15,8 +15,7 @@
 #include "tinyfiledialogs.h"
 
 #ifdef WIN32
-  #include <direct.h>
-  #define GetCurrentDir _getcwd
+
 #else
   #include <unistd.h>
   #define GetCurrentDir getcwd
@@ -680,6 +679,7 @@ void drawAtomTreeView(Pipeline p) {
 	for (size_t i = 0; i < loadedCPointsAmount; i++) {
 		if (ImGui::TreeNode(loadedCPoints[i].pointName.c_str())) { //critical point tree node
 			//TODO: critical point information
+			ImGui::TreePop();
 		}
 	}
 
@@ -707,11 +707,11 @@ int main(int, char**)
     initialize();
 
 
-      char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
+ /*     char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
       init_struct();
       call_structure(file, (int) strlen(file), 1);
       loadAtoms();
-      loadBonds();
+      loadBonds();*/
  
 
 
