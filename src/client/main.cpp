@@ -782,7 +782,6 @@ void drawToolBar(int screen_w, int screen_h,
         return;
       }
 
-      initialize();
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       destructLoadedMolecule();
@@ -802,7 +801,6 @@ void drawToolBar(int screen_w, int screen_h,
         return;
       }
 
-      initialize();
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
       destructLoadedMolecule();
@@ -867,7 +865,7 @@ void drawTreeView(int screen_w, int screen_h) {
 int main(int, char**)
 {
 
-    // initialize();
+    initialize();
     // char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
     // init_struct();
     // call_structure(file, (int) strlen(file), 1);
