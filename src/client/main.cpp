@@ -645,18 +645,14 @@ void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
 /// moves cam over atom (alligned to z axis)
 void lookAtAtom(int atomNumber) {
-	//TODO set camara to look at atom
-	cam.Pos[0] = -loadedAtoms[atomNumber].atomPosition[0];
+	cam.Pos[0] = loadedAtoms[atomNumber].atomPosition[0];
 	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition[1];
-	// z value is preserved
 }
 
 /// moves cam over crit point (alligned to z axis)
 void lookAtCritPoint(int critPointNum, Pipeline p) {
-	//TODO set camara to look at atom
-	cam.Pos[0] = -loadedCriticalPoints[critPointNum].cpPosition[0];
+	cam.Pos[0] = loadedCriticalPoints[critPointNum].cpPosition[0];
 	cam.Pos[1] = loadedCriticalPoints[critPointNum].cpPosition[1];
-	// z value is preserved
 }
 
 #pragma endregion
@@ -726,7 +722,7 @@ void drawToolBar(int screen_w, int screen_h,
   if (ImGui::Button("Load Molecule")){
       char const * lTheOpenFileName = tinyfd_openFileDialog(
     		"Select Molecule file",
-    		"",
+    		"../../examples/data/benzene.wfx",
     		0,
     		NULL,
     		NULL,
@@ -746,7 +742,7 @@ void drawToolBar(int screen_w, int screen_h,
   if (ImGui::Button("Load Crystal")){
       char const * lTheOpenFileName = tinyfd_openFileDialog(
     		"Select Molecule file",
-    		"",
+    		"../../examples/data/ammonia.big.vel.cube",
     		0,
     		NULL,
     		NULL,
