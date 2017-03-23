@@ -779,6 +779,7 @@ void drawToolBar(int screen_w, int screen_h,
         return;
       }
 
+      initialize();
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       destructLoadedMolecule();
