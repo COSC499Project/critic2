@@ -11,14 +11,6 @@
 #include "matrix_math.cpp"
 #include "tinyfiledialogs.h"
 
-#ifdef WINDOWS
-  #include <direct.h>
-  #define GetCurrentDir _getcwd
-#else
-  #include <unistd.h>
-  #define GetCurrentDir getcwd
-#endif
-
 extern "C" void initialize();
 extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule);
@@ -79,10 +71,18 @@ struct bond{
     float length;
 };
 
+struct criticalPoint {
+    float cpPosition[3];
+    int type;
+    string typeName = "";
+};
+
 bond * Bonds;
 atom * loadedAtoms;
+criticalPoint * loadedCriticalPoints;
 int loadedAtomsAmount = 0;
 int loadedBondsAmount = 0;
+int loadedCPAmount = 0;
 
 
 static void error_callback(int error, const char* description)
@@ -239,7 +239,7 @@ void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
 {
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
-  
+
   p->Scale(0.05f, 0.05f, b->length);
   p->Translate(b->center.x, b->center.y, b->center.z);
   p->SetRotationMatrix(b->rotation);
@@ -266,7 +266,7 @@ void DrawRotationAxes(Pipeline * p, GLuint CylVB, GLuint CylIB)
   float red[3] = {1, 0, 0};
   float green[3] = {0, 1, 0};
   float blue[3] = {0, 0, 1};
-  
+
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
   glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
   glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
@@ -445,7 +445,7 @@ void getAtomColor(int atomicNumber, float colorIntensity, GLfloat col[4]) {
     col[0] = 0; col[1] = 1; col[2] = 0; col[0] = colorIntensity;
 	} else if (atomicNumber == 35) {  // Bromine = dark reed
     col[0] = 0.5; col[1] = 0; col[2] = 0; col[0] = colorIntensity;
-	} else if (atomicNumber == 53) {  // Iodine = dark violet 
+	} else if (atomicNumber == 53) {  // Iodine = dark violet
     col[0] = 0.5; col[1] = 0; col[2] = 0.5; col[0] = colorIntensity;
 	} else if (atomicNumber == 2 ||    // noble gases (He, Ne, Ar, Kr, Xe, Rn) = cyan
         atomicNumber == 10 ||
@@ -477,8 +477,8 @@ void getAtomColor(int atomicNumber, float colorIntensity, GLfloat col[4]) {
 	} else if (atomicNumber == 26) {  // iron = dark orange
     col[0] = 0.75; col[1] = 0.25; col[2] = 0; col[0] = colorIntensity;
 	} else if ((atomicNumber >= 21 && atomicNumber <= 30) ||  // transition metals = orange/pink
-             (atomicNumber >= 39 && atomicNumber <= 48) || 
-             (atomicNumber >= 57 && atomicNumber <= 80) || 
+             (atomicNumber >= 39 && atomicNumber <= 48) ||
+             (atomicNumber >= 57 && atomicNumber <= 80) ||
              (atomicNumber >= 89 && atomicNumber <= 112)){
     col[0] = 1; col[1] = 0.5; col[2] = 0.3; col[0] = colorIntensity;
 	} else  {   // all other atoms = pink
@@ -683,7 +683,7 @@ int main(int, char**)
       call_structure(file, (int) strlen(file), 1);
       loadAtoms();
       loadBonds();
-  
+
 
 
 
@@ -829,7 +829,7 @@ int main(int, char**)
 
               lastRot = rot;
             } else {
-            
+
             diffX = (float)(cMPosX - pMPosX);
             diffY = (float)(cMPosY - pMPosY);
 
@@ -869,7 +869,7 @@ int main(int, char**)
         p.SetPersProjInfo(45, display_w, display_h, 1.f, 1000.f);
         p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
 
-        
+
         p.SetPostRotationMatrix(rot);
 //        p.PostRotate(postRotX, postRotY, postRotZ);
 
@@ -930,7 +930,7 @@ static void ShowMenuFile()
       if (lTheOpenFileName == NULL) {
         return;
       }
-      
+
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       destructLoadedMolecule();
