@@ -14,13 +14,6 @@
 #include "matrix_math.cpp"
 #include "tinyfiledialogs.h"
 
-#ifdef WIN32
-
-#else
-  #include <unistd.h>
-  #define GetCurrentDir getcwd
-#endif
-
 extern "C" void initialize();
 extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule);
@@ -28,6 +21,9 @@ extern "C" void get_num_atoms(int *n);
 extern "C" void get_atom_position(int n, int *atomicN, double *x, double *y, double *z);
 extern "C" void num_of_bonds(int n, int *nstarN);
 extern "C" void get_atom_bond(int n_atom, int nstarIdx, int *connected_atom);
+extern "C" void auto_cp();
+extern "C" void num_of_crit_points(int *n_critp);
+extern "C" void get_cp_pos_type(int cpIdx, int *type, double *x, double *y, double *z);
 
 static void ShowAppMainMenuBar();
 static void ShowMenuFile();
@@ -90,7 +86,7 @@ struct atom{
 	float atomPosition[3];
 	string atomTreeName; //must be saved to preserve imgui tree Id's
   int numberOfBonds;
-  int * loadedBonds;
+  int * bonds;
   int atomTreePosition;
 };
 
@@ -102,16 +98,20 @@ struct bond{
     float length;
 };
 
-struct criticalPoint{
-	float location[3];
-	string pointName;
-	int pointType;
+struct criticalPoint {
+    float cpPosition[3];
+    int type;
+    string typeName = "";
+    bool selected = false;
 };
 
-bond * Bonds;
+bond * bonds;
+criticalPoint * loadedCriticalPoints;
+
 atom * loadedAtoms;
 int loadedAtomsAmount = 0;
-int loadedBondsAmount = 0;
+int bondsAmount = 0;
+int loadedCPAmount = 0;
 
 criticalPoint * loadedCPoints;
 int loadedCPointsAmount;
@@ -272,7 +272,7 @@ void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
 {
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
-  
+
   p->Scale(0.05f, 0.05f, b->length);
   p->Translate(b->center.x, b->center.y, b->center.z);
   p->SetRotationMatrix(b->rotation);
@@ -299,7 +299,7 @@ void DrawRotationAxes(Pipeline * p, GLuint CylVB, GLuint CylIB)
   float red[3] = {1, 0, 0};
   float green[3] = {0, 1, 0};
   float blue[3] = {0, 0, 1};
-  
+
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
   glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
   glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
@@ -372,6 +372,26 @@ void deselectAll() {
 
 #pragma endregion
 
+void destructLoadedMolecule(){
+  if (loadedAtomsAmount > 0){
+    for (int i=loadedAtomsAmount-1; i>=0; i--){
+      delete loadedAtoms[i].bonds;
+    }
+    loadedAtomsAmount = 0;
+  }
+  if (bondsAmount > 0){
+    delete bonds;
+    bondsAmount = 0;
+  }
+}
+
+void destructCriticalPoints() {
+  if (loadedCPAmount > 0) {
+    loadedCriticalPoints = NULL;
+    loadedCPAmount = 0;
+  }
+}
+
 
 
 //TODO call this to load all atoms from the critic2 interface
@@ -424,46 +444,137 @@ void loadBonds() {
     num_of_bonds(i+1, &nstarN);
 
     loadedAtoms[i].numberOfBonds = nstarN;
-    loadedAtoms[i].loadedBonds = new int[nstarN];
-    loadedBondsAmount += nstarN;
+    loadedAtoms[i].bonds = new int[nstarN];
+    bondsAmount += nstarN;
 
     for (int j = 0; j < nstarN; j++) {
         int connected_atom;
 
         get_atom_bond(i+1, j+1, &connected_atom);
-        loadedAtoms[i].loadedBonds[j] = connected_atom-1;
+        loadedAtoms[i].bonds[j] = connected_atom-1;
         printf("%d atom has %d bonds and one is %d\n",i, nstarN, connected_atom-1);
     }
   }
 
-  Bonds = new bond[loadedBondsAmount];
+  bonds = new bond[bondsAmount];
   int bondidx = 0;
   for (int i=0; i<loadedAtomsAmount; i++){
     int numBonds = loadedAtoms[i].numberOfBonds;
     for (int j=0; j<numBonds; j++){
-      GenerateBondInfo(&Bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].loadedBonds[j]]);
+      GenerateBondInfo(&bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].bonds[j]]);
       bondidx += 1;
+    }
+  }
+}
+
+void loadCriticalPoints() {
+  int numCP;
+  num_of_crit_points(&numCP);
+
+  loadedCPAmount += (numCP - loadedAtomsAmount);
+  loadedCriticalPoints = new criticalPoint[loadedCPAmount];
+
+  for (int i = loadedAtomsAmount + 1; i <= numCP; i++) {
+    int cpType;
+    double x;
+    double y;
+    double z;
+
+    get_cp_pos_type(i, &cpType, &x, &y, &z);
+
+    printf("Critical Points: %d %d %.10f %.10f %.10f\n",i,cpType, x, y, z);
+
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[0] = x;
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[1] = y;
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[2] = z;
+
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].type = cpType;
+
+    if (cpType == -1) {
+      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "bond";
+    } else if (cpType == 1) {
+      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "ring";
+    } else if (cpType == 3) {
+      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "cage";
     }
   }
 }
 
 void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
-   for (int i=0; i< loadedBondsAmount; i++){
-       DrawBond(p, CylVB, CylIB, &Bonds[i]);
+   for (int i=0; i< bondsAmount; i++){
+     DrawBond(p, CylVB, CylIB, &bonds[i]);
    }
 }
 
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
-void getAtomColor(int atomicNumber, float colorIntensity, GLfloat col[4]) {
-	if (atomicNumber == 7) {
-        col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[0] = colorIntensity;
-	}else if(atomicNumber == 6) {
-        col[0] = 0.8; col[1] = 0.0; col[2] = 0.0; col[0] = colorIntensity;
-	} else  {
-        col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[0] = colorIntensity;
+Vector3f getAtomColor(int atomicNumber) {
+  Vector3f color;
+  if (atomicNumber == 1) {     // Hydrogen = white
+    color = Vector3f(1, 1, 1);
+	} else if (atomicNumber == 6) {   // Carbon = black
+    color = Vector3f(0, 0, 0);
+	} else if (atomicNumber == 7) {   // Nitrogen = dark blue
+    color = Vector3f(0, 0, 0.5);
+	} else if (atomicNumber == 8) {   // Oxygen = red
+    color = Vector3f(1, 0, 0);
+	} else if (atomicNumber == 9 || atomicNumber == 17) {   // Fluorine & Chlorine = green
+    color = Vector3f(0, 1, 0);
+	} else if (atomicNumber == 35) {  // Bromine = dark red
+    color = Vector3f(0.5, 0, 0);
+	} else if (atomicNumber == 53) {  // Iodine = dark violet
+    color = Vector3f(0.5, 0, 0.5);
+	} else if (atomicNumber == 2 ||    // noble gases (He, Ne, Ar, Kr, Xe, Rn) = cyan
+        atomicNumber == 10 ||
+        atomicNumber == 18 ||
+        atomicNumber == 36 ||
+        atomicNumber == 54 ||
+        atomicNumber == 86) {
+    color = Vector3f(0, 1, 1);
+	} else if (atomicNumber == 15) {  // Potassium = orange
+    color = Vector3f(1, 0.5, 0);
+	} else if (atomicNumber == 16) {  // sulfur = yellow
+    color = Vector3f(1, 1, 0);
+	} else if (atomicNumber == 3 ||   // alkali metals = violet
+             atomicNumber == 11 ||
+             atomicNumber == 19 ||
+             atomicNumber == 37 ||
+             atomicNumber == 55 ||
+             atomicNumber == 87){
+    color = Vector3f(1, 0, 1);
+	} else if (atomicNumber == 4 ||   // alkaline earth metals = dark green
+             atomicNumber == 12 ||
+             atomicNumber == 20 ||
+             atomicNumber == 38 ||
+             atomicNumber == 56 ||
+             atomicNumber == 88){
+    color = Vector3f(0, 0.5, 0);
+	} else if (atomicNumber == 81) {  // titaniam = gray
+    color = Vector3f(0.75, 0.75, 0.75);
+	} else if (atomicNumber == 26) {  // iron = dark orange
+    color = Vector3f(0.75, 0.25, 0);
+	} else if ((atomicNumber >= 21 && atomicNumber <= 30) ||  // transition metals = orange/pink
+             (atomicNumber >= 39 && atomicNumber <= 48) ||
+             (atomicNumber >= 57 && atomicNumber <= 80) ||
+             (atomicNumber >= 89 && atomicNumber <= 112)){
+    color = Vector3f(1, 0.5, 0.3);
+	} else  {   // all other atoms = pink
+    color = Vector3f(1, 0.25, 0.5);
 	}
+  return color;
+}
+
+Vector3f getCritPointColor(int cpType) {
+  Vector3f color;
+  if (cpType == -1) {     // bond cp = yellow
+    color = Vector3f(1, 1, 0);
+	} else if (cpType == 1) {   // ring cp = light grey
+    color = Vector3f(0.6588, 0.6588, 0.6588);
+	} else  {   // cage cp = light purple
+    color = Vector3f(0.94, 0.81, 0.99);
+	}
+  return color;
 }
 
 ///will be used to draw atom number over the atom using imgui window
@@ -472,42 +583,59 @@ float* getScreenPositionOfVertex(float *vertexLocation) {
 	return NULL;
 }
 
-/*highlighting types
-dim color
-float inc = 1.f;
-if (loadedAtoms[identifyer].selected) { //selection is color based
-inc = .5f;
+void drawAtomInstance(int id, float * posVector, Vector3f color,
+                      Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
+
+  // if atom is selected, brighten it
+  if (loadedAtoms[id].selected) {
+    color = color * 1.5;
+	}
+
+	float scaleAmount = (float)loadedAtoms[id].atomicNumber;
+	if (scaleAmount < 4.0f) {
+		scaleAmount = 0.2f;
+	} else {
+		scaleAmount = 0.4f;
+	}
+	p->Scale(scaleAmount, scaleAmount, scaleAmount);
+	p->Translate(posVector[0], posVector[1], posVector[2]);
+	p->Rotate(0.f, 0.f, 0.f);
+
+	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWVPTrans());
+	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
+                     (const GLfloat *)p->GetWorldTrans());
+	glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+	glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&color);
+	glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+/*
+	//TODO draw atom ID number
+	ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
+	ImGui::SetNextWindowCollapsed(true);
+	//float * winPos;
+	//matrix math to transform posVector to pixel location of an atoms center
+
+	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
+	ImGui::Begin(std::to_string(identifyer).c_str(), false);
+	ImGui::End();
+  */
 }
-const GLfloat n_Color[4]{color[0] * inc,color[1] *k inc,color[2] * inc,color[3]};
 
-increase color
-float inc = 1.f;
-if (loadedAtoms[identifyer].selected) { //selection is color based
-inc = 1.5f;
-}
-const GLfloat n_Color[4]{color[0] * inc,color[1] * inc,color[2] * inc,color[3]};
-
-*/
-
-GLuint gWorldLocation; //made global to make Drawing via methods easer
-GLuint mColorLocation;
-void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4],
+void drawCritPointInstance(int identifier, float * posVector, const GLfloat color[4],
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	//selection start
 	float inc = 1.f;
-	if (loadedAtoms[identifyer].selected) { //selection is color based
+	if (loadedCriticalPoints[identifier].selected) { //selection is color based
 		inc = 1.5f;
 	}
 
 	GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc, color[3]};
 	//selection end
 
-	float scaleAmount = (float)loadedAtoms[identifyer].atomicNumber;
-	if (scaleAmount < 4.0f) {
-		scaleAmount = 0.25f;
-	} else {
-		scaleAmount = 0.5f;
-	}
+	float scaleAmount = 0.05f;
+
 	p->Scale(scaleAmount, scaleAmount, scaleAmount);
 	p->Translate(posVector[0], posVector[1], posVector[2]);
 	p->Rotate(0.f, 0.f, 0.f); //no rotation required
@@ -518,8 +646,8 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4],
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
 	glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&n_Color);
 	glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
-
-	//TODO draw atom ID number
+/*
+	//TODO draw crit point ID number or type?
 	ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
 	ImGui::SetNextWindowCollapsed(true);
 	//float * winPos;
@@ -528,23 +656,34 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4],
 	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
 	ImGui::Begin(charConverter(identifyer).c_str(), false);
 	ImGui::End();
+  */
 }
 
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-        GLfloat c[4] = {0, 0, 0, 0};
-        getAtomColor(loadedAtoms[x].atomicNumber, 0.6f, c);
-		drawAtomInstance(x, loadedAtoms[x].atomPosition, c, p, SphereVB, SphereIB);
+    Vector3f color = getAtomColor(loadedAtoms[x].atomicNumber);
+		drawAtomInstance(x, loadedAtoms[x].atomPosition, color, p, SphereVB, SphereIB);
+	}
+}
+
+void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
+	for (int x = 0; x < loadedCPAmount; x++){
+    Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
+		drawCritPointInstance(x, loadedCriticalPoints[x].cpPosition, color, p, SphereVB, SphereIB);
 	}
 }
 
 /// moves cam over atom (alligned to z axis)
-void lookAtAtom(int atomNumber, Pipeline p) {
-	//TODO set camara to look at atom
-	cam.Pos[0] = -loadedAtoms[atomNumber].atomPosition[0];
+void lookAtAtom(int atomNumber) {
+	cam.Pos[0] = loadedAtoms[atomNumber].atomPosition[0];
 	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition[1];
-	// z value is preserved
+}
+
+/// moves cam over crit point (alligned to z axis)
+void lookAtCritPoint(int critPointNum, Pipeline p) {
+	cam.Pos[0] = loadedCriticalPoints[critPointNum].cpPosition[0];
+	cam.Pos[1] = loadedCriticalPoints[critPointNum].cpPosition[1];
 }
 
 #pragma endregion
@@ -622,47 +761,107 @@ void printCamStats() {
 	ImGui::End();
 }
 
-void drawSeachBar() {
-	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
-	ImGui::Begin("atom search", false);
+void drawToolBar(int screen_w, int screen_h,
+                 bool * show_bonds, bool * show_cps, bool * show_atoms) {
+	ImGui::SetNextWindowSize(ImVec2(50, screen_h),ImGuiSetCond_Once);
+	ImGui::SetNextWindowPos(ImVec2(0, 0),ImGuiSetCond_Always);
+  ImGuiWindowFlags flags = 0;
+    flags |= ImGuiWindowFlags_AlwaysAutoResize;
+    flags |= ImGuiWindowFlags_NoResize;
+    flags |= ImGuiWindowFlags_NoMove;
+    flags |= ImGuiWindowFlags_NoTitleBar;
+	ImGui::Begin("ToolBar",false, flags);
+  if (ImGui::Button("Load Molecule")){
+      char const * lTheOpenFileName = tinyfd_openFileDialog(
+    		"Select Molecule file",
+    		"../../examples/data/benzene.wfx",
+    		0,
+        NULL,
+    		NULL,
+    		0);
 
+      if (lTheOpenFileName == NULL) {
+        return;
+      }
 
+      init_struct();
+      call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
+      destructLoadedMolecule();
+      destructCriticalPoints();
+      loadAtoms();
+      loadBonds();
+  }
+  if (ImGui::Button("Load Crystal")){
+      char const * lTheOpenFileName = tinyfd_openFileDialog(
+    		"Select Molecule file",
+    		"../../examples/data/ammonia.big.vel.cube",
+    		0,
+    		NULL,
+    		NULL,
+    		0);
+
+      if (lTheOpenFileName == NULL) {
+        return;
+      }
+
+      init_struct();
+      call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
+      destructLoadedMolecule();
+      destructCriticalPoints();
+      loadAtoms();
+      loadBonds();
+  }
+  if (ImGui::Button("Generate Critical Points")){
+    auto_cp();
+  }
+  if (ImGui::Button("Load Critical Points")) {
+    destructCriticalPoints();
+    loadCriticalPoints();
+  }
+  if (ImGui::Button("Clear")){
+    destructLoadedMolecule();
+    destructCriticalPoints();
+  }
+  ImGui::Checkbox("Bonds", show_bonds);
+  ImGui::Checkbox("Crit Pts", show_cps);
+  ImGui::Checkbox("Atoms", show_atoms);
 	ImGui::End();
 }
 
-void drawCrystalTree() {
 
-}
+void drawTreeView(int screen_w, int screen_h) {
+	ImGui::SetNextWindowSize(ImVec2(300, screen_h),ImGuiSetCond_Always);
+	ImGui::SetNextWindowPos(ImVec2(screen_w-300, 0),ImGuiSetCond_Always);
+  ImGuiWindowFlags flags = 0;
+//    flags |= ImGuiWindowFlags_AlwaysAutoResize;
+    flags |= ImGuiWindowFlags_NoResize;
+    flags |= ImGuiWindowFlags_NoMove;
+	ImGui::Begin("Tree View",false, flags);
 
-
-void drawAtomTreeView(Pipeline p) {
-	ImGui::SetNextWindowSize(ImVec2(300, 500), ImGuiSetCond_Appearing); //this section will be moved to crystle once that section is done
-	ImGui::Begin("tree view", false);
-
-	int closeOthers = -1; //id's are context dependent so other tree nodes must be closed outside the main loop
-	for (size_t x = 0; x < loadedAtomsAmount; x++) { //all atoms
+	int closeOthers = -1;
+	for (size_t x = 0; x < loadedAtomsAmount; x++){
 		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {
-			if (loadedAtoms[x].selected == false) { // not currently true must set all others to false
-				loadedAtoms[x].selected = true; //this loop is only run on the frame this tree node is clicked
-				lookAtAtom(x, p);
+			if (loadedAtoms[x].selected == false) {
+				loadedAtoms[x].selected = true;
+				lookAtAtom(x);
 				closeOthers = x;
 			}
 
 			//selection based on atoms bonds
-			for (size_t i = 0; i < loadedBondsAmount; i++) {
-				if ( Bonds[i].a1->atomTreePosition == loadedAtoms[x].atomTreePosition) {
-					string bondName = "bondedTo" + charConverter(Bonds[i].a2->atomTreePosition);
+			for (size_t i = 0; i < bondsAmount; i++) {
+				if ( bonds[i].a1->atomTreePosition == loadedAtoms[x].atomTreePosition) {
+					string bondName = "bondedTo" + charConverter(bonds[i].a2->atomTreePosition);
 					if (ImGui::TreeNode(bondName.c_str())) {
 						//select a2
-						closeOthers = Bonds[i].a2->atomTreePosition;
+						closeOthers = bonds[i].a2->atomTreePosition;
 						cout << "going to atom" + charConverter(closeOthers) << endl;
 						ImGui::TreePop();
 					}
-				} else if (Bonds[i].a2->atomTreePosition == loadedAtoms[x].atomTreePosition) {
-					string bondName = "bondedTo" + charConverter(Bonds[i].a1->atomTreePosition);
+				} else if (bonds[i].a2->atomTreePosition == loadedAtoms[x].atomTreePosition) {
+					string bondName = "bondedTo" + charConverter(bonds[i].a1->atomTreePosition);
 					if (ImGui::TreeNode(bondName.c_str())) {
 						//select a1
-						closeOthers = Bonds[i].a1->atomTreePosition;
+						closeOthers = bonds[i].a1->atomTreePosition;
 						cout << "going to atom" + charConverter(closeOthers) << endl;
 						ImGui::TreePop();
 					}
@@ -677,7 +876,7 @@ void drawAtomTreeView(Pipeline p) {
 	}
 
 	for (size_t i = 0; i < loadedCPointsAmount; i++) {
-		if (ImGui::TreeNode(loadedCPoints[i].pointName.c_str())) { //critical point tree node
+		if (ImGui::TreeNode(loadedCPoints[i].typeName.c_str())) { //critical point tree node
 			//TODO: critical point information
 			ImGui::TreePop();
 		}
@@ -705,17 +904,17 @@ int main(int, char**)
 {
 
     initialize();
-
-
- /*     char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
-      init_struct();
-      call_structure(file, (int) strlen(file), 1);
-      loadAtoms();
-      loadBonds();*/
- 
-
-
-
+    // char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
+    // init_struct();
+    // call_structure(file, (int) strlen(file), 1);
+    // loadAtoms();
+    // loadBonds();
+    // destructLoadedMolecule();
+    // file = "/home/isaac/c2/critic2/examples/data/pyridine.wfx";
+    // init_struct();
+    // call_structure(file, (int) strlen(file), 1);
+    // loadAtoms();
+    // loadBonds();
 
     // Setup window
     glfwSetErrorCallback(error_callback);
@@ -785,6 +984,11 @@ int main(int, char**)
     ReadMesh(CylV, CylI, "./cylinder.v", "./cylinder.i");
     CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
 
+    // Imgui static variables
+    static bool show_bonds = true;
+    static bool show_cps = false;
+    static bool show_atoms = true;
+
     // input variables;
     // c means for current loop, l means last loop, p means last pressed
     static int cLMB;
@@ -803,14 +1007,9 @@ int main(int, char**)
     cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
     cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
 
-
 	time_t lastTime = time(0);
 	time_t curTime = lastTime;
 	double frameTime = 35.0;
-
-    static float postRotX = 0;
-    static float postRotY = 0;
-    static float postRotZ = 0;
 
     Vector3f curRotAxis = Vector3f(0, 0, 0);
     Vector3f lastRotAxis = Vector3f(0, 0, 0);
@@ -820,8 +1019,6 @@ int main(int, char**)
     static float curRotAng = 0;
     static float rotAng = 0;
 
-    static float midX;
-    static float midY;
     static float diffX;
     static float diffY;
 
@@ -847,8 +1044,7 @@ int main(int, char**)
 		glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
-		drawAtomTreeView(p);
-        // get input
+        // Process input
         ImGuiIO& io = ImGui::GetIO();
         lLMB = cLMB;
         lRMB = cRMB;
@@ -874,18 +1070,13 @@ int main(int, char**)
 
               lastRot = rot;
             } else {
-            
+
             diffX = (float)(cMPosX - pMPosX);
             diffY = (float)(cMPosY - pMPosY);
 
-//            postRotX = diffY;
-//            postRotY = -diffX;
-
             curRotAxis = Vector3f(diffX, -diffY, 0);
             curRotAxis = curRotAxis.Cross(Vector3f(0, 0, 1));
-
             curRotAng = curRotAxis.Length() * camRotateAngleFactor;
-
             curRotAxis.Normalize();
 
             curRot.InitRotateAxisTransform(curRotAxis, curRotAng);
@@ -894,7 +1085,6 @@ int main(int, char**)
           }
         }
 
-        ShowAppMainMenuBar();
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
         {
@@ -903,62 +1093,43 @@ int main(int, char**)
         }
 
 
-        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-        ImGui::Begin("posrotate", false);
-        float deg = 0.5;
-        ImGui::DragFloat("midX: ", &midX, deg);
-        ImGui::DragFloat("midY: ", &midY, deg);
-//        ImGui::DragFloat("Z: ", &, deg);
-
-        ImGui::DragFloat("diffX: ", &diffX, deg);
-        ImGui::DragFloat("diffY: ", &diffY, deg);
-//        ImGui::DragFloat("Z: ", &c.z, deg);
-
-        ImGui::Text("lastmousepressX: %.04f", pMPosX);
-        ImGui::Text("lastmousepressY: %.04f", pMPosY);
-//        ImGui::DragFloat("Z: ", &u.z, deg);
-
-        ImGui::Text("cmX: %.04f", cMPosX);
-        ImGui::Text("cmY: %.04f", cMPosY);
-
-
-     
-        ImGui::End();
-
-
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
+
         glViewport(0, 0, display_w, display_h);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
         p.SetPersProjInfo(45, display_w, display_h, 1.f, 1000.f);
         p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
-
-        
         p.SetPostRotationMatrix(rot);
-//        p.PostRotate(postRotX, postRotY, postRotZ);
-
-
         p.SetCamera(cam);
 
-
         glEnableVertexAttribArray(0);
-		drawAllAtoms(&p, SphereVB, SphereIB);
-		printCamStats();
-		drawSelectedAtomStats();
+        // molecule drawing
+        if (show_atoms){
+      		drawAllAtoms(&p, SphereVB, SphereIB);
+        }
+        if (show_bonds){
+          drawAllBonds(&p, CylVB, CylIB);
+        }
+        if (show_cps){
+          drawAllCPs(&p, SphereVB, SphereIB);
+        }
 
-        drawAllBonds(&p, CylVB, CylIB);
+        // imgui overlays
+//    		printCamStats();
+//        ShowAppMainMenuBar();
+		    drawSelectedAtomStats();
+		    drawTreeView(display_w, display_h);
+        drawToolBar(display_w, display_h, &show_bonds, &show_cps, &show_atoms);
 
         glDisableVertexAttribArray(0);
-
         glUseProgram(lightshader);
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ImGui::Render();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glfwSwapBuffers(window);
     }
 
@@ -1000,8 +1171,10 @@ static void ShowMenuFile()
 
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
+      destructLoadedMolecule();
       loadAtoms();
-      loadBonds();
+      //loadBonds();
+      //loadCriticalPoints();
     }
     if (ImGui::MenuItem("Crystal")) {
       char const * lTheOpenFileName = tinyfd_openFileDialog(
@@ -1018,6 +1191,9 @@ static void ShowMenuFile()
 
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
+      destructLoadedMolecule();
       loadAtoms();
+      //loadBonds();
+      //loadCriticalPoints();
     }
 }

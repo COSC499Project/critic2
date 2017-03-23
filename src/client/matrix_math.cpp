@@ -72,6 +72,17 @@ struct Vector3f
     return Ret;
   }
 
+  inline Vector3f operator*(float Right) const
+  {
+    Vector3f Ret;
+    Ret.x = x * Right;
+    Ret.y = y * Right;
+    Ret.z = z * Right;
+    return Ret;
+  }
+
+
+
   Vector3f& operator += (const Vector3f& r){
     x += r.x;
     y += r.y;
