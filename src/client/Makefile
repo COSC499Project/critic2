@@ -48,7 +48,7 @@ endif
 ifeq ($(UNAME_S), CYGWIN_NT-10.0)
    ECHO_MESSAGE = "Windows"
    %.o: %.mod
-   LIBS = ./libopengl32.a ./GLFW/libglfw3dll.a ./GLFW/libglfw3.a ./GLFW/glfw3.dll
+   LIBS = ./libopengl32.a ./GLFW/libglfw3dll.a ./GLFW/libglfw3.a 
    LIBS += -lGL -lGLU -lXrandr -lXext -lX11 -lgdi32 -limm32 -lXi -lXinerama -lXcursor -lrt -lm -pthread
    LIBS += ../criticlib.a -lgfortran ../qhull/libqhull_critic.a ../cubpack/libcubpack.a ../ciftbx/libciftbx.a ../spglib/libspglib.a ../oldlibs/libmisc.a -lgomp
    
