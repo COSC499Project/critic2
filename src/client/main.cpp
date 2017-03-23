@@ -358,7 +358,7 @@ void destructLoadedMolecule(){
 
 void destructCriticalPoints() {
   if (loadedCPAmount > 0) {
-    loadedCriticalPoints = new criticalPoint[0];
+    loadedCriticalPoints = NULL;
     loadedCPAmount = 0;
   }
 }
@@ -728,7 +728,7 @@ void drawToolBar(int screen_w, int screen_h,
     		"Select Molecule file",
     		"",
     		0,
-    		NULL,
+        NULL,
     		NULL,
     		0);
 
