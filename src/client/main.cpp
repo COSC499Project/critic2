@@ -460,9 +460,9 @@ void loadCriticalPoints() {
 
     printf("Critical Points: %d %d %.10f %.10f %.10f\n",i,cpType, x, y, z);
 
-    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[1] = x;
-    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[2] = y;
-    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[3] = z;
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[0] = x;
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[1] = y;
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[2] = z;
 
     loadedCriticalPoints[(i-(loadedAtomsAmount+1))].type = cpType;
 
