@@ -339,6 +339,16 @@ void deselectAll() {
 
 #pragma endregion
 
+void destructLoadedMolecule(){
+  for (int i=loadedAtomsAmount-1; i>=0; i--){
+    delete loadedAtoms[i].loadedBonds;
+  }
+//  delete loadedAtoms;
+  loadedAtomsAmount = 0;
+  delete Bonds;
+  loadedBondsAmount = 0;
+}
+
 
 
 //TODO call this to load all atoms from the critic2 interface
@@ -423,12 +433,56 @@ void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
 void getAtomColor(int atomicNumber, float colorIntensity, GLfloat col[4]) {
-	if (atomicNumber == 7) {
-        col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[0] = colorIntensity;
-	}else if(atomicNumber == 6) {
-        col[0] = 0.8; col[1] = 0.0; col[2] = 0.0; col[0] = colorIntensity;
-	} else  {
-        col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[0] = colorIntensity;
+  if (atomicNumber == 1) {     // Hydrogen = white
+    col[0] = 1; col[1] = 1; col[2] = 1; col[0] = colorIntensity;
+	} else if (atomicNumber == 6) {   // Carbon = black
+    col[0] = 0; col[1] = 0; col[2] = 0; col[0] = colorIntensity;
+	} else if (atomicNumber == 7) {   // Nitrogen = dark blue
+    col[0] = 0; col[1] = 0; col[2] = 0.5; col[0] = colorIntensity;
+	} else if (atomicNumber == 6) {   // Oxygen = red
+    col[0] = 1; col[1] = 0; col[2] = 0; col[0] = colorIntensity;
+	} else if (atomicNumber == 9 || atomicNumber == 17) {   // Fluorine & Chlorine = green
+    col[0] = 0; col[1] = 1; col[2] = 0; col[0] = colorIntensity;
+	} else if (atomicNumber == 35) {  // Bromine = dark reed
+    col[0] = 0.5; col[1] = 0; col[2] = 0; col[0] = colorIntensity;
+	} else if (atomicNumber == 53) {  // Iodine = dark violet 
+    col[0] = 0.5; col[1] = 0; col[2] = 0.5; col[0] = colorIntensity;
+	} else if (atomicNumber == 2 ||    // noble gases (He, Ne, Ar, Kr, Xe, Rn) = cyan
+        atomicNumber == 10 ||
+        atomicNumber == 18 ||
+        atomicNumber == 36 ||
+        atomicNumber == 54 ||
+        atomicNumber == 86) {
+    col[0] = 0; col[1] = 1; col[2] = 1; col[0] = colorIntensity;
+	} else if (atomicNumber == 15) {  // Potassium = orange
+    col[0] = 1; col[1] = 0.5; col[2] = 0; col[0] = colorIntensity;
+	} else if (atomicNumber == 16) {  // sulfur = yellow
+    col[0] = 1; col[1] = 1; col[2] = 0; col[0] = colorIntensity;
+	} else if (atomicNumber == 3 ||   // alkali metals = violet
+             atomicNumber == 11 ||
+             atomicNumber == 19 ||
+             atomicNumber == 37 ||
+             atomicNumber == 55 ||
+             atomicNumber == 87){
+    col[0] = 1; col[1] = 0; col[2] = 1; col[0] = colorIntensity;
+	} else if (atomicNumber == 4 ||   // alkaline earth metals = dark green
+             atomicNumber == 12 ||
+             atomicNumber == 20 ||
+             atomicNumber == 38 ||
+             atomicNumber == 56 ||
+             atomicNumber == 88){
+    col[0] = 0; col[1] = 0.5; col[2] = 0; col[0] = colorIntensity;
+	} else if (atomicNumber == 81) {  // titaniam = gray
+    col[0] = 0.75; col[1] = 0.75; col[2] = 0.75; col[0] = colorIntensity;
+	} else if (atomicNumber == 26) {  // iron = dark orange
+    col[0] = 0.75; col[1] = 0.25; col[2] = 0; col[0] = colorIntensity;
+	} else if ((atomicNumber >= 21 && atomicNumber <= 30) ||  // transition metals = orange/pink
+             (atomicNumber >= 39 && atomicNumber <= 48) || 
+             (atomicNumber >= 57 && atomicNumber <= 80) || 
+             (atomicNumber >= 89 && atomicNumber <= 112)){
+    col[0] = 1; col[1] = 0.5; col[2] = 0.3; col[0] = colorIntensity;
+	} else  {   // all other atoms = pink
+    col[0] = 1; col[1] = 0.25; col[2] = 0.5; col[0] = colorIntensity;
 	}
 }
 
@@ -483,7 +537,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4],
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
 	glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&n_Color);
 	glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
-
+/*
 	//TODO draw atom ID number
 	ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
 	ImGui::SetNextWindowCollapsed(true);
@@ -493,6 +547,7 @@ void drawAtomInstance(int identifyer, float * posVector,const GLfloat color[4],
 	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
 	ImGui::Begin(std::to_string(identifyer).c_str(), false);
 	ImGui::End();
+  */
 }
 
 ///draws all atoms in the loadedAtoms struct
@@ -622,7 +677,13 @@ int main(int, char**)
       call_structure(file, (int) strlen(file), 1);
       loadAtoms();
       loadBonds();
- 
+      destructLoadedMolecule();
+      file = "/home/isaac/c2/critic2/examples/data/pyridine.wfx";
+      init_struct();
+      call_structure(file, (int) strlen(file), 1);
+      loadAtoms();
+      loadBonds();
+  
 
 
 
@@ -797,29 +858,6 @@ int main(int, char**)
         }
 
 
-        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-        ImGui::Begin("posrotate", false);
-        float deg = 0.5;
-        ImGui::DragFloat("midX: ", &midX, deg);
-        ImGui::DragFloat("midY: ", &midY, deg);
-//        ImGui::DragFloat("Z: ", &, deg);
-
-        ImGui::DragFloat("diffX: ", &diffX, deg);
-        ImGui::DragFloat("diffY: ", &diffY, deg);
-//        ImGui::DragFloat("Z: ", &c.z, deg);
-
-        ImGui::Text("lastmousepressX: %.04f", pMPosX);
-        ImGui::Text("lastmousepressY: %.04f", pMPosY);
-//        ImGui::DragFloat("Z: ", &u.z, deg);
-
-        ImGui::Text("cmX: %.04f", cMPosX);
-        ImGui::Text("cmY: %.04f", cMPosY);
-
-
-     
-        ImGui::End();
-
-
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -840,11 +878,12 @@ int main(int, char**)
 
 
         glEnableVertexAttribArray(0);
-		drawAllAtoms(&p, SphereVB, SphereIB);
-		printCamStats();
-		drawSelectedAtomStats();
-
+    		drawAllAtoms(&p, SphereVB, SphereIB);
         drawAllBonds(&p, CylVB, CylIB);
+
+//  		printCamStats();
+		    drawSelectedAtomStats();
+
 
         glDisableVertexAttribArray(0);
 
@@ -891,9 +930,10 @@ static void ShowMenuFile()
       if (lTheOpenFileName == NULL) {
         return;
       }
-
+      
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
+      destructLoadedMolecule();
       loadAtoms();
       loadBonds();
     }
@@ -912,6 +952,7 @@ static void ShowMenuFile()
 
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
+      destructLoadedMolecule();
       loadAtoms();
     }
 }
