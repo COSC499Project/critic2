@@ -362,6 +362,13 @@ void destructLoadedMolecule(){
   }
 }
 
+void destructCriticalPoints() {
+  if (loadedCPAmount > 0) {
+    delete loadedCriticalPoints;
+    loadedCPAmount = 0;
+  }
+}
+
 
 
 //TODO call this to load all atoms from the critic2 interface
@@ -434,10 +441,6 @@ void loadBonds() {
       bondidx += 1;
     }
   }
-}
-
-void generateCriticalPoints() {
-  auto_cp();
 }
 
 void loadCriticalPoints() {
@@ -766,7 +769,7 @@ void drawToolBar(int screen_w, int screen_h,
     flags |= ImGuiWindowFlags_NoMove;
     flags |= ImGuiWindowFlags_NoTitleBar;
 	ImGui::Begin("ToolBar",false, flags);
-  if (ImGui::Button("Load")){
+  if (ImGui::Button("Load Molecule")){
       char const * lTheOpenFileName = tinyfd_openFileDialog(
     		"Select Molecule file",
     		"",
@@ -785,6 +788,33 @@ void drawToolBar(int screen_w, int screen_h,
       destructLoadedMolecule();
       loadAtoms();
       loadBonds();
+  }
+  if (ImGui::Button("Load Crystal")){
+      char const * lTheOpenFileName = tinyfd_openFileDialog(
+    		"Select Molecule file",
+    		"",
+    		0,
+    		NULL,
+    		NULL,
+    		0);
+
+      if (lTheOpenFileName == NULL) {
+        return;
+      }
+
+      initialize();
+      init_struct();
+      call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
+      destructLoadedMolecule();
+      loadAtoms();
+      loadBonds();
+  }
+  if (ImGui::Button("Generate Critical Points")){
+    auto_cp();
+  }
+  if (ImGui::Button("Load Critical Points")) {
+    destructCriticalPoints();
+    loadCriticalPoints();
   }
   if (ImGui::Button("Clear")){
     destructLoadedMolecule();
@@ -1093,7 +1123,6 @@ static void ShowMenuFile()
       destructLoadedMolecule();
       loadAtoms();
       //loadBonds();
-      generateCriticalPoints();
       //loadCriticalPoints();
     }
     if (ImGui::MenuItem("Crystal")) {
@@ -1114,7 +1143,6 @@ static void ShowMenuFile()
       destructLoadedMolecule();
       loadAtoms();
       //loadBonds();
-      generateCriticalPoints();
       //loadCriticalPoints();
     }
 }
