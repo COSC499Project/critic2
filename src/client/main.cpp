@@ -79,10 +79,18 @@ struct bond{
     float length;
 };
 
+struct criticalPoint {
+    float cpPosition[3];
+    int type;
+    string typeName = "";
+};
+
 bond * Bonds;
+criticalPoint * loadedCriticalPoints;
 atom * loadedAtoms;
 int loadedAtomsAmount = 0;
 int loadedBondsAmount = 0;
+int loadedCPAmount = 0;
 
 
 static void error_callback(int error, const char* description)
@@ -935,7 +943,7 @@ static void ShowMenuFile()
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       destructLoadedMolecule();
       loadAtoms();
-      loadBonds();
+      //loadBonds();
     }
     if (ImGui::MenuItem("Crystal")) {
       char const * lTheOpenFileName = tinyfd_openFileDialog(
