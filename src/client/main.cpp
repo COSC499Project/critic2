@@ -348,23 +348,17 @@ void destructLoadedMolecule(){
     for (int i=loadedAtomsAmount-1; i>=0; i--){
       delete loadedAtoms[i].bonds;
     }
-  //  delete loadedAtoms;
-
-  loadedAtomsAmount = 0;
+    loadedAtomsAmount = 0;
   }
   if (loadedBondsAmount > 0){
     delete loadedBonds;
     loadedBondsAmount = 0;
   }
-  if (loadedCPAmount > 0) {
-    delete loadedCriticalPoints;
-    loadedCPAmount = 0;
-  }
 }
 
 void destructCriticalPoints() {
   if (loadedCPAmount > 0) {
-    delete loadedCriticalPoints;
+    loadedCriticalPoints = new criticalPoint[0];
     loadedCPAmount = 0;
   }
 }
@@ -479,7 +473,7 @@ void loadCriticalPoints() {
 void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
    for (int i=0; i< loadedBondsAmount; i++){
-       DrawBond(p, CylVB, CylIB, &loadedBonds[i]);
+     DrawBond(p, CylVB, CylIB, &loadedBonds[i]);
    }
 }
 
@@ -569,9 +563,9 @@ void drawAtomInstance(int id, float * posVector, Vector3f color,
 
 	float scaleAmount = (float)loadedAtoms[id].atomicNumber;
 	if (scaleAmount < 4.0f) {
-		scaleAmount = 0.25f;
+		scaleAmount = 0.2f;
 	} else {
-		scaleAmount = 0.5f;
+		scaleAmount = 0.4f;
 	}
 	p->Scale(scaleAmount, scaleAmount, scaleAmount);
 	p->Translate(posVector[0], posVector[1], posVector[2]);
@@ -609,7 +603,7 @@ void drawCritPointInstance(int identifier, float * posVector, const GLfloat colo
 	GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc, color[3]};
 	//selection end
 
-	float scaleAmount = 0.1f;
+	float scaleAmount = 0.05f;
 
 	p->Scale(scaleAmount, scaleAmount, scaleAmount);
 	p->Translate(posVector[0], posVector[1], posVector[2]);
@@ -633,46 +627,6 @@ void drawCritPointInstance(int identifier, float * posVector, const GLfloat colo
 	ImGui::End();
   */
 }
-
-// void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-//
-// //criticalPoint * loadedCriticalPoints;
-// //int loadedCPAmount = 0;
-// //struct criticalPoint {
-// //    float cpPosition[3];
-// //    int type;
-// //    string typeName = "";
-// //};
-//
-//   for (int i=0; i<loadedCPAmount; i++){
-// /*    float color[3];
-//     switch (loadedCriticalPoints[i].type) {
-//       case 1:
-//         color[0] = ;
-//       case 2:
-//         color[3] = {1, 1, 0};
-//     }
-// */
-//        float color[3] = {1, 1, 0};
-//   	p->Scale(0.05, 0.05, 0.05);
-//
-//     float tx = loadedCriticalPoints[i].cpPosition[0];
-//     float ty = loadedCriticalPoints[i].cpPosition[1];
-//     float tz = loadedCriticalPoints[i].cpPosition[2];
-//   	p->Translate(tx, ty, tz);
-//   	p->Rotate(0.f, 0.f, 0.f);
-//
-//   	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
-//                        (const GLfloat *)p->GetWVPTrans());
-//   	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
-//                        (const GLfloat *)p->GetWorldTrans());
-//   	glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-//   	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-//   	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-//   	glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&color);
-//   	glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
-//   }
-// }
 
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
@@ -785,6 +739,7 @@ void drawToolBar(int screen_w, int screen_h,
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       destructLoadedMolecule();
+      destructCriticalPoints();
       loadAtoms();
       loadBonds();
   }
@@ -804,6 +759,7 @@ void drawToolBar(int screen_w, int screen_h,
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
       destructLoadedMolecule();
+      destructCriticalPoints();
       loadAtoms();
       loadBonds();
   }
@@ -816,6 +772,7 @@ void drawToolBar(int screen_w, int screen_h,
   }
   if (ImGui::Button("Clear")){
     destructLoadedMolecule();
+    destructCriticalPoints();
   }
   ImGui::Checkbox("Bonds", show_bonds);
   ImGui::Checkbox("Crit Pts", show_cps);
