@@ -11,14 +11,6 @@
 #include "matrix_math.cpp"
 #include "tinyfiledialogs.h"
 
-#ifdef WINDOWS
-  #include <direct.h>
-  #define GetCurrentDir _getcwd
-#else
-  #include <unistd.h>
-  #define GetCurrentDir getcwd
-#endif
-
 extern "C" void initialize();
 extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule);
@@ -26,6 +18,9 @@ extern "C" void get_num_atoms(int *n);
 extern "C" void get_atom_position(int n, int *atomicN, double *x, double *y, double *z);
 extern "C" void num_of_bonds(int n, int *nstarN);
 extern "C" void get_atom_bond(int n_atom, int nstarIdx, int *connected_atom);
+extern "C" void auto_cp();
+extern "C" void num_of_crit_points(int *n_critp);
+extern "C" void get_cp_pos_type(int cpIdx, int *type, double *x, double *y, double *z);
 
 static void ShowAppMainMenuBar();
 static void ShowMenuFile();
@@ -83,6 +78,7 @@ struct criticalPoint {
     float cpPosition[3];
     int type;
     string typeName = "";
+    bool selected = false;
 };
 
 bond * loadedBonds;
@@ -247,7 +243,7 @@ void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
 {
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
-  
+
   p->Scale(0.05f, 0.05f, b->length);
   p->Translate(b->center.x, b->center.y, b->center.z);
   p->SetRotationMatrix(b->rotation);
@@ -274,7 +270,7 @@ void DrawRotationAxes(Pipeline * p, GLuint CylVB, GLuint CylIB)
   float red[3] = {1, 0, 0};
   float green[3] = {0, 1, 0};
   float blue[3] = {0, 0, 1};
-  
+
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
   glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
   glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
@@ -360,6 +356,10 @@ void destructLoadedMolecule(){
     delete loadedBonds;
     loadedBondsAmount = 0;
   }
+  if (loadedCPAmount > 0) {
+    delete loadedCriticalPoints;
+    loadedCPAmount = 0;
+  }
 }
 
 
@@ -436,6 +436,43 @@ void loadBonds() {
   }
 }
 
+void generateCriticalPoints() {
+  auto_cp();
+}
+
+void loadCriticalPoints() {
+  int numCP;
+  num_of_crit_points(&numCP);
+
+  loadedCPAmount += (numCP - loadedAtomsAmount);
+  loadedCriticalPoints = new criticalPoint[loadedCPAmount];
+
+  for (int i = loadedAtomsAmount + 1; i <= numCP; i++) {
+    int cpType;
+    double x;
+    double y;
+    double z;
+
+    get_cp_pos_type(i, &cpType, &x, &y, &z);
+
+    printf("Critical Points: %d %d %.10f %.10f %.10f\n",i,cpType, x, y, z);
+
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[1] = x;
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[2] = y;
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[3] = z;
+
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].type = cpType;
+
+    if (cpType == -1) {
+      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "bond";
+    } else if (cpType == 1) {
+      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "ring";
+    } else if (cpType == 3) {
+      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "cage";
+    }
+  }
+}
+
 void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
    for (int i=0; i< loadedBondsAmount; i++){
@@ -459,7 +496,7 @@ Vector3f getAtomColor(int atomicNumber) {
     color = Vector3f(0, 1, 0);
 	} else if (atomicNumber == 35) {  // Bromine = dark red
     color = Vector3f(0.5, 0, 0);
-	} else if (atomicNumber == 53) {  // Iodine = dark violet 
+	} else if (atomicNumber == 53) {  // Iodine = dark violet
     color = Vector3f(0.5, 0, 0.5);
 	} else if (atomicNumber == 2 ||    // noble gases (He, Ne, Ar, Kr, Xe, Rn) = cyan
         atomicNumber == 10 ||
@@ -491,12 +528,24 @@ Vector3f getAtomColor(int atomicNumber) {
 	} else if (atomicNumber == 26) {  // iron = dark orange
     color = Vector3f(0.75, 0.25, 0);
 	} else if ((atomicNumber >= 21 && atomicNumber <= 30) ||  // transition metals = orange/pink
-             (atomicNumber >= 39 && atomicNumber <= 48) || 
-             (atomicNumber >= 57 && atomicNumber <= 80) || 
+             (atomicNumber >= 39 && atomicNumber <= 48) ||
+             (atomicNumber >= 57 && atomicNumber <= 80) ||
              (atomicNumber >= 89 && atomicNumber <= 112)){
     color = Vector3f(1, 0.5, 0.3);
 	} else  {   // all other atoms = pink
     color = Vector3f(1, 0.25, 0.5);
+	}
+  return color;
+}
+
+Vector3f getCritPointColor(int cpType) {
+  Vector3f color;
+  if (cpType == -1) {     // bond cp = yellow
+    color = Vector3f(1, 1, 0);
+	} else if (cpType == 1) {   // ring cp = light grey
+    color = Vector3f(0.6588, 0.6588, 0.6588);
+	} else  {   // cage cp = light purple
+    color = Vector3f(0.94, 0.81, 0.99);
 	}
   return color;
 }
@@ -525,9 +574,9 @@ void drawAtomInstance(int id, float * posVector, Vector3f color,
 	p->Translate(posVector[0], posVector[1], posVector[2]);
 	p->Rotate(0.f, 0.f, 0.f);
 
-	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, 
+	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
                      (const GLfloat *)p->GetWVPTrans());
-	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, 
+	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
                      (const GLfloat *)p->GetWorldTrans());
 	glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
@@ -547,60 +596,109 @@ void drawAtomInstance(int id, float * posVector, Vector3f color,
   */
 }
 
+void drawCritPointInstance(int identifier, float * posVector, const GLfloat color[4],
+                      Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
+	//selection start
+	float inc = 1.f;
+	if (loadedCriticalPoints[identifier].selected) { //selection is color based
+		inc = 1.5f;
+	}
+	GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc, color[3]};
+	//selection end
+
+	float scaleAmount = 0.1f;
+
+	p->Scale(scaleAmount, scaleAmount, scaleAmount);
+	p->Translate(posVector[0], posVector[1], posVector[2]);
+	p->Rotate(0.f, 0.f, 0.f); //no rotation required
+	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
+	glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+	glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&n_Color);
+	glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+/*
+	//TODO draw crit point ID number or type?
+	ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
+	ImGui::SetNextWindowCollapsed(true);
+	//float * winPos;
+	//matrix math to transform posVector to pixel location of an atoms center
+
+	//ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
+	ImGui::Begin(std::to_string(identifyer).c_str(), false);
+	ImGui::End();
+  */
+}
+
+// void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
+//
+// //criticalPoint * loadedCriticalPoints;
+// //int loadedCPAmount = 0;
+// //struct criticalPoint {
+// //    float cpPosition[3];
+// //    int type;
+// //    string typeName = "";
+// //};
+//
+//   for (int i=0; i<loadedCPAmount; i++){
+// /*    float color[3];
+//     switch (loadedCriticalPoints[i].type) {
+//       case 1:
+//         color[0] = ;
+//       case 2:
+//         color[3] = {1, 1, 0};
+//     }
+// */
+//        float color[3] = {1, 1, 0};
+//   	p->Scale(0.05, 0.05, 0.05);
+//
+//     float tx = loadedCriticalPoints[i].cpPosition[0];
+//     float ty = loadedCriticalPoints[i].cpPosition[1];
+//     float tz = loadedCriticalPoints[i].cpPosition[2];
+//   	p->Translate(tx, ty, tz);
+//   	p->Rotate(0.f, 0.f, 0.f);
+//
+//   	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
+//                        (const GLfloat *)p->GetWVPTrans());
+//   	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
+//                        (const GLfloat *)p->GetWorldTrans());
+//   	glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+//   	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+//   	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+//   	glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&color);
+//   	glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+//   }
+// }
+
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
-        Vector3f color = getAtomColor(loadedAtoms[x].atomicNumber);
+    Vector3f color = getAtomColor(loadedAtoms[x].atomicNumber);
 		drawAtomInstance(x, loadedAtoms[x].atomPosition, color, p, SphereVB, SphereIB);
 	}
 }
 
 void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-
-//criticalPoint * loadedCriticalPoints;
-//int loadedCPAmount = 0;
-//struct criticalPoint {
-//    float cpPosition[3];
-//    int type;
-//    string typeName = "";
-//};
-
-  for (int i=0; i<loadedCPAmount; i++){
-/*    float color[3];
-    switch (loadedCriticalPoints[i].type) {
-      case 1:
-        color[0] = ;
-      case 2:
-        color[3] = {1, 1, 0};
-    }
-*/
-       float color[3] = {1, 1, 0};
-  	p->Scale(0.05, 0.05, 0.05);
-    
-    float tx = loadedCriticalPoints[i].cpPosition[0];
-    float ty = loadedCriticalPoints[i].cpPosition[1];
-    float tz = loadedCriticalPoints[i].cpPosition[2];
-  	p->Translate(tx, ty, tz);
-  	p->Rotate(0.f, 0.f, 0.f);
-
-  	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
-                       (const GLfloat *)p->GetWVPTrans());
-  	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, 
-                       (const GLfloat *)p->GetWorldTrans());
-  	glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
-  	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-  	glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&color);
-  	glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
-  }
+	for (int x = 0; x < loadedCPAmount; x++){
+    Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
+		drawCritPointInstance(x, loadedCriticalPoints[x].cpPosition, color, p, SphereVB, SphereIB);
+	}
 }
-
 
 /// moves cam over atom (alligned to z axis)
 void lookAtAtom(int atomNumber) {
 	//TODO set camara to look at atom
 	cam.Pos[0] = -loadedAtoms[atomNumber].atomPosition[0];
 	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition[1];
+	// z value is preserved
+}
+
+/// moves cam over crit point (alligned to z axis)
+void lookAtCritPoint(int critPointNum, Pipeline p) {
+	//TODO set camara to look at atom
+	cam.Pos[0] = -loadedCriticalPoints[critPointNum].cpPosition[0];
+	cam.Pos[1] = loadedCriticalPoints[critPointNum].cpPosition[1];
 	// z value is preserved
 }
 
@@ -680,7 +778,7 @@ void drawToolBar(int screen_w, int screen_h,
       if (lTheOpenFileName == NULL) {
         return;
       }
-      
+
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       destructLoadedMolecule();
@@ -710,7 +808,7 @@ void drawTreeView(int screen_w, int screen_h) {
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
 		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {
 			if (loadedAtoms[x].selected == false) {
-				loadedAtoms[x].selected = true; 
+				loadedAtoms[x].selected = true;
 				lookAtAtom(x);
 				closeOthers = x;
 			}
@@ -737,24 +835,19 @@ void drawTreeView(int screen_w, int screen_h) {
 
 int main(int, char**)
 {
-    initialize();
 
-
-      char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
-      init_struct();
-      call_structure(file, (int) strlen(file), 1);
-      loadAtoms();
-      loadBonds();
-      destructLoadedMolecule();
-      file = "/home/isaac/c2/critic2/examples/data/pyridine.wfx";
-      init_struct();
-      call_structure(file, (int) strlen(file), 1);
-      loadAtoms();
-      loadBonds();
-  
-
-
-
+    // initialize();
+    // char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
+    // init_struct();
+    // call_structure(file, (int) strlen(file), 1);
+    // loadAtoms();
+    // loadBonds();
+    // destructLoadedMolecule();
+    // file = "/home/isaac/c2/critic2/examples/data/pyridine.wfx";
+    // init_struct();
+    // call_structure(file, (int) strlen(file), 1);
+    // loadAtoms();
+    // loadBonds();
 
     // Setup window
     glfwSetErrorCallback(error_callback);
@@ -895,7 +988,7 @@ int main(int, char**)
 
               lastRot = rot;
             } else {
-            
+
             diffX = (float)(cMPosX - pMPosX);
             diffY = (float)(cMPosY - pMPosY);
 
@@ -946,7 +1039,7 @@ int main(int, char**)
         // imgui overlays
 //    		printCamStats();
 //        ShowAppMainMenuBar();
-//		    drawSelectedAtomStats();
+		    drawSelectedAtomStats();
 		    drawTreeView(display_w, display_h);
         drawToolBar(display_w, display_h, &show_bonds, &show_cps, &show_atoms);
 
@@ -993,12 +1086,14 @@ static void ShowMenuFile()
       if (lTheOpenFileName == NULL) {
         return;
       }
-      
+
       init_struct();
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
       destructLoadedMolecule();
       loadAtoms();
-      loadBonds();
+      //loadBonds();
+      generateCriticalPoints();
+      //loadCriticalPoints();
     }
     if (ImGui::MenuItem("Crystal")) {
       char const * lTheOpenFileName = tinyfd_openFileDialog(
@@ -1017,5 +1112,8 @@ static void ShowMenuFile()
       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
       destructLoadedMolecule();
       loadAtoms();
+      //loadBonds();
+      generateCriticalPoints();
+      //loadCriticalPoints();
     }
 }
