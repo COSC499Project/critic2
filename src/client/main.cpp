@@ -113,9 +113,6 @@ int loadedAtomsAmount = 0;
 int bondsAmount = 0;
 int loadedCPAmount = 0;
 
-criticalPoint * loadedCPoints;
-int loadedCPointsAmount;
-
 
 static void error_callback(int error, const char* description)
 {
@@ -717,7 +714,7 @@ void atomAtomicNumberInfo(string * displayVars, int atomNumber) {
 
 void criticalPointTypeInfo(string * displayVars, int criticalPointIndex) {
 	displayVars[0] = "critical point Type";
-	displayVars[1] = loadedCPoints[criticalPointIndex].typeName;
+	displayVars[1] = loadedCriticalPoints[criticalPointIndex].typeName;
 	displayVars[2] = "";
 }
 
@@ -752,10 +749,16 @@ void drawSelectedAtomStats() {
 	ImGui::End();
 }
 
-void drawSelectedCPStats(int selectedCP) {
-	if (loadedCPAmount == 0) {
+int selectedCP = 0;
+void drawSelectedCPStats() {
+	if (loadedCPAmount == 0 || selectedCP < 0) {
 		return;
 	}
+	if (selectedCP >= loadedCPAmount) {
+		cout << "error in cp stat display: selected greater than number" << endl;
+		return;
+	}
+
 	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
 	ImGui::Begin("Selected Critical Point Information", false);
 	const int numberOfColums = 3;
@@ -902,8 +905,7 @@ void drawTreeView(int screen_w, int screen_h) {
 			}
 
 			ImGui::TreePop();
-		}
-		else {
+		}else {
 			loadedAtoms[x].selected = false;
 		}
 	}
@@ -918,38 +920,40 @@ void drawTreeView(int screen_w, int screen_h) {
 
 	ImGui::End();
 	
-	int selectedCP = 0;
 	if (loadedCPAmount != 0) {
-		ImGui::SetNextWindowSize(ImVec2(300, screen_h), ImGuiSetCond_Always);
-		ImGui::SetNextWindowPos(ImVec2(screen_w - 300, 0), ImGuiSetCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(300, screen_h*.5), ImGuiSetCond_Appearing);
+		ImGui::SetNextWindowPos(ImVec2(screen_w - 600, 0), ImGuiSetCond_Appearing);
 		ImGuiWindowFlags flags = 0;
-		//    flags |= ImGuiWindowFlags_AlwaysAutoResize;
-		flags |= ImGuiWindowFlags_NoResize;
-		ImGui::Begin("Cp view", false, flags);
+		// flags |= ImGuiWindowFlags_AlwaysAutoResize;
+		// flags |= ImGuiWindowFlags_NoResize;
+		ImGui::Begin("Cp type and ID", false, flags);
 
 		closeOthers = -1;
-		for (size_t i = 0; i < loadedCPointsAmount; i++) {
-			if (ImGui::TreeNode(loadedCPoints[i].typeName.c_str())) { //critical point tree node
-				if (loadedCPoints[i].selected == false) {
-					loadedCPoints[i].selected = true;
+		
+		for (size_t i = 0; i < loadedCPAmount; i++) {
+			if (ImGui::TreeNode((loadedCriticalPoints[i].typeName + ":" + charConverter(i)).c_str())) { //critical point tree node
+				if (loadedCriticalPoints[i].selected == false) {
+					loadedCriticalPoints[i].selected = true;
 					lookAtCritPoint(i);
 					closeOthers = i;
-				}
+					selectedCP = i;
+				} 
 				ImGui::TreePop();
+			} else {
+				loadedCriticalPoints[i].selected = false;
 			}
 		}
-
+		
 		if (closeOthers != -1) { //only one cp tab should be open at a time
 			ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
-			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedCPoints[closeOthers].typeName.c_str()), 1); // leave selected tab open
-			selectedCP = closeOthers;
+			ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + charConverter(closeOthers)).c_str()), 1); // leave selected tab open
 			closeOthers = -1;
 		}
 
 		ImGui::End();
-
+	
 		// start of cp info window
-		drawSelectedCPStats(selectedCP);
+		drawSelectedCPStats();
 	
 	}
 }
