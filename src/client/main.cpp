@@ -681,7 +681,7 @@ void lookAtAtom(int atomNumber) {
 }
 
 /// moves cam over crit point (alligned to z axis)
-void lookAtCritPoint(int critPointNum, Pipeline p) {
+void lookAtCritPoint(int critPointNum) {
 	cam.Pos[0] = loadedCriticalPoints[critPointNum].cpPosition[0];
 	cam.Pos[1] = loadedCriticalPoints[critPointNum].cpPosition[1];
 }
@@ -692,7 +692,9 @@ void lookAtCritPoint(int critPointNum, Pipeline p) {
 ///information to display in the stats list
 int selectedAtom = 0;
 
-
+//This methods are used to display additonal information about
+//a perticular critical point or atom
+//number of displayVars is currently assumed to be 3
 #pragma region display stats methods
 void displayCol(string * displayStats, int numberOfCol) {
 	for (size_t i = 0; i < numberOfCol; i++) {
@@ -710,6 +712,12 @@ void atomBondAmountInfo(string * displayVars, int atomNumber) {
 void atomAtomicNumberInfo(string * displayVars, int atomNumber) {
 	displayVars[0] = "atomic number";
 	displayVars[1] = charConverter(loadedAtoms[atomNumber].atomicNumber);
+	displayVars[2] = "";
+}
+
+void criticalPointTypeInfo(string * displayVars, int criticalPointIndex) {
+	displayVars[0] = "critical point Type";
+	displayVars[1] = loadedCPoints[criticalPointIndex].typeName;
 	displayVars[2] = "";
 }
 
@@ -744,6 +752,31 @@ void drawSelectedAtomStats() {
 	ImGui::End();
 }
 
+void drawSelectedCPStats(int selectedCP) {
+	if (loadedCPAmount == 0) {
+		return;
+	}
+	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
+	ImGui::Begin("Selected Critical Point Information", false);
+	const int numberOfColums = 3;
+
+	ImGui::Columns(numberOfColums, "mycolumns");
+	ImGui::Separator();
+	ImGui::Text("Info Type"); ImGui::NextColumn();
+	ImGui::Text("Value1"); ImGui::NextColumn();
+	ImGui::Text("Value2"); ImGui::NextColumn();
+	ImGui::Separator();
+
+	string displayStats[numberOfColums];
+
+	criticalPointTypeInfo(displayStats, selectedCP);
+	displayCol(displayStats, numberOfColums);
+
+	//CP stat 2
+	//displayCol(displayStats, numberOfColums);
+
+	ImGui::End();
+}
 
 
 void printCamStats() {
@@ -875,15 +908,6 @@ void drawTreeView(int screen_w, int screen_h) {
 		}
 	}
 
-	for (size_t i = 0; i < loadedCPointsAmount; i++) {
-		if (ImGui::TreeNode(loadedCPoints[i].typeName.c_str())) { //critical point tree node
-			//TODO: critical point information
-			ImGui::TreePop();
-		}
-	}
-
-
-
 	if (closeOthers != -1) {
 		ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
 		ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[closeOthers].atomTreeName.c_str()), 1);
@@ -893,6 +917,41 @@ void drawTreeView(int screen_w, int screen_h) {
 
 
 	ImGui::End();
+	
+	int selectedCP = 0;
+	if (loadedCPAmount != 0) {
+		ImGui::SetNextWindowSize(ImVec2(300, screen_h), ImGuiSetCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(screen_w - 300, 0), ImGuiSetCond_Always);
+		ImGuiWindowFlags flags = 0;
+		//    flags |= ImGuiWindowFlags_AlwaysAutoResize;
+		flags |= ImGuiWindowFlags_NoResize;
+		ImGui::Begin("Cp view", false, flags);
+
+		closeOthers = -1;
+		for (size_t i = 0; i < loadedCPointsAmount; i++) {
+			if (ImGui::TreeNode(loadedCPoints[i].typeName.c_str())) { //critical point tree node
+				if (loadedCPoints[i].selected == false) {
+					loadedCPoints[i].selected = true;
+					lookAtCritPoint(i);
+					closeOthers = i;
+				}
+				ImGui::TreePop();
+			}
+		}
+
+		if (closeOthers != -1) { //only one cp tab should be open at a time
+			ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
+			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedCPoints[closeOthers].typeName.c_str()), 1); // leave selected tab open
+			selectedCP = closeOthers;
+			closeOthers = -1;
+		}
+
+		ImGui::End();
+
+		// start of cp info window
+		drawSelectedCPStats(selectedCP);
+	
+	}
 }
 
 
