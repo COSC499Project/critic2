@@ -575,6 +575,69 @@ Vector3f getCritPointColor(int cpType) {
   return color;
 }
 
+#pragma region color legend
+
+//basic color Legend
+void atomLegend_displayColorBoxAndName(int colorNumber, string * colorNames) {
+	Vector3f AtomicNumberColor = getAtomColor(colorNumber);
+	ImVec4 color = ImColor(AtomicNumberColor.x, AtomicNumberColor.y, AtomicNumberColor.z, 1.0);
+	ImGui::ColorButton(color); ImGui::SameLine();
+	ImGui::Text(colorNames[colorNumber].c_str());
+}
+
+
+void atomColorLegend() {
+	ImGui::SetNextWindowPos(ImVec2(0, 500), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
+	ImGui::Begin("Atom color legend", false);
+	string * colorNames = new string[101];
+	colorNames[1] = "Hydrogen";
+	colorNames[2] = "Noble Gas";
+	colorNames[3] = "Alkali Metals";
+	colorNames[4] = "Akaline Earth";
+
+	colorNames[6] = "Carbon";
+	colorNames[7] = "Nitrogen";
+	colorNames[8] = "Oxygen";
+	colorNames[9] = "Flourine & Chlorine";
+
+	colorNames[15] = "Potassium";
+	colorNames[16] = "Sulfur";
+
+	colorNames[21] = "transition Metal";
+
+	colorNames[26] = "iron";
+
+	colorNames[35] = "Bromine";
+
+	colorNames[53] = "Iodine";
+
+	colorNames[81] = "titaniam";
+	
+	colorNames[100] = "other";
+
+	for (size_t i = 1; i < 5; i++) {
+		atomLegend_displayColorBoxAndName(i, colorNames);
+	}
+	for (size_t i = 6; i < 10; i++) {
+		atomLegend_displayColorBoxAndName(i, colorNames);
+	}
+
+	atomLegend_displayColorBoxAndName(15, colorNames);
+	atomLegend_displayColorBoxAndName(16, colorNames);
+	atomLegend_displayColorBoxAndName(21, colorNames);
+	atomLegend_displayColorBoxAndName(26, colorNames);
+	atomLegend_displayColorBoxAndName(35, colorNames);
+	atomLegend_displayColorBoxAndName(53, colorNames);
+	atomLegend_displayColorBoxAndName(81, colorNames);
+	atomLegend_displayColorBoxAndName(100, colorNames);
+
+
+	ImGui::End();
+}
+
+#pragma endregion
+
 ///will be used to draw atom number over the atom using imgui window
 float* getScreenPositionOfVertex(float *vertexLocation) {
 	//TODO transfrom from vertex location to screen location
@@ -1215,6 +1278,8 @@ int main(int, char**)
         if (show_cps){
           drawAllCPs(&p, SphereVB, SphereIB);
         }
+		//color legend
+		atomColorLegend();
 
         // imgui overlays
 //    		printCamStats();
