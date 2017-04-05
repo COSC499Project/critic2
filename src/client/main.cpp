@@ -110,6 +110,7 @@ criticalPoint * loadedCriticalPoints;
 
 atom * loadedAtoms;
 int loadedAtomsAmount = 0;
+int selectedAtom = 0;
 int bondsAmount = 0;
 int loadedCPAmount = 0;
 
@@ -656,11 +657,38 @@ void drawCritPointInstance(int identifier, float * posVector, const GLfloat colo
   */
 }
 
+#pragma region atom flashing
+bool flashAtoms = false; // toggle with selection toggles (in gui)
+//selctedAtom from tree selection
+//the number of frames the deselected atoms stay invisable
+int framesMax = 15; // ~0.5 seconds
+int framesLeft = 0;
+bool otherAtomsVisable = true;
+
+#pragma endregion
+
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-	for (size_t x = 0; x < loadedAtomsAmount; x++){
-    Vector3f color = getAtomColor(loadedAtoms[x].atomicNumber);
-		drawAtomInstance(x, loadedAtoms[x].atomPosition, color, p, SphereVB, SphereIB);
+	if (flashAtoms) { //flash mode
+		if (framesLeft <= 0) {
+			otherAtomsVisable = !otherAtomsVisable;
+			framesLeft = framesMax;
+		}
+		if (otherAtomsVisable) { //all visible
+			for (size_t x = 0; x < loadedAtomsAmount; x++) {
+				Vector3f color = getAtomColor(loadedAtoms[x].atomicNumber);
+				drawAtomInstance(x, loadedAtoms[x].atomPosition, color, p, SphereVB, SphereIB);
+			}
+		} else { // only selected atom visable
+			Vector3f color = getAtomColor(loadedAtoms[selectedAtom].atomicNumber);
+			drawAtomInstance(selectedAtom, loadedAtoms[selectedAtom].atomPosition, color, p, SphereVB, SphereIB);
+		}
+		framesLeft--;
+	} else { // regular drawing
+		for (size_t x = 0; x < loadedAtomsAmount; x++){
+		Vector3f color = getAtomColor(loadedAtoms[x].atomicNumber);
+			drawAtomInstance(x, loadedAtoms[x].atomPosition, color, p, SphereVB, SphereIB);
+		}
 	}
 }
 
@@ -687,7 +715,7 @@ void lookAtCritPoint(int critPointNum) {
 
 #pragma region IMGUI
 ///information to display in the stats list
-int selectedAtom = 0;
+
 
 //This methods are used to display additonal information about
 //a perticular critical point or atom
@@ -861,7 +889,14 @@ void drawToolBar(int screen_w, int screen_h,
   ImGui::Checkbox("Bonds", show_bonds);
   ImGui::Checkbox("Crit Pts", show_cps);
   ImGui::Checkbox("Atoms", show_atoms);
-	ImGui::End();
+ 
+  if (ImGui::Checkbox("Selc.find", &flashAtoms)) { //set flashing to defults
+	  framesMax = 15; // ~0.5 seconds
+	  framesLeft = 0;
+	  otherAtomsVisable = true;
+  }
+	
+  ImGui::End();
 }
 
 
