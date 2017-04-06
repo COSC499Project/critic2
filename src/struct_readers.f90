@@ -46,8 +46,12 @@ module struct_readers
   public :: struct_read_mol
   public :: struct_read_qeout
   public :: struct_read_qein
+  public :: struct_read_crystalout
   public :: struct_read_siesta
   public :: struct_read_dftbp
+  public :: struct_read_xsf
+  public :: struct_detect_format
+  public :: is_espresso
   private :: qe_latgen
   private :: spgs_wrap
   private :: fill_molecule
@@ -570,6 +574,7 @@ contains
     if (.not.found) then
        write (uout,'("(!) Structure not found in file:"/8X,A)') trim(libfile)
        call ferror("struct_read_library","structure not found in library!",faterr,syntax=.true.)
+       call fclose(lu)
        return
     end if
 
@@ -795,9 +800,6 @@ contains
     end if
     call realloc(c%cen,3,c%ncv)
 
-    ! set the centering type
-    call c%set_lcent()
-
     ! restore the old values of x, y, and z
     if (ix) call setvariable("x",xo)
     if (iy) call setvariable("y",yo)
@@ -818,7 +820,7 @@ contains
        ! call spgs and hope for the best
        call spgs_wrap(c,spg,.false.)
     endif
-    c%havesym = 2
+    c%havesym = 1
 
     ! clean up
     call purge_()
@@ -831,7 +833,7 @@ contains
   end subroutine struct_read_cif
 
   !> Read the structure from a CIF file (uses ciftbx)
-  subroutine struct_read_res(c,file,verbose,mol)
+  subroutine struct_read_res(c,file,mol)
     use struct_basic, only: crystal
     use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
@@ -841,7 +843,6 @@ contains
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
-    logical, intent(in) :: verbose !< Write information to the output
     
     integer :: lu, lp, ilat
     logical :: ok, iscent, iok, havecell
@@ -1127,16 +1128,13 @@ contains
        end do
     end if
 
-    ! set the centering type
-    call c%set_lcent()
-
     ! restore the old values of x, y, and z
     if (iix) call setvariable("x",xo)
     if (iiy) call setvariable("y",yo)
     if (iiz) call setvariable("z",zo)
 
     ! use the symmetry in this file
-    c%havesym = 2
+    c%havesym = 1
 
     if (allocated(ztyp)) deallocate(ztyp)
 
@@ -1217,7 +1215,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
     ! initialize atoms
     c%at(1:c%nneq)%zpsp = -1
@@ -1293,7 +1290,6 @@ contains
     ELSE
        STOP 'LATTIC NOT DEFINED'
     END IF
-    call c%set_lcent()
 
     READ(lut,100) c%aa(1:3), c%bb(1:3)
 100 FORMAT(6F10.5)
@@ -1363,7 +1359,7 @@ contains
     end do
 
     ! symmetry and Cartesian transformation
-    if (c%neqv > 0) c%havesym = 2
+    if (c%neqv > 0) c%havesym = 1
     call c%set_cryscar()
 
     ! if this is a molecule, set up the origin and the molecular cell
@@ -1549,7 +1545,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: fopen_read, nameguess, faterr, ferror, fclose
     use abinit_private, only: hdr_type, hdr_io
-    use param, only: pi
+    use param, only: pi, eye
     use types, only: realloc
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
@@ -1577,12 +1573,6 @@ contains
     c%bb(2) = acos(g(1,3) / c%aa(1) / c%aa(3)) * 180d0 / pi
     c%bb(3) = acos(g(1,2) / c%aa(1) / c%aa(2)) * 180d0 / pi
 
-    ! abinit always uses primitive cells, even when it does not (chkprim = -1)
-    c%ncv = 1
-    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
-    c%cen = 0d0
-    c%lcent = 0
-
     ! atoms
     c%nneq = hdr%natom
     if (c%nneq > size(c%at)) call realloc(c%at,c%nneq)
@@ -1592,13 +1582,16 @@ contains
        write (c%at(i)%name,'(A2,I2.2)') nameguess(c%at(i)%z),i
     end do
 
-    ! symmetry and transformations
-    c%neqv = hdr%nsym
-    do i = 1, hdr%nsym
-       c%rotm(:,1:3,i) = real(hdr%symrel(:,:,i),8)
-       c%rotm(:,4,i) = hdr%tnons(:,i)
-    end do
-    if (hdr%nsym > 0) c%havesym = 2
+    ! abinit has symmetry in hdr%nsym/hdr%symrel, but there is no
+    ! distinction between pure centering and rotation operations, and
+    ! the user may not want any symmetry - let critic2 guess.
+    c%havesym = 0
+    c%neqv = 1
+    c%rotm = 0d0
+    c%rotm(:,1:3,1) = eye
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
 
     ! charges and pseudopotential charges
     if (hdr%ntypat /= hdr%npsp) call ferror('struct_read_abinit','Can not handle ntypat/=npsp (?)',faterr,file)
@@ -1622,7 +1615,7 @@ contains
   subroutine struct_read_elk(c,filename,mol)
     use struct_basic, only: crystal
     use tools_io, only: fopen_read, getline_raw, equal, faterr, ferror, getword,&
-       zatguess, fclose
+       zatguess, nameguess, fclose, string
     use tools_math, only: matinv
     use param, only: pi
     use types, only: realloc
@@ -1681,7 +1674,7 @@ contains
           c%at(c%nneq)%z = zat
           c%at(c%nneq)%zpsp = -1
           c%at(c%nneq)%qat = 0d0
-          c%at(c%nneq)%name = trim(adjustl(atname))
+          c%at(c%nneq)%name = trim(adjustl(nameguess(zat,.true.))) // string(i)
        end do
     end do
 
@@ -1701,30 +1694,31 @@ contains
   subroutine struct_read_mol(c,file,fmt,rborder,docube)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry
-    use struct_basic, only: crystal
+    use struct_basic, only: crystal, isformat_xyz, isformat_wfn, isformat_wfx,&
+       isformat_fchk, isformat_molden
     use tools_io, only: equal
 
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
-    character*(*), intent(in) :: fmt !< wfn/wfx/xyz
+    integer, intent(in) :: fmt !< wfn/wfx/xyz
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
 
     integer :: i
 
-    if (equal(trim(fmt),'xyz')) then
+    if (fmt == isformat_xyz) then
        ! xyz
        call wfn_read_xyz_geometry(file,c%nneq,c%at)
-    elseif (equal(trim(fmt),'wfn')) then
+    elseif (fmt == isformat_wfn) then
        ! wfn
        call wfn_read_wfn_geometry(file,c%nneq,c%at)
-    elseif (equal(trim(fmt),'wfx')) then
+    elseif (fmt == isformat_wfx) then
        ! wfx
        call wfn_read_wfx_geometry(file,c%nneq,c%at)
-    elseif (equal(trim(fmt),'fchk')) then
+    elseif (fmt == isformat_fchk) then
        ! fchk
        call wfn_read_fchk_geometry(file,c%nneq,c%at)
-    elseif (equal(trim(fmt),'molden')) then
+    elseif (fmt == isformat_molden) then
        ! molden (psi4)
        call wfn_read_molden_geometry(file,c%nneq,c%at)
     end if
@@ -1740,23 +1734,27 @@ contains
 
   end subroutine struct_read_mol
 
-  !> Read the structure from a quantum espresso output
-  subroutine struct_read_qeout(c,file,mol)
+  !> Read the structure from a quantum espresso output (file) and
+  !> return it as a crystal object. If mol, the structure is assumed
+  !> to be a molecule.  If istruct is zero, read the last geometry;
+  !> otherwise, read geometry number istruct.
+  subroutine struct_read_qeout(c,file,mol,istruct)
     use struct_basic, only: crystal
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
        zatguess, fclose
     use tools_math, only: matinv
-    use param, only: pi, eye
+    use param, only: pi, eye, bohrtoa
     use types, only: realloc
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
+    integer, intent(in) :: istruct !< structure number
 
-    integer :: lu, nstrucs, is0, ideq, i, k
+    integer :: lu, nstructs, is0, ideq, i, k
     character(len=:), allocatable :: line
     integer :: ibrav, nat, ntyp, id, idum
-    real*8 :: alat, r(3,3), qaux, g(3,3)
-    logical :: ok
+    real*8 :: alat, r(3,3), qaux, g(3,3), rfac, cfac
+    logical :: ok, tox
     character*(10), allocatable :: attyp(:), atn(:)
     integer, allocatable :: zpsptyp(:)
     real*8, allocatable :: x(:,:)
@@ -1764,86 +1762,126 @@ contains
     lu = fopen_read(file)
 
     ! first pass: read the number of structures
-    nstrucs = 0
+    nstructs = 0
     do while (getline_raw(lu,line))
-       if (index(line,"Title:") > 0) then
-          nstrucs = nstrucs + 1
+       if (index(line,"Self-consistent Calculation") > 0) then
+          nstructs = nstructs + 1
        end if
     end do
 
-    ! which of them? -> last one
-    is0 = nstrucs
+    ! which of them?
+    if (istruct == 0) then
+       is0 = nstructs
+    else
+       if (istruct > nstructs .or. istruct < 0) then
+          call ferror("struct_read_qeout","wrong structure number",faterr)
+       end if
+       is0 = istruct
+    end if
 
     ! rewind and read the correct structure
     rewind(lu)
-    nstrucs = 0
-    a: do while (getline_raw(lu,line))
-       if (index(line,"Title:") > 0) then
-          nstrucs = nstrucs + 1
+    nstructs = 0
+    ntyp = 0
+    nat = 0
+    tox = .false.
+    do while (getline_raw(lu,line))
+       ideq = index(line,"=") + 1
+
+       ! Count the structures
+       if (index(line,"Self-consistent Calculation") > 0) then
+          nstructs = nstructs + 1
+          if (is0 /= 0 .and. nstructs == is0) exit
+       ! Title: block at the beginning of the output (and at the end in minimizations) 
+       elseif (index(line,"bravais-lattice index") > 0) then
+          ok = isinteger(ibrav,line,ideq)
+       elseif (index(line,"lattice parameter (alat)") > 0) then
+          ok = isreal(alat,line,ideq)
+       elseif (index(line,"number of atoms/cell") > 0) then
+          ok = isinteger(nat,line,ideq)
+       elseif (index(line,"number of atomic types") > 0) then
+          ok = isinteger(ntyp,line,ideq)
+       elseif (index(line,"crystal axes:") > 0) then
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+             ideq = index(line,"(",.true.) + 1
+             ok = isreal(r(i,1),line,ideq)
+             ok = ok.and.isreal(r(i,2),line,ideq)
+             ok = ok.and.isreal(r(i,3),line,ideq)
+          end do
+          r = r * alat ! alat comes before crystal axes
+       elseif (index(line,"atomic species   valence    mass     pseudopotential")>0) then
+          if (ntyp == 0) &
+             call ferror("struct_read_qeout","number of atomic types unknown",faterr)
+          if (.not.allocated(attyp)) allocate(attyp(ntyp))
+          if (.not.allocated(zpsptyp)) then
+             allocate(zpsptyp(ntyp))
+             zpsptyp = 0
+          end if
+          do i = 1, ntyp
+             ok = getline_raw(lu,line,.true.)
+             read (line,*) attyp(i), qaux
+             zpsptyp(i) = nint(qaux)
+          end do
+       elseif (index(line,"Cartesian axes")>0) then
+          if (nat == 0) &
+             call ferror("struct_read_qeout","number of atoms unknown",faterr)
+          if (.not.allocated(atn)) allocate(atn(nat))
+          if (.not.allocated(x)) allocate(x(3,nat))
+          ok = getline_raw(lu,line,.true.)
+          ok = getline_raw(lu,line,.true.)
+          do i = 1, nat
+             ok = getline_raw(lu,line,.true.)
+             read(line,*) idum, atn(i)
+             line = line(index(line,"(",.true.)+1:)
+             read(line,*) x(:,i)
+          end do
+          tox = .true.
+       elseif (line(1:15) == "CELL_PARAMETERS") then
+          if (index(line,"angstrom") > 0) then
+             cfac = 1d0 / bohrtoa 
+          elseif (index(line,"alat") > 0) then
+             cfac = alat
+          elseif (index(line,"bohr") > 0) then
+             cfac = 1d0
+          end if
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+             ideq = 1
+             ok = isreal(r(i,1),line,ideq)
+             ok = ok.and.isreal(r(i,2),line,ideq)
+             ok = ok.and.isreal(r(i,3),line,ideq)
+          end do
+          r = r * cfac
+       elseif (line(1:16) == "ATOMIC_POSITIONS") then
+          if (nat == 0) &
+             call ferror("struct_read_qeout","number of atoms unknown",faterr)
+          if (.not.allocated(atn)) allocate(atn(nat))
+          if (.not.allocated(x)) allocate(x(3,nat))
+
+          if (index(line,"angstrom") > 0) then
+             tox = .true.
+             rfac = 1d0 / bohrtoa 
+          elseif (index(line,"alat") > 0) then
+             tox = .true.
+             rfac = alat
+          elseif (index(line,"bohr") > 0) then
+             tox = .true.
+             rfac = 1d0
+          elseif (index(line,"crystal") > 0) then
+             tox = .false.
+             rfac = 1d0
+          end if
+          do i = 1, nat
+             ok = getline_raw(lu,line,.true.)
+             read(line,*) atn(i), x(:,i)
+          end do
+          x = x * rfac
        end if
-       if (nstrucs == is0) then
-          ! read header
-          do while (getline_raw(lu,line))
-             ideq = index(line,"=") + 1
-             if (index(line,"bravais-lattice index") > 0) then
-                ok = isinteger(ibrav,line,ideq)
-             elseif (index(line,"lattice parameter (alat)") > 0) then
-                ok = isreal(alat,line,ideq)
-             elseif (index(line,"number of atoms/cell") > 0) then
-                ok = isinteger(nat,line,ideq)
-             elseif (index(line,"number of atomic types") > 0) then
-                ok = isinteger(ntyp,line,ideq)
-             elseif (index(line,"crystal axes:") > 0) then
-                do i = 1, 3
-                   ok = getline_raw(lu,line,.true.)
-                   ideq = index(line,"(",.true.) + 1
-                   ok = isreal(r(i,1),line,ideq)
-                   ok = ok.and.isreal(r(i,2),line,ideq)
-                   ok = ok.and.isreal(r(i,3),line,ideq)
-                end do
-                exit
-             end if
-          end do
-
-          ! allocate types
-          allocate(attyp(ntyp),zpsptyp(ntyp))
-          allocate(atn(nat), x(3,nat))
-          zpsptyp = 0
-
-          ! atomic species
-          do while (getline_raw(lu,line))
-             if (index(line,"atomic species   valence    mass     pseudopotential")>0) then
-                do i = 1, ntyp
-                   ok = getline_raw(lu,line,.true.)
-                   read (line,*) attyp(i), qaux
-                   zpsptyp(i) = nint(qaux)
-                end do
-                exit
-             end if
-          end do
-
-          ! coordinates
-          do while (getline_raw(lu,line))
-             if (index(line,"Cartesian axes")>0) then
-                ok = getline_raw(lu,line,.true.)
-                ok = getline_raw(lu,line,.true.)
-                do i = 1, nat
-                   ok = getline_raw(lu,line,.true.)
-                   read(line,*) idum, atn(i)
-                   line = line(index(line,"(",.true.)+1:)
-                   read(line,*) x(:,i)
-                end do
-             end if
-          end do
-
-          ! last structure, done
-          exit a
-       end if
-    end do a
+    end do
 
     ! fill struct quantities
     ! cell
-    r = r * alat
     g = matmul(r,transpose(r))
     do i = 1, 3
        c%aa(i) = sqrt(g(i,i))
@@ -1857,7 +1895,11 @@ contains
     c%nneq = nat
     call realloc(c%at,c%nneq)
     do i = 1, nat
-       c%at(i)%x = c%c2x(x(:,i) * alat)
+       if (tox) then
+          c%at(i)%x = c%c2x(x(:,i) * alat)
+       else
+          c%at(i)%x = x(:,i)
+       end if
        c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
 
        ! identify type
@@ -1888,7 +1930,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
     ! close the shop
     call fclose(lu)
@@ -2162,7 +2203,6 @@ contains
     c0%ncv = 1
     if (.not.allocated(c0%cen)) allocate(c0%cen(3,4))
     c0%cen = 0d0
-    c0%lcent = 0
 
     ! close
     call fclose(lu)
@@ -2171,6 +2211,109 @@ contains
     if (mol) call fill_molecule_given_cell(c0)
 
   end subroutine struct_read_qein
+
+  !> Read the structure from a crystal output
+  subroutine struct_read_crystalout(c,file,mol)
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
+       zatguess, fclose
+    use tools_math, only: matinv
+    use param, only: pi, eye, bohrtoa
+    use types, only: realloc
+    type(crystal), intent(inout) :: c !< crystal
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+
+    integer :: lu, i
+    character(len=:), allocatable :: line
+    integer :: idum, iz, lp
+    real*8 :: r(3,3), g(3,3), x(3)
+    logical :: ok, iscrystal
+    character*(10) :: ats
+
+    lu = fopen_read(file)
+
+    r = 0d0
+    iscrystal = .false.
+    ! rewind and read the correct structure
+    rewind(lu)
+    do while (getline_raw(lu,line))
+       if (index(line,"CRYSTAL CALCULATION") > 0) then
+          iscrystal = .true.
+       elseif (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
+          ok = getline_raw(lu,line,.true.)
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+             lp = 1
+             ok = isreal(r(i,1),line,lp)
+             ok = ok.and.isreal(r(i,2),line,lp)
+             ok = ok.and.isreal(r(i,3),line,lp)
+             if (.not.ok) &
+                call ferror("struct_read_crystalout","wrong lattice vectors",faterr)
+          end do
+          r = r / bohrtoa
+       elseif (index(line,"CARTESIAN COORDINATES - PRIMITIVE CELL") > 0) then
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+          end do
+          line = ""
+          c%nneq = 0
+          do while (.true.)
+             ok = getline_raw(lu,line,.true.)
+             if (len_trim(line) < 1) exit
+             c%nneq = c%nneq + 1
+             if (c%nneq > size(c%at,1)) & 
+                call realloc(c%at,2*c%nneq)
+             read (line,*) idum, iz, ats, x
+             c%at(c%nneq)%z = modulo(iz,200)
+             c%at(c%nneq)%name = trim(ats)
+             c%at(c%nneq)%x = x / bohrtoa
+          end do
+       end if
+    end do
+
+    if (.not.iscrystal) &
+       call ferror("struct_read_crystalout","only CRYSTAL calculations supported (no MOLECULE, SLAB or POLYMER)",faterr)
+    if (all(r == 0d0)) &
+       call ferror("struct_read_crystalout","could not find lattice vectors",faterr)
+
+     ! fill struct quantities
+     ! cell
+     g = matmul(r,transpose(r))
+     do i = 1, 3
+        c%aa(i) = sqrt(g(i,i))
+     end do
+     c%bb(1) = acos(g(2,3)/c%aa(2)/c%aa(3)) * 180d0 / pi
+     c%bb(2) = acos(g(1,3)/c%aa(1)/c%aa(3)) * 180d0 / pi
+     c%bb(3) = acos(g(1,2)/c%aa(1)/c%aa(2)) * 180d0 / pi
+     c%crys2car = transpose(r)
+     c%car2crys = matinv(c%crys2car)
+
+     ! atoms
+     call realloc(c%at,c%nneq)
+     do i = 1, c%nneq
+        c%at(i)%x = c%c2x(c%at(i)%x)
+        c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
+        c%at(i)%zpsp = -1
+        c%at(i)%qat = 0d0
+     end do
+ 
+     ! no symmetry
+     c%havesym = 0
+     c%neqv = 1
+     c%rotm = 0d0
+     c%rotm(:,1:3,1) = eye
+     c%ncv = 1
+     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+     c%cen = 0d0
+ 
+     ! close the file
+     call fclose(lu)
+ 
+     ! if this is a molecule, set up the origin and the molecular cell
+     if (mol) call fill_molecule_given_cell(c)
+
+  end subroutine struct_read_crystalout
 
   !> Read the structure from a siesta STRUCT_OUT input
   subroutine struct_read_siesta(c,file,mol)
@@ -2226,7 +2369,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
     ! close
     call fclose(lu)
@@ -2340,9 +2482,221 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
   end subroutine struct_read_dftbp
+
+  !> Read the structure from an xsf file.
+  subroutine struct_read_xsf(c,file,mol)
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
+       ferror, faterr, zatguess, isinteger, getword, isreal
+    use tools_math, only: matinv
+    use param, only: bohrtoa, eye, pi
+    use types, only: realloc
+    type(crystal), intent(inout) :: c !< Crystal
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+
+    character(len=:), allocatable :: line, word
+    integer :: lu, lp, i, iz
+    real*8 :: r(3,3), g(3,3)
+    logical :: ok
+
+    ! open
+    lu = fopen_read(file)
+
+    do while (.true.)
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) exit
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"primvec")) then
+          do i = 1, 3
+             read (lu,*) r(i,:)
+          end do
+          r = r / bohrtoa
+       elseif (equal(word,"primcoord")) then
+          read (lu,*) c%nneq
+          call realloc(c%at,c%nneq)
+          do i = 1, c%nneq
+             ok = getline_raw(lu,line,.true.)
+             lp = 1
+             ok = isinteger(iz,line,lp)
+             if (ok) then
+                ! Z x y z
+                c%at(i)%z = iz
+                c%at(i)%name = nameguess(iz,.true.)
+             else
+                word = getword(line,lp)
+                c%at(i)%name = trim(adjustl(word))
+                c%at(i)%z = zatguess(c%at(i)%name)
+             end if
+             ok = isreal(c%at(i)%x(1),line,lp)
+             ok = ok.and.isreal(c%at(i)%x(2),line,lp)
+             ok = ok.and.isreal(c%at(i)%x(3),line,lp)
+             if (.not.ok) &
+                call ferror('struct_read_xsf','wrong position in xsf',faterr)
+             c%at(i)%x = c%at(i)%x / bohrtoa
+             c%at(i)%zpsp = -1
+             c%at(i)%qat = 0d0
+          end do
+       end if
+    end do
+
+    ! fill the cell metrics
+    g = matmul(r,transpose(r))
+    do i = 1, 3
+       c%aa(i) = sqrt(g(i,i))
+    end do
+    c%bb(1) = acos(g(2,3)/c%aa(2)/c%aa(3)) * 180d0 / pi
+    c%bb(2) = acos(g(1,3)/c%aa(1)/c%aa(3)) * 180d0 / pi
+    c%bb(3) = acos(g(1,2)/c%aa(1)/c%aa(2)) * 180d0 / pi
+    c%crys2car = transpose(r)
+    c%car2crys = matinv(c%crys2car)
+
+    ! convert atoms to crystallographic
+    do i = 1, c%nneq
+       c%at(i)%x = matmul(c%car2crys,c%at(i)%x)
+    end do
+
+    ! no symmetry
+    c%havesym = 0
+    c%neqv = 1
+    c%rotm = 0d0
+    c%rotm(:,1:3,1) = eye
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
+
+    ! close
+    call fclose(lu)
+
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
+
+  end subroutine struct_read_xsf
+
+  !> Detect the format for the structure-containing file. Normally,
+  !> this works by detecting the extension, but the file may be
+  !> opened and searched if ambiguity is present. The format and
+  !> whether the file contains a molecule or crysatl is returned.
+  subroutine struct_detect_format(file,isformat,ismol)
+    use struct_basic, only: isformat_unknown, isformat_cif, isformat_res,&
+       isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
+       isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
+       isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp
+    use tools_io, only: equal
+    use param, only: dirsep
+
+    character*(*), intent(in) :: file
+    integer, intent(out) :: isformat
+    logical, intent(out) :: ismol
+
+    character(len=:), allocatable :: basename, wextdot, wext_
+    logical :: isvasp
+
+    basename = file(index(file,dirsep,.true.)+1:)
+    wextdot = basename(index(basename,'.',.true.)+1:)
+    wext_ = basename(index(basename,'_',.true.)+1:)
+    isvasp = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CONTCAR') > 0) .or. &
+       (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
+       (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
+       (index(basename,'AECCAR2') > 0) .or. (index(basename,'POSCAR') > 0)
+
+    if (equal(wextdot,'cif')) then
+       isformat = isformat_cif
+       ismol = .false.
+    elseif (equal(wextdot,'res')) then
+       isformat = isformat_res
+       ismol = .false.
+    elseif (equal(wextdot,'cube')) then
+       isformat = isformat_cube
+       ismol = .false.
+    elseif (equal(wextdot,'struct')) then
+       isformat = isformat_struct
+       ismol = .false.
+    elseif (equal(wextdot,'DEN').or.equal(wext_,'DEN').or.equal(wextdot,'ELF').or.equal(wext_,'ELF').or.&
+       equal(wextdot,'POT').or.equal(wext_,'POT').or.equal(wextdot,'VHA').or.equal(wext_,'VHA').or.&
+       equal(wextdot,'VHXC').or.equal(wext_,'VHXC').or.equal(wextdot,'VXC').or.equal(wext_,'VXC').or.&
+       equal(wextdot,'GDEN1').or.equal(wext_,'GDEN1').or.equal(wextdot,'GDEN2').or.equal(wext_,'GDEN2').or.&
+       equal(wextdot,'GDEN3').or.equal(wext_,'GDEN3').or.equal(wextdot,'LDEN').or.equal(wext_,'LDEN').or.&
+       equal(wextdot,'KDEN').or.equal(wext_,'KDEN').or.equal(wextdot,'PAWDEN').or.equal(wext_,'PAWDEN')) then
+       isformat = isformat_abinit
+       ismol = .false.
+    elseif (equal(wextdot,'OUT')) then
+       isformat = isformat_elk
+       ismol = .false.
+    elseif (equal(wextdot,'out')) then
+       if (is_espresso(file)) then
+          isformat = isformat_qeout
+          ismol = .false.
+       else
+          isformat = isformat_crystal
+          ismol = .false.
+       end if
+    elseif (equal(wextdot,'in')) then
+       isformat = isformat_qein
+       ismol = .false.
+    elseif (equal(wextdot,'xyz')) then
+       isformat = isformat_xyz
+       ismol = .true.
+    elseif (equal(wextdot,'wfn')) then
+       isformat = isformat_wfn
+       ismol = .true.
+    elseif (equal(wextdot,'wfx')) then
+       isformat = isformat_wfx
+       ismol = .true.
+    elseif (equal(wextdot,'fchk')) then
+       isformat = isformat_fchk
+       ismol = .true.
+    elseif (equal(wextdot,'molden')) then
+       isformat = isformat_molden
+       ismol = .true.
+    elseif (equal(wextdot,'STRUCT_OUT').or.equal(wextdot,'STRUCT_IN')) then
+       isformat = isformat_siesta
+       ismol = .false.
+    elseif (equal(wextdot,'xsf')) then
+       isformat = isformat_xsf
+       ismol = .false.
+    elseif (equal(wextdot,'gen')) then
+       isformat = isformat_gen
+       ismol = .false.
+    elseif (isvasp) then
+       isformat = isformat_vasp
+       ismol = .false.
+    else
+       isformat = isformat_unknown
+       ismol = .false.
+    endif
+
+  end subroutine struct_detect_format
+
+  !> Determine whether a given output file (.scf.out or .out) comes
+  !> from a crystal or a quantum espresso calculation. To do this,
+  !> try to find the "Program PWSCF" line in the output header.
+  function is_espresso(file)
+    use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
+    
+    logical :: is_espresso
+    character*(*), intent(in) :: file !< Input file name
+
+    integer :: lu, lp
+    character(len=:), allocatable :: line, word1, word2
+
+    is_espresso = .false.
+    lu = fopen_read(file)
+    line = ""
+    do while(getline_raw(lu,line))
+       lp = 1
+       word1 = lgetword(line,lp)
+       word2 = lgetword(line,lp)
+       is_espresso = (equal(word1,"program") .and. equal(word2,"pwscf"))
+       if (is_espresso) exit
+    end do
+    call fclose(lu)
+
+  end function is_espresso
 
   !> From QE, generate the lattice from the ibrav
   subroutine qe_latgen(ibrav,celldm,a1,a2,a3)
@@ -2605,8 +2959,7 @@ contains
     c%neqv = spgs_n
     c%rotm = real(spgs_m,8)
     c%rotm(:,4,:) = c%rotm(:,4,:) / 12d0
-    call c%set_lcent()
-    c%havesym = 2
+    c%havesym = 1
 
   end subroutine spgs_wrap
 
@@ -2670,7 +3023,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
     
   end subroutine fill_molecule
 

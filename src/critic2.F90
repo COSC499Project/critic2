@@ -44,7 +44,7 @@ program critic
   use grd_atomic, only: grda_init, grda_end
   use struct, only: struct_crystal_input, struct_newcell, struct_molcell,&
      struct_clearsym, struct_charges, struct_write, struct_powder, struct_rdf,&
-     struct_compare, struct_environ, struct_packing
+     struct_compare, struct_environ, struct_packing, struct_atomlabel
   use struct_basic, only: cr
   use wfn_private, only: wfn_end
   use pi_private, only: pi_end
@@ -54,11 +54,12 @@ program critic
      initial_banner, help_me, config_write, critic_clearvariable,&
      critic_setvariables,global_set_defaults
   use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
-     fcflags, ldflags, enable_debug, package
+     fcflags, cc, cflags, ldflags, enable_debug, package
   use graphics, only: graphics_init
   use arithmetic, only: listvariables
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
-     ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac
+     ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
+     start_clock, print_clock
   use param, only: param_init
   implicit none
 
@@ -70,11 +71,13 @@ program critic
   character(len=:), allocatable :: line
   !
   integer :: level, plevel
-  integer :: i, j, k, id, nn
+  integer :: i, id, nn
   logical :: ll1, ok
   real*8 :: rdum
+  ! real*8 :: xnew(3), xold(3)
 
   ! initialize parameters
+  call start_clock()
   call param_init()
 
   ! input/output, arguments (tools_io)
@@ -100,7 +103,7 @@ program critic
   if (.not.quiet) then
      call initial_banner()
      call config_write(package,version,atarget,adate,f77,fflags,fc,&
-        fcflags,ldflags,enable_debug,datadir)
+        fcflags,cc,cflags,ldflags,enable_debug,datadir)
      call tictac('CRITIC2')
      write (uout,*)
      ucopy = uout
@@ -141,6 +144,7 @@ program critic
         call fields_init()
         call set_reference(0)
         
+     ! molcell
      elseif (equal(word,'molcell')) then
         if (.not. cr%isinit) then
            call ferror('critic2','need crystal before molcell',faterr,line,syntax=.true.)
@@ -173,6 +177,14 @@ program critic
            ll1 = equal(word,'zpsp') .or. equal(word,'nocore')
            call grda_init(ll1,.not.ll1,.true.)
         end if
+
+     ! atomlabel
+     elseif (equal(word,'atomlabel')) then
+        if (.not. cr%isinit) then
+           call ferror('critic2','need crystal before atomlabel',faterr,line,syntax=.true.)
+           cycle
+        end if
+        call struct_atomlabel(cr,subline)
 
      ! write
      elseif (equal(word,'write')) then
@@ -666,11 +678,25 @@ program critic
         
      ! temp, for testing
      elseif (equal(word,'temp')) then
-        ! write (*,*) f(1)%f(1,1,1), f(2)%f(1,1,1)
-        ! do i = 1, 54
-        ! write (*,*) f(1)%f(i,i,i), f(2)%f(i,i,i)
+        ! do i = 1, cr%ncel
+        !    write (*,*) "atom ", i
+        !    write (*,*) "neq ", cr%atcel(i)%idx
+        !    write (*,*) "atcel ", cr%atcel(i)%x
+        !    write (*,*) "ir ", cr%atcel(i)%ir
+        !    write (*,*) "ic ", cr%atcel(i)%ic
+        !    write (*,*) "lvec ", cr%atcel(i)%lvec
+        !    write (*,*) "at ", cr%at(cr%atcel(i)%idx)%x
+        !    write (*,*) "rotm1 ", cr%rotm(1,1:4,cr%atcel(i)%ir)
+        !    write (*,*) "rotm2 ", cr%rotm(2,1:4,cr%atcel(i)%ir)
+        !    write (*,*) "rotm3 ", cr%rotm(3,1:4,cr%atcel(i)%ir)
+        !    write (*,*) "cen ", cr%cen(:,cr%atcel(i)%ic)
+        !    write (*,*) "lvec ", cr%atcel(i)%lvec
+        !    xold = cr%atcel(i)%x
+        !    xnew = matmul(cr%rotm(1:3,1:3,cr%atcel(i)%ir),cr%at(cr%atcel(i)%idx)%x) + cr%rotm(:,4,cr%atcel(i)%ir) + cr%cen(:,cr%atcel(i)%ic) + cr%atcel(i)%lvec
+        !    write (*,*) "xold ", xold
+        !    write (*,*) "xnew ", xnew
+        !    write (*,*) "eps ", sum(abs(xold-xnew))
         ! end do
-        ! stop 1
 
      ! end
      elseif (equal(word,'end')) then
@@ -695,6 +721,7 @@ program critic
   if (.not.quiet) then
      write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
         string(nwarns), string(ncomms)
+     call print_clock()
      call tictac('CRITIC2')
   endif
 

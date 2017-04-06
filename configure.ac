@@ -79,9 +79,16 @@ if test "${enable_debug}" = "yes"; then
    case $FC in
    "gfortran"|"i686-w64-mingw32-gfortran"|"x86_64-w64-mingw32-gfortran"|"gfortran-5"|"gfortran-6")
 	FCFLAGS+=" -g -fcheck=all -fbounds-check -Wall -Wunused-parameter -ffpe-trap=invalid -fbacktrace -fdump-core -ffree-line-length-0 -cpp"
+	#FFLAGS+=" -g -fcheck=all -fbounds-check -Wall -Wunused-parameter -ffpe-trap=invalid -fbacktrace -fdump-core -ffree-line-length-0 -cpp"
 	;;
    "ifort")
         FCFLAGS+=" -g -CU -C -traceback -fpe0 -debug -fpp -check all -check noarg_temp_created -O0"
+        #FFLAGS+=" -g -CU -C -traceback -fpe0 -debug -fpp -check all -check noarg_temp_created -O0"
+	;;
+   esac
+   case $CC in
+   "gcc"|"x86_64-linux-gnu-gcc-6"|"gcc-5"|"gcc-6"|"cc")
+	CFLAGS+=" -g -fbounds-check -Wall -Wunused-parameter -rdynamic"
 	;;
    esac
 fi
@@ -129,6 +136,6 @@ AC_MSG_NOTICE([LIBADD    = ${LIBADD}])
 
 # Final output
 AC_OUTPUT([Makefile src/Makefile src/oldlibs/Makefile src/ciftbx/Makefile src/cubpack/Makefile \
-           src/qhull/Makefile tools/Makefile \
+           src/qhull/Makefile src/spglib/Makefile tools/Makefile \
            src/config.F90 dat/Makefile doc/Makefile tests/Makefile])
 

@@ -172,6 +172,25 @@ module types
      integer :: lvec(3) !< Lattice vector to the neq cp list 
   end type cp_type
 
+  !> Information for wannier functions
+  type wandat
+     integer :: nks !< Number of k-points (lattice vectors)
+     integer :: nwan(3) !< Number of lattice vectors
+     integer :: nbnd !< Number of bands
+     integer :: nspin !< Number of spins
+     logical :: dochk !< Save the sij to a checkpoint file
+     logical :: useu !< Use the U transformation to get MLWF
+     real*8 :: cutoff !< Cutoff for atomic overlaps
+     character*(255) :: fevc !< evc file name
+     real*8, allocatable :: kpt(:,:) !< k-points in fract. coords.
+     real*8, allocatable :: center(:,:,:) !< wannier function centers (cryst)
+     real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)
+     integer, allocatable :: ngk(:) !< number of plane-waves for each k-point
+     integer, allocatable :: igk_k(:,:) !< fft reorder
+     integer, allocatable :: nls(:) !< fft reorder
+     complex*16, allocatable :: u(:,:,:) !< u matrix
+  end type wandat
+
   !> Scalar field type
   type field
      ! all types/more than one type
@@ -185,13 +204,13 @@ module types
      character*(255) :: file = "" !< file name
      ! grids
      integer :: mode !< interpolation mode
-     real*8, allocatable :: fcore(:,:,:) !< core-density grid
      real*8, allocatable :: f(:,:,:) !< grid values
      real*8, allocatable, dimension(:,:,:,:) :: c2 !< cubic coefficients for spline interpolation
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix
      real*8 :: x2c(3,3) !< Crystallographic to Cartesian matrix
-     integer :: nwan(3) !< Number of wannier vectors
-     complex*8, allocatable :: fwan(:,:,:,:,:) !< Wannier xsf
+     ! wannier functions
+     logical :: iswan
+     type(wandat) :: wan
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)

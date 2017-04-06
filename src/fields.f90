@@ -113,6 +113,7 @@ contains
 
     ! initialize the promolecular density
     f(0)%init = .true.
+    f(0)%iswan = .false.
     f(0)%type = type_promol
     f(0)%usecore = .false.
     f(0)%typnuc = -3
@@ -159,6 +160,7 @@ contains
 
     integer :: lp, lp2, oid, id2
     character(len=:), allocatable :: file, word
+    logical :: dormt
 
     ! read and parse
     oksyn = .false.
@@ -207,11 +209,12 @@ contains
        id = getfieldnum()
 
        ! load the field
-       f(id) = fields_load_real(line,id,oksyn)
+       f(id) = fields_load_real(line,id,oksyn,dormt)
        if (.not.oksyn) return
 
        ! test the muffin tin discontinuity, if applicable
-       call testrmt(id,0)
+       if (dormt) &
+          call testrmt(id,0)
     endif
     oksyn = .true.
 
@@ -219,8 +222,11 @@ contains
 
   end subroutine fields_load
 
-  !> Load a field - parse the line and call the appropriate reader. 
-  function fields_load_real(line,fid,oksyn) result(ff)
+  !> Load a field - parse the line (line) and call the appropriate
+  !> reader.  fid is the slot where the field will be saved. oksyn is
+  !> true in output if the syntax was correct. dormt is true if the MT
+  !> discontinuity test for elk/wien2k needs to be run.
+  function fields_load_real(line,fid,oksyn,dormt) result(ff)
     use dftb_private, only: dftb_read, dftb_register_struct
     use elk_private, only: elk_read_out, elk_tolap
     use wien_private, only: wien_read_clmsum, wien_tolap
@@ -230,28 +236,30 @@ contains
     use struct_basic, only: cr
     use grid_tools, only: mode_tricubic, grid_read_cube, grid_read_abinit, grid_read_siesta,&
        grid_read_vasp, grid_read_qub, grid_read_xsf, grid_read_elk, grid_rhoat, &
-       grid_laplacian, grid_gradrho, grid_read_wanbin
+       grid_laplacian, grid_gradrho, grid_read_unk, grid_read_unkgen
     use global, only: eval_next
     use arithmetic, only: eval, fields_in_eval
     use tools_io, only: getword, equal, ferror, faterr, lgetword, zatguess, isinteger,&
-       isexpression_or_word, string
+       isexpression_or_word, string, lower
     use types, only: fragment
     use param, only: dirsep, eye
 
     character*(*), intent(in) :: line
     integer, intent(in) :: fid
     logical, intent(out) :: oksyn
+    logical, intent(out) :: dormt
     type(field) :: ff
 
     integer :: lp, lp2, i, j, id, id1, id2
-    character(len=:), allocatable :: file, wext1, wext2, word, word2, file2, file3, expr
+    character(len=:), allocatable :: file, lfile, file2, file3, file4, lword
+    character(len=:), allocatable :: wext1, wext2, word, word2, expr
     integer :: zz, n(3)
-    logical :: ok
+    logical :: ok, nou, nochk
     real*8 :: renv0(3,cr%nenv), xp(3), rhopt
     integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
     integer :: ix, iy, iz, oid
-    real*8 :: xd(3,3), mcut
-    integer :: nid, nwan, ispin
+    real*8 :: xd(3,3), mcut, wancut
+    integer :: nid, nword
     character*255, allocatable :: idlist(:)
     type(fragment) :: fr
     logical :: isfrag, iok
@@ -259,10 +267,15 @@ contains
     ! check that we have an environment
     call cr%checkflags(.true.,init0=.true.,env0=.true.)
 
+    ! defaults
+    dormt = .true.
+    ff%iswan = .false.
+
     ! read and parse
     oksyn = .false.
     lp=1
     file = getword(line,lp)
+    lfile = lower(file)
     word = file(index(file,dirsep,.true.)+1:)
     wext1 = word(index(word,'.',.true.)+1:)
     word = file(index(file,dirsep,.true.)+1:)
@@ -270,67 +283,63 @@ contains
 
     ! if it is one of the special keywords, change the extension
     ! and read the next
-    if (equal(file,"wien")) then
+    if (equal(lfile,"wien")) then
        file = getword(line,lp)
        wext1 = "clmsum"
        wext2 = wext1
-    elseif (equal(file,"elk")) then
+    elseif (equal(lfile,"elk")) then
        file = getword(line,lp)
        wext1 = "OUT"
        wext2 = wext1
-    elseif (equal(file,"pi")) then
+    elseif (equal(lfile,"pi")) then
        file = getword(line,lp)
        wext1 = "ion"
        wext2 = wext1
-    elseif (equal(file,"cube")) then
+    elseif (equal(lfile,"cube")) then
        file = getword(line,lp)
        wext1 = "cube"
        wext2 = wext1
-    elseif (equal(file,"abinit")) then
+    elseif (equal(lfile,"abinit")) then
        file = getword(line,lp)
        wext1 = "DEN"
        wext2 = wext1
-    elseif (equal(file,"vasp")) then
+    elseif (equal(lfile,"vasp")) then
        file = getword(line,lp)
        wext1 = "CHGCAR"
        wext2 = wext1
-    elseif (equal(file,"vaspchg")) then
+    elseif (equal(lfile,"vaspchg")) then
        file = getword(line,lp)
        wext1 = "CHG"
        wext2 = wext1
-    elseif (equal(file,"qub")) then
+    elseif (equal(lfile,"qub")) then
        file = getword(line,lp)
        wext1 = "qub"
        wext2 = wext1
-    elseif (equal(file,"xsf")) then
+    elseif (equal(lfile,"xsf")) then
        file = getword(line,lp)
        wext1 = "xsf"
        wext2 = wext1
-    elseif (equal(file,"elkgrid")) then
+    elseif (equal(lfile,"elkgrid")) then
        file = getword(line,lp)
        wext1 = "grid"
        wext2 = wext1
-    elseif (equal(file,"siesta")) then
+    elseif (equal(lfile,"siesta")) then
        file = getword(line,lp)
        wext1 = "RHO"
        wext2 = wext1
-    elseif (equal(file,"dftb")) then
+    elseif (equal(lfile,"dftb")) then
        file = getword(line,lp)
        wext1 = "xml"
        wext2 = wext1
-    elseif (equal(file,"wannier")) then
+    elseif (equal(lfile,"chk")) then
        file = ""
-       wext1 = "wannier"
+       wext1 = "chk"
        wext2 = wext1
-    elseif (equal(file,"wanbin")) then
-       file = ""
-       wext1 = "wanbin"
-       wext2 = wext1
-    elseif (equal(file,"as")) then
+    elseif (equal(lfile,"as")) then
        file = ""
        wext1 = "as"
        wext2 = wext1
-    elseif (equal(file,"copy")) then
+    elseif (equal(lfile,"copy")) then
        call ferror('fields_load_real','can not copy in fields_load_real',faterr)
     end if
 
@@ -399,10 +408,6 @@ contains
        call grid_read_xsf(file,ff)
        ff%type = type_grid
        ff%file = file
-    else if (equal(wext1,'grid')) then
-       call grid_read_elk(file,ff)
-       ff%type = type_grid
-       ff%file = file
     else if (equal(wext1,'wfn')) then
        call wfn_read_wfn(file,ff)
        ff%type = type_wfn
@@ -429,15 +434,44 @@ contains
        ff%type = type_wien
        ff%file = file
     else if (equal(wext1,'OUT')) then
+       file2 = ""
+       file3 = ""
+
+       lp2 = lp
        file2 = getword(line,lp)
-       file3 = getword(line,lp)
-       if (file3 == "") then
+       if (len_trim(file2) > 0) then
+          word = file2(index(file2,dirsep,.true.)+1:)
+          wext2 = word(index(word,'.',.true.)+1:)
+          if (equal(wext2,'OUT')) then
+             lp2 = lp
+             file3 = getword(line,lp)
+             if (len_trim(file3) > 0) then
+                word = file3(index(file3,dirsep,.true.)+1:)
+                wext2 = word(index(word,'.',.true.)+1:)
+                if (.not.equal(wext2,'OUT')) then
+                   file3 = ""
+                   lp = lp2
+                end if
+             end if
+          else
+             file2 = ""
+             lp = lp2
+          end if
+       end if
+
+       if (file2 == "" .and. file3 == "") then
+          call grid_read_elk(file,ff)
+          ff%type = type_grid
+          ff%file = file
+       elseif (file3 == "") then
           call elk_read_out(ff,file,file2)
+          ff%type = type_elk
+          ff%file = file
        else
           call elk_read_out(ff,file,file2,file3)
+          ff%type = type_elk
+          ff%file = file3
        end if
-       ff%type = type_elk
-       ff%file = file
     else if (equal(wext1,'promolecular')) then
        lp2 = lp
        word = lgetword(line,lp)
@@ -502,8 +536,47 @@ contains
        ! fill the interpolation tables of the field
        call fillinterpol(ff)
 
-    else if (equal(wext1,'wanbin')) then
-       call grid_read_wanbin(file,ff,cr%omega)
+    else if (equal(wext1,'chk')) then
+       nou = .false.
+       nochk = .false.
+       wancut = -1d0
+       nword = 0
+       file2 = ""
+       file3 = ""
+       file4 = ""
+       ff%wan%useu = .true.
+       ff%wan%dochk = .true.
+       ff%wan%cutoff = -1d0
+       do while (.true.)
+          word = getword(line,lp)
+          lword = lower(word)
+          nword = nword + 1
+          if (equal(lword,"nou")) then
+             ff%wan%useu = .false.
+          elseif (equal(lword,"nochk")) then
+             ff%wan%dochk = .false.
+          elseif (equal(lword,"wancut")) then
+             ok = eval_next(ff%wan%cutoff,line,lp)
+          elseif (equal(lword,"unkgen")) then
+             file3 = getword(line,lp)
+             file4 = getword(line,lp)
+          else if (len_trim(lword) > 0) then
+             if (nword == 1) then
+                file2 = word
+             else
+                call ferror('fields_load_real','Unknown extra keyword',faterr,line,syntax=.true.)
+                return
+             end if
+          else
+             exit
+          end if
+       end do
+
+       if (len_trim(file3) < 1) then
+          call grid_read_unk(file,file2,ff,cr%omega,nou)
+       else
+          call grid_read_unkgen(file,file2,file3,file4,ff,cr%omega)
+       end if
        ff%type = type_grid
        ff%file = trim(file)
        ff%init = .true.
@@ -511,11 +584,12 @@ contains
     else if (equal(wext1,'as')) then
        lp2 = lp
        word = getword(line,lp)
-       if (equal(word,"promolecular").or.equal(word,"core").or.&
-           equal(word,"grad").or.equal(word,"lap").or.equal(word,"taufromelf")) then
+       lword = lower(word)
+       if (equal(lword,"promolecular").or.equal(lword,"core").or.&
+           equal(lword,"grad").or.equal(lword,"lap").or.equal(lword,"taufromelf")) then
           ! load as {promolecular,core,grad,lap,taufromelf}
 
-          if (equal(word,"promolecular").or.equal(word,"core")) then
+          if (equal(lword,"promolecular").or.equal(lword,"core")) then
              ok = eval_next(n(1),line,lp)
              if (ok) then
                 ok = ok .and. eval_next(n(2),line,lp)
@@ -525,7 +599,7 @@ contains
                    return
                 end if
              else
-                word2 = getword(line,lp)
+                word2 = lgetword(line,lp)
                 if (equal(word2,"sizeof")) then
                    word2 = getword(line,lp)
                    zz = fieldname_to_idx(word2)
@@ -557,9 +631,9 @@ contains
              n = f(oid)%n
           end if
 
-          if (equal(word,"promolecular").or.equal(word,"core").or.goodfield(oid,type_grid)) then 
+          if (equal(lword,"promolecular").or.equal(lword,"core").or.goodfield(oid,type_grid)) then 
              isfrag = .false.
-             if (equal(word,"promolecular").or.equal(word,"core")) then
+             if (equal(lword,"promolecular").or.equal(lword,"core")) then
                 ! maybe we are given a fragment?
                 lp2 = lp
                 word2 = lgetword(line,lp)
@@ -580,24 +654,24 @@ contains
              ff%c2x = cr%car2crys
              ff%x2c = cr%crys2car
              allocate(ff%f(n(1),n(2),n(3)))
-             if (equal(word,"promolecular")) then
+             if (equal(lword,"promolecular")) then
                 if (isfrag) then
                    call grid_rhoat(ff,ff,2,fr)
                 else
                    call grid_rhoat(ff,ff,2)
                 end if
-             elseif (equal(word,"core")) then
+             elseif (equal(lword,"core")) then
                 if (isfrag) then
                    call grid_rhoat(ff,ff,3,fr)
                 else
                    call grid_rhoat(ff,ff,3)
                 end if
-             elseif (equal(word,"lap")) then
+             elseif (equal(lword,"lap")) then
                 call grid_laplacian(f(oid),ff)
-             elseif (equal(word,"grad")) then
+             elseif (equal(lword,"grad")) then
                 call grid_gradrho(f(oid),ff)
              end if
-          elseif ((goodfield(oid,type_wien).or.goodfield(oid,type_elk)).and.equal(word,"lap")) then
+          elseif ((goodfield(oid,type_wien).or.goodfield(oid,type_elk)).and.equal(lword,"lap")) then
              ! calculate the laplacian of a lapw scalar field
              ff = f(oid)
              if (f(oid)%type == type_wien) then
@@ -610,7 +684,7 @@ contains
              return
           endif
 
-       elseif (equal(word,"clm")) then
+       elseif (equal(lword,"clm")) then
           ! load as clm
           word = lgetword(line,lp)
           if (equal(word,'add').or.equal(word,'sub')) then
@@ -689,7 +763,7 @@ contains
              ok = ok .and. eval_next(n(3),line,lp)
           else
              lp2 = lp
-             word2 = getword(line,lp)
+             word2 = lgetword(line,lp)
              if (equal(word2,"sizeof")) then
                 ! load as "blehblah" sizeof
                 word2 = getword(line,lp)
@@ -809,7 +883,7 @@ contains
     ff%usecore = .false.
 
     ! parse the rest of the line
-    call setfield(ff,fid,line(lp:),oksyn)
+    call setfield(ff,fid,line(lp:),oksyn,dormt)
     if (.not.oksyn) return
 
     oksyn = .true.
@@ -829,12 +903,18 @@ contains
     fused(id) = .false.
     if (fh%iskey(string(id))) call fh%delkey(string(id))
     f(id)%init = .false.
+    f(id)%iswan = .false.
     f(id)%name = ""
     f(id)%file = ""
     if (allocated(f(id)%f)) deallocate(f(id)%f)
-    if (allocated(f(id)%fcore)) deallocate(f(id)%fcore)
-    if (allocated(f(id)%fwan)) deallocate(f(id)%fwan)
     if (allocated(f(id)%c2)) deallocate(f(id)%c2)
+    if (allocated(f(id)%wan%kpt)) deallocate(f(id)%wan%kpt)
+    if (allocated(f(id)%wan%center)) deallocate(f(id)%wan%center)
+    if (allocated(f(id)%wan%spread)) deallocate(f(id)%wan%spread)
+    if (allocated(f(id)%wan%ngk)) deallocate(f(id)%wan%ngk)
+    if (allocated(f(id)%wan%igk_k)) deallocate(f(id)%wan%igk_k)
+    if (allocated(f(id)%wan%nls)) deallocate(f(id)%wan%nls)
+    if (allocated(f(id)%wan%u)) deallocate(f(id)%wan%u)
     if (allocated(f(id)%lm)) deallocate(f(id)%lm)
     if (allocated(f(id)%lmmax)) deallocate(f(id)%lmmax)
     if (allocated(f(id)%slm)) deallocate(f(id)%slm)
@@ -855,6 +935,8 @@ contains
     if (allocated(f(id)%tau)) deallocate(f(id)%tau)
     if (allocated(f(id)%krec)) deallocate(f(id)%krec)
     if (allocated(f(id)%inst)) deallocate(f(id)%inst)
+    if (allocated(f(id)%rhomt)) deallocate(f(id)%rhomt)
+    if (allocated(f(id)%rhok)) deallocate(f(id)%rhok)
     if (allocated(f(id)%spr)) deallocate(f(id)%spr)
     if (allocated(f(id)%spr_a)) deallocate(f(id)%spr_a)
     if (allocated(f(id)%spr_b)) deallocate(f(id)%spr_b)
@@ -863,8 +945,6 @@ contains
     if (allocated(f(id)%igfft)) deallocate(f(id)%igfft)
     if (allocated(f(id)%xcel)) deallocate(f(id)%xcel)
     if (allocated(f(id)%iesp)) deallocate(f(id)%iesp)
-    if (allocated(f(id)%rhomt)) deallocate(f(id)%rhomt)
-    if (allocated(f(id)%rhok)) deallocate(f(id)%rhok)
     if (allocated(f(id)%piname)) deallocate(f(id)%piname)
     if (allocated(f(id)%pi_used)) deallocate(f(id)%pi_used)
     if (allocated(f(id)%nsym)) deallocate(f(id)%nsym)
@@ -880,6 +960,7 @@ contains
     if (allocated(f(id)%pgrid)) deallocate(f(id)%pgrid)
     if (allocated(f(id)%icenter)) deallocate(f(id)%icenter)
     if (allocated(f(id)%itype)) deallocate(f(id)%itype)
+    if (allocated(f(id)%d2ran)) deallocate(f(id)%d2ran)
     if (allocated(f(id)%e)) deallocate(f(id)%e)
     if (allocated(f(id)%occ)) deallocate(f(id)%occ)
     if (allocated(f(id)%cmo)) deallocate(f(id)%cmo)
@@ -887,6 +968,13 @@ contains
     if (allocated(f(id)%itype_edf)) deallocate(f(id)%itype_edf)
     if (allocated(f(id)%e_edf)) deallocate(f(id)%itype_edf)
     if (allocated(f(id)%c_edf)) deallocate(f(id)%c_edf)
+    if (allocated(f(id)%docc)) deallocate(f(id)%docc)
+    if (allocated(f(id)%dkpt)) deallocate(f(id)%dkpt)
+    if (allocated(f(id)%evecr)) deallocate(f(id)%evecr)
+    if (allocated(f(id)%evecc)) deallocate(f(id)%evecc)
+    if (allocated(f(id)%ispec)) deallocate(f(id)%ispec)
+    if (allocated(f(id)%idxorb)) deallocate(f(id)%idxorb)
+    if (allocated(f(id)%bas)) deallocate(f(id)%bas)
     if (allocated(f(id)%fused)) deallocate(f(id)%fused)
 
     ! clear all alias referring to this field
@@ -946,7 +1034,7 @@ contains
        end do
        write (uout,'("  Hessian eigenvalues: ",3(A,2X))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
        ! Write ellipticity, if it is a candidate for bond critical point
-       if (res%r == 3 .and. res%s == 1 .and..not.res%isnuc) then
+       if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
           write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
        endif
        if (allfields) then
@@ -987,7 +1075,7 @@ contains
   subroutine fields_integrable(line)
     use global, only: refden, eval_next
     use tools_io, only: ferror, faterr, getword, lgetword, equal,&
-       isexpression_or_word, string, isinteger, uin, getline
+       isexpression_or_word, string, isinteger, getline
     use types, only: realloc
     character*(*), intent(in) :: line
 
@@ -1549,8 +1637,11 @@ contains
     
   end function getfieldnum
 
-  !> Set field flags.
-  subroutine setfield(ff,fid,line,oksyn)
+  !> Set field flags. ff is the input/output field. fid is the intended
+  !> slot. line is the input line to parse. oksyn is true in output if 
+  !> the syntax was OK. dormt is true in output if the MT test
+  !> discontinuity test needs to be run for elk/wien2k fields.
+  subroutine setfield(ff,fid,line,oksyn,dormt)
     use struct_basic, only: cr
     use grid_tools, only: mode_nearest, mode_tricubic, mode_trilinear, mode_trispline
     use global, only: eval_next
@@ -1563,11 +1654,15 @@ contains
     integer, intent(in) :: fid
     character*(*), intent(in) :: line
     logical, intent(out) :: oksyn
+    logical, intent(out), optional :: dormt
 
     character(len=:), allocatable :: word, aux
     integer :: lp
     logical :: ok
     real*8 :: norm
+
+    ! default -> do the mt test
+    if (present(dormt)) dormt = .true.
 
     ! parse the rest of the line
     oksyn = .false.
@@ -1634,6 +1729,9 @@ contains
           end if
           ff%name = trim(aux)
           call fh%put(trim(aux),fid)
+       else if (equal(word,'notestmt')) then
+          if (present(dormt)) &
+             dormt = .false.
        else if (len_trim(word) > 0) then
           call ferror('setfield','Unknown extra keyword',faterr,line,syntax=.true.)
           return
@@ -2297,9 +2395,9 @@ contains
              string(n), string(mepsm+1d-3,'f',decimal=6), string(mepsp+1d-3,'f',decimal=6)
           write (uout,*)
        end if
-       write (uout,'("  Atom: ",A," RMS/max/min(fout-fin) = ",3(A,2X))') &
-          string(n), string(dosum,'f',decimal=6), string(maxdif,'f',decimal=6), &
-          string(mindif,'f',decimal=6)
+       write (uout,'("  Atom: ",A," rmt= ",A," RMS/max/min(fout-fin) = ",3(A,2X))') &
+          string(n), string(rmt,'f',decimal=7), string(dosum,'f',decimal=6), &
+          string(maxdif,'f',decimal=6), string(mindif,'f',decimal=6)
     end do
 
     ok = .true.
@@ -2380,11 +2478,12 @@ contains
   !> = show load-time information, isset = show flags for this field.
   subroutine fieldinfo(id,isload,isset)
     use struct_basic
+    use global, only: dunit, iunit, iunitname0
     use tools_io
     integer, intent(in) :: id
     logical, intent(in) :: isload, isset
     
-    integer :: j, n(3)
+    integer :: i, j, k, n(3)
 
     ! check that we have an environment
     call cr%checkflags(.true.,init0=.true.,env0=.true.)
@@ -2428,7 +2527,7 @@ contains
           write (uout,'("  Max: ",A)') string(maxval(f(id)%f),'e',decimal=8)
        end if
        if (isset) then
-          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline): ",A)') string(f(id)%mode)
+          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): ",A)') string(f(id)%mode)
        end if
     elseif (f(id)%type == type_wien) then
        if (isload) then
@@ -2483,6 +2582,35 @@ contains
        write (uout,'("  Use core densities? ",L)') f(id)%usecore
        write (uout,'("  Numerical derivatives? ",L)') f(id)%numerical
        write (uout,'("  Nuclear CP signature: ",A)') string(f(id)%typnuc)
+    end if
+
+    ! Wannier information
+    if (f(id)%iswan) then
+       write (uout,*)
+       write (uout,'("+ Wannier functions available for this field")') 
+       if (allocated(f(id)%wan%ngk)) then
+          write (uout,'("  Source: unkgen")') 
+       else
+          write (uout,'("  Source: UNK files")') 
+       end if
+       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f(id)%wan%nwan(i)),i=1,3)
+       write (uout,'("  Number of bands: ",A)') string(f(id)%wan%nbnd)
+       write (uout,'("  Number of spin channels: ",A)') string(f(id)%wan%nspin)
+       if (f(id)%wan%cutoff > 0d0) &
+          write (uout,'("  Overlap calculation distance cutoff: ",A)') string(f(id)%wan%cutoff,'f',10,4)
+       write (uout,'("  List of k-points: ")')
+       do i = 1, f(id)%wan%nks
+          write (uout,'(4X,A,A,99(X,A))') string(i),":", (string(f(id)%wan%kpt(j,i),'f',8,4),j=1,3)
+       end do
+       write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
+       write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
+       do i = 1, f(id)%wan%nspin
+          do j = 1, f(id)%wan%nbnd
+             write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
+                (string(f(id)%wan%center(k,j,i),'f',10,6,4),k=1,3),&
+                string(f(id)%wan%spread(j,i) * dunit,'f',14,8,4)
+          end do
+       end do
     end if
 
     write (uout,*)
