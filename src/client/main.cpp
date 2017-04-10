@@ -5,7 +5,12 @@
 #include <stdio.h>
 #include <string>
 #include <stdlib.h>
+#ifdef WIN32 //platform spisific sleep functions
 #include <synchapi.h>
+#endif // WIN32
+#if defined(LINUX) || defined(__APPLE__)
+#include <unistd.h>
+#endif // LINUX || __APPLE__
 #include <stdarg.h>
 #include <math.h>
 #include <time.h>
@@ -1217,7 +1222,14 @@ int main(int, char**)
 #pragma region frame limiter
 		curTime = time(0);
 		if ((difftime(lastTime, curTime) < frameTime)) {
+#ifdef WIN32
 			Sleep(frameTime - difftime(lastTime, curTime));
+#endif // WIN32
+#if defined(LINUX) || defined(__APPLE__)
+			usleep(frameTime - difftime(lastTime, curTime));
+#endif // LINUX || __APPLE__
+			
+		
 		}
 		lastTime = curTime;
 
