@@ -11,6 +11,7 @@ MAKEFILE:
 ## Installation Prerequisites: 
 - A custom glfw installation may be required http://www.glfw.org/ (place in the GLFW folder in /client)
 - A custom gl3w installation may be required follow instructions in https://github.com/skaslev/gl3w and move the library files (libglfw3.a, libglfw3dll.a)
+- TODO: Package Requirments
 
 ## Installation Instructions:
 
