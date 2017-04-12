@@ -21,7 +21,7 @@
 
 extern "C" void initialize();
 extern "C" void init_struct();
-extern "C" void call_structure(const char *filename, int size, int isMolecule); //pass file to critic2 
+extern "C" void call_structure(const char *filename, int size, int isMolecule); //pass file to critic2
 extern "C" void get_num_atoms(int *n);
 extern "C" void get_atom_position(int n, int *atomicN, double *x, double *y, double *z);
 extern "C" void num_of_bonds(int n, int *nstarN);
@@ -358,7 +358,7 @@ GLuint atomIB; //atom indecies ~(direction of verts)
 unsigned int numbIndeces;
 
 ///loades a sphere to represent an atom
-void loadAtomObject() { 
+void loadAtomObject() {
 	// Load sphere mesh
 	unsigned int numbVerteces = 3078;
 	numbIndeces = 6144;
@@ -477,7 +477,7 @@ void loadCriticalPoints() {
     double y;
     double z;
 
-    get_cp_pos_type(i, &cpType, &x, &y, &z); 
+    get_cp_pos_type(i, &cpType, &x, &y, &z);
 
     printf("Critical Points: %d %d %.10f %.10f %.10f\n",i,cpType, x, y, z);
 
@@ -504,7 +504,7 @@ void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
    }
 }
 
-#pragma region Color 
+#pragma region Color
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
 Vector3f getAtomColor(int atomicNumber) {
@@ -589,9 +589,10 @@ void atomLegend_displayColorBoxAndName(int colorNumber, string * colorNames) {
 
 
 void atomColorLegend() {
+	bool p_open = false;
 	ImGui::SetNextWindowPos(ImVec2(0, 500), ImGuiSetCond_FirstUseEver);
 	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
-	ImGui::Begin("Atom color legend", false);
+	ImGui::Begin("Atom color legend", &p_open);
 	string * colorNames = new string[101];
 	colorNames[1] = "Hydrogen";
 	colorNames[2] = "Noble Gas";
@@ -615,7 +616,7 @@ void atomColorLegend() {
 	colorNames[53] = "Iodine";
 
 	colorNames[81] = "titaniam";
-	
+
 	colorNames[100] = "other";
 
 	for (size_t i = 1; i < 5; i++) {
@@ -782,7 +783,7 @@ void lookAtCritPoint(int critPointNum) {
 ///information to display in the stats list
 #pragma region atom selection
 ///selects an atom focusing the view and displaying additonal info
-///in the 
+///in the
 void selectAtom(int atomIndex) {
 	loadedAtoms[atomIndex].selected = true;
 	lookAtAtom(atomIndex);
@@ -827,21 +828,22 @@ void drawSelectedAtomStats() {
 	if (loadedAtomsAmount == 0) {
 		return;
 	}
+	bool p_open = false;
 	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
-	ImGui::Begin("Selected Information", false);
+	ImGui::Begin("Selected Information", &p_open);
 	const int numberOfColums = 3;
 
 
 	ImGui::Columns(numberOfColums, "mycolumns");
 	ImGui::Separator();
 	ImGui::Text("Info Type"); ImGui::NextColumn();
-	ImGui::Text("Value1"); ImGui::NextColumn(); 
+	ImGui::Text("Value1"); ImGui::NextColumn();
 	ImGui::Text("Value2"); ImGui::NextColumn();
 	ImGui::Separator();
-	
+
 	string displayStats[numberOfColums];
 
-	
+
 	atomBondAmountInfo(displayStats, selectedAtom);
 	displayCol(displayStats, numberOfColums);
 
@@ -861,8 +863,10 @@ void drawSelectedCPStats() {
 		return;
 	}
 
+	bool p_open = false;
+
 	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
-	ImGui::Begin("Selected Critical Point Information", false);
+	ImGui::Begin("Selected Critical Point Information", &p_open);
 	const int numberOfColums = 3;
 
 	ImGui::Columns(numberOfColums, "mycolumns");
@@ -885,8 +889,9 @@ void drawSelectedCPStats() {
 
 
 void printCamStats() {
+	bool p_open = false;
 	ImGui::SetNextWindowSize(ImVec2(300, 75), ImGuiSetCond_Appearing);
-	ImGui::Begin("cam stats", false);
+	ImGui::Begin("cam stats", &p_open);
 	string camPos = "cam pos: " + (string)charConverter(cam.Pos[0]) + "," + charConverter(cam.Pos[1]) + "," + charConverter(cam.Pos[2]);
 	string camTarget = "cam target: " + (string)charConverter(cam.Target[0]) + "," + charConverter(cam.Target[1]) + "," + charConverter(cam.Target[2]);
 	string camUp = "cam up: " + (string)charConverter(cam.Up[0]) + "," + charConverter(cam.Up[1]) + "," + charConverter(cam.Up[2]);
@@ -908,7 +913,9 @@ void drawToolBar(int screen_w, int screen_h,
     flags |= ImGuiWindowFlags_NoResize;
     flags |= ImGuiWindowFlags_NoMove;
     flags |= ImGuiWindowFlags_NoTitleBar;
-	ImGui::Begin("ToolBar",false, flags);
+
+	bool p_open = false;
+	ImGui::Begin("ToolBar",&p_open, flags);
   if (ImGui::Button("Load Molecule")){
       char const * lTheOpenFileName = tinyfd_openFileDialog(
     		"Select Molecule file",
@@ -963,13 +970,13 @@ void drawToolBar(int screen_w, int screen_h,
   ImGui::Checkbox("Bonds", show_bonds);
   ImGui::Checkbox("Crit Pts", show_cps);
   ImGui::Checkbox("Atoms", show_atoms);
- 
+
   if (ImGui::Checkbox("Selc.find", &flashAtoms)) { //set flashing to defults
 	  framesMax = 15; // ~0.5 seconds
 	  framesLeft = 0;
 	  otherAtomsVisable = true;
   }
-	
+
   ImGui::End();
 }
 
@@ -981,7 +988,9 @@ void drawTreeView(int screen_w, int screen_h) {
 //    flags |= ImGuiWindowFlags_AlwaysAutoResize;
     flags |= ImGuiWindowFlags_NoResize;
     flags |= ImGuiWindowFlags_NoMove;
-	ImGui::Begin("Tree View",false, flags);
+
+	bool p_open = false;
+	ImGui::Begin("Tree View",&p_open, flags);
 
 	int closeOthers = -1;
 	for (size_t x = 0; x < loadedAtomsAmount; x++){
@@ -1026,17 +1035,18 @@ void drawTreeView(int screen_w, int screen_h) {
 
 
 	ImGui::End();
-	
+
 	if (loadedCPAmount != 0) {
 		ImGui::SetNextWindowSize(ImVec2(300, screen_h*.5), ImGuiSetCond_Appearing);
 		ImGui::SetNextWindowPos(ImVec2(screen_w - 600, 0), ImGuiSetCond_Appearing);
 		ImGuiWindowFlags flags = 0;
+		bool p_open = false;
 		// flags |= ImGuiWindowFlags_AlwaysAutoResize;
 		// flags |= ImGuiWindowFlags_NoResize;
-		ImGui::Begin("Cp type and ID", false, flags);
+		ImGui::Begin("Cp type and ID", &p_open, flags);
 
 		closeOthers = -1;
-		
+
 		for (size_t i = 0; i < loadedCPAmount; i++) {
 			if (ImGui::TreeNode((loadedCriticalPoints[i].typeName + ":" + charConverter(i)).c_str())) { //critical point tree node
 				if (loadedCriticalPoints[i].selected == false) {
@@ -1044,13 +1054,13 @@ void drawTreeView(int screen_w, int screen_h) {
 					lookAtCritPoint(i);
 					closeOthers = i;
 					selectedCP = i;
-				} 
+				}
 				ImGui::TreePop();
 			} else {
 				loadedCriticalPoints[i].selected = false;
 			}
 		}
-		
+
 		if (closeOthers != -1) { //only one cp tab should be open at a time
 			ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
 			ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + charConverter(closeOthers)).c_str()), 1); // leave selected tab open
@@ -1058,10 +1068,10 @@ void drawTreeView(int screen_w, int screen_h) {
 		}
 
 		ImGui::End();
-	
+
 		// start of cp info window
 		drawSelectedCPStats();
-	
+
 	}
 }
 
@@ -1113,7 +1123,7 @@ int main(int, char**)
 #else
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #endif
-#if __APPLE__ 
+#if __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
@@ -1228,8 +1238,8 @@ int main(int, char**)
 #if defined(LINUX) || defined(__APPLE__)
 			usleep(frameTime - difftime(lastTime, curTime));
 #endif // LINUX || __APPLE__
-			
-		
+
+
 		}
 		lastTime = curTime;
 
@@ -1304,7 +1314,7 @@ int main(int, char**)
         p.SetCamera(cam);
 
         glEnableVertexAttribArray(0);
-       
+
 #pragma region Creating and Updating Imgui Windows
 		// molecule drawing
         if (show_atoms){
@@ -1336,7 +1346,7 @@ int main(int, char**)
         glfwSwapBuffers(window);
     }
 
-    // Cleanup on program end 
+    // Cleanup on program end
     ImGui_ImplGlfwGL3_Shutdown();
     glfwTerminate();
 
