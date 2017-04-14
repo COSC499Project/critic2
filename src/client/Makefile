@@ -12,7 +12,7 @@
 CXX = g++ 
 
 EXE = critic2
-OBJS = compat.o main.o imgui_impl_glfw_gl3.o
+OBJS = main.o imgui_impl_glfw_gl3.o
 OBJS += imgui.o imgui_demo.o imgui_draw.o
 OBJS += libs/gl3w/GL/gl3w.o
 
@@ -47,6 +47,7 @@ endif
 
 ifeq ($(UNAME_S), CYGWIN_NT-10.0)
    ECHO_MESSAGE = "Windows"
+   OBJS += compat.o
    %.o: %.mod
    LIBS = ./libopengl32.a ./GLFW/libglfw3dll.a ./GLFW/libglfw3.a 
    LIBS += -lGL -lGLU -lXrandr -lXext -lX11 -lgdi32 -limm32 -lXi -lXinerama -lXcursor -lrt -lm -pthread
