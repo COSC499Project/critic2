@@ -33,6 +33,7 @@ extern "C" void get_cp_pos_type(int cpIdx, int *type, double *x, double *y, doub
 static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_atoms);
 static void ShowMenuFile();
 
+///platform independent convertion vars into a string representation
 #pragma region string convertion
 string charConverter(float t) {
 	char buffer[64];
@@ -60,6 +61,7 @@ string charConverter(int t) {
 //
 //  Global Variables and Structs
 //
+///inpute vareables describing the current state of all used key and mouse inputs
 struct {
   bool LeftMouseButton = 0;
   bool RightMouseButton = 0;
@@ -76,8 +78,10 @@ struct {
   bool AltKey = 0;
 } input;
 
+///information about the current state of the camara
 static CameraInfo cam;
 
+/// descriptions of the state of sevral Shader vareables
 struct {
   GLuint gWorldLocation;
   GLuint gWVPLocation;
@@ -87,6 +91,7 @@ struct {
   GLuint fAmbientIntensityLocation;
 } ShaderVarLocations;
 
+/// all information regarding an atom
 struct atom{
 	string name = "";
 	bool selected = false;
@@ -98,15 +103,16 @@ struct atom{
   int atomTreePosition;
 };
 
+/// information about a bond
 struct bond{
     atom * a1;
     atom * a2;
     Vector3f center;
     Matrix4f rotation;
     float length;
-		bool neighCrystalBond;
 };
 
+/// information about a critical point
 struct criticalPoint {
     float cpPosition[3];
     int type;
@@ -125,13 +131,14 @@ int loadedCPAmount = 0; //the number of critical points in the structure
 int selectedCP = 0; //critical point selected by the tree
 #pragma endregion
 
+/// Standard error print to consol
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
 }
 
 #pragma region shaders
-
+/// add a shader to the gl program 
 static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
 {
 	GLuint ShaderObj = glCreateShader(ShaderType);
@@ -158,6 +165,7 @@ static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum Shad
 	glAttachShader(ShaderProgram, ShaderObj);
 }
 
+/// create a shader programe based on a shader script
 static GLuint LightingShader()
 {
 
@@ -210,6 +218,7 @@ static GLuint LightingShader()
 
 #pragma endregion
 
+/// create a mesh object that can be reused for evrey object that uses the same mesh
 void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
                           GLfloat * Vertices, unsigned int * Indices,
                           unsigned int NumVertices, unsigned int NumIndices)
@@ -224,11 +233,13 @@ void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
 
 }
 
+/// get mouse scroll
 void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
 {
   cam.Pos[2] += yoffset * 0.5f;
 }
 
+/// rotate the bonds into place on screen based on the atoms specifiyed
 void GenerateBondInfo(bond * b, atom * a1, atom * a2)
 {
   b->a1 = a1;
@@ -276,6 +287,7 @@ void GenerateBondInfo(bond * b, atom * a1, atom * a2)
   b->rotation = Rot;
 }
 
+/// draw a bond between 2 atoms defined in the bond struct  
 void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
 {
   float grey[3] = {.5, .5, .5};
@@ -301,6 +313,7 @@ void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
 }
 
+///draw xyz handle showing the current oreatation of the world
 void DrawRotationAxes(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
   float white[3] = {1, 1, 1};
@@ -348,8 +361,6 @@ void DrawRotationAxes(Pipeline * p, GLuint CylVB, GLuint CylIB)
                      (const GLfloat *)p->GetWorldTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
-
-
 }
 
 #pragma region atom loading and drawing
@@ -370,6 +381,7 @@ void loadAtomObject() {
 		numbVerteces, numbIndeces);
 }
 
+///remove refrences to the currently loaded molecule
 void destructLoadedMolecule(){
   if (loadedAtomsAmount > 0){
     for (int i=loadedAtomsAmount-1; i>=0; i--){
@@ -383,6 +395,7 @@ void destructLoadedMolecule(){
   }
 }
 
+///remove refrences to the currently loaded critical points
 void destructCriticalPoints() {
   if (loadedCPAmount > 0) {
     loadedCriticalPoints = NULL;
@@ -391,9 +404,7 @@ void destructCriticalPoints() {
 }
 
 
-
-//TODO call this to load all atoms from the critic2 interface
-//the atoms should be loaded into the above array
+/// load atoms using the critic2 external C functions defined in interface.f90
 void loadAtoms() {
   //fill loadedAtoms array
   int n;
@@ -434,6 +445,7 @@ void loadAtoms() {
 
 }
 
+/// load bonds using the critic2 external C functions defined in interface.f90
 void loadBonds() {
 
   for (int i = 0; i < loadedAtomsAmount; i++) {
@@ -465,6 +477,7 @@ void loadBonds() {
   }
 }
 
+/// load critical points using the critic2 external C functions defined in interface.f90
 void loadCriticalPoints() {
   int numCP;
   num_of_crit_points(&numCP);
@@ -498,6 +511,7 @@ void loadCriticalPoints() {
   }
 }
 
+/// iterates though all bonds[] and draws them
 void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
    for (int i=0; i< bondsAmount; i++){
@@ -505,6 +519,7 @@ void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
    }
 }
 
+/// setting color of meshes based on some input
 #pragma region Color
 ///returns the color of an atom based on the atomic number
 ///and desired color Intesity (brightness)
@@ -564,6 +579,7 @@ Vector3f getAtomColor(int atomicNumber) {
   return color;
 }
 
+///Set critical point color based on type
 Vector3f getCritPointColor(int cpType) {
   Vector3f color;
   if (cpType == -1) {     // bond cp = yellow
@@ -588,7 +604,7 @@ void atomLegend_displayColorBoxAndName(int colorNumber, string * colorNames) {
 	ImGui::Text(colorNames[colorNumber].c_str());
 }
 
-
+/// create a menu describing how atoms are colored
 void atomColorLegend() {
 	bool p_open = false;
 	if (ImGui::CollapsingHeader("atom color legend")) {
@@ -644,6 +660,7 @@ float* getScreenPositionOfVertex(float *vertexLocation) {
 	return NULL;
 }
 
+/// draw an atom using gl functions
 void drawAtomInstance(int id, float * posVector, Vector3f color,
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
@@ -684,6 +701,7 @@ void drawAtomInstance(int id, float * posVector, Vector3f color,
   */
 }
 
+/// draw a critical point using gl functions
 void drawCritPointInstance(int identifier, float * posVector, const GLfloat color[4],
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	//selection start
@@ -724,7 +742,7 @@ void drawCritPointInstance(int identifier, float * posVector, const GLfloat colo
 bool flashAtoms = false; // toggle with selection toggles (in gui)
 //selctedAtom from tree selection
 //the number of frames the deselected atoms stay invisable
-int framesMax = 60; // ~0.5 seconds
+int framesMax = 15; // ~0.5 seconds
 int framesLeft = 0;
 bool otherAtomsVisable = true;
 
@@ -755,6 +773,7 @@ void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	}
 }
 
+///draws all loaded critical points 
 void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	for (int x = 0; x < loadedCPAmount; x++){
     Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
@@ -795,7 +814,8 @@ void selectAtom(int atomIndex) {
 #pragma region display stats methods
 void displayCol(string * displayStats, int numberOfCol) {
 	for (size_t i = 0; i < numberOfCol; i++) {
-		ImGui::TextWrapped(displayStats[i].c_str());
+		//text is wraped if too large
+		ImGui::TextWrapped(displayStats[i].c_str()); 
 		ImGui::NextColumn();
 	}
 }
@@ -890,7 +910,7 @@ void drawSelectedCPStats() {
 	}
 }
 
-
+/// print information about the current state of the camra
 void printCamStats() {
 	bool p_open = false;
 	ImGui::SetNextWindowSize(ImVec2(300, 75), ImGuiSetCond_Appearing);
@@ -907,6 +927,8 @@ void printCamStats() {
 	ImGui::End();
 }
 
+/// draw menu items in a toolbar, currently replaced with dropdowns
+[[deprecated]]
 void drawToolBar(int screen_w, int screen_h,
                  bool * show_bonds, bool * show_cps, bool * show_atoms) {
 	ImGui::SetNextWindowSize(ImVec2(50, screen_h),ImGuiSetCond_Once);
@@ -983,7 +1005,7 @@ void drawToolBar(int screen_w, int screen_h,
   ImGui::End();
 }
 
-//draw a tree of atoms and critical points
+/// This is the main imgui window describing atoms,bonds,critical points, and additonal information
 void drawMainMenuTree(int screen_w, int screen_h) {
 	ImGui::SetNextWindowSize(ImVec2(300, screen_h),ImGuiSetCond_Always);
 	ImGui::SetNextWindowPos(ImVec2(screen_w-300, 0),ImGuiSetCond_Always);
@@ -1076,18 +1098,19 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 	ImGui::End();
 }
 
-//search bar to find atoms by atomic number
+///search bar to find atoms by atomic number
 void createAtomSearchBar() {
 	ImGui::SetNextWindowSize(ImVec2(200, 70), ImGuiSetCond_Appearing);
 	ImGui::Begin("Atom Search by atomic #");
 	ImGuiWindowFlags Flags;
 	int atomAtomicNumber = 0;
-	if (ImGui::InputInt("#", &atomAtomicNumber, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) { //search on enter
+	if (ImGui::InputInt("atomic#", &atomAtomicNumber, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) { //search on enter
 		if (atomAtomicNumber > 0 && atomAtomicNumber < loadedAtomsAmount) {
 			selectAtom(atomAtomicNumber);
 		}
 	}
 
+	//checkbox to flash atoms
 	if (ImGui::Checkbox("Selc.find", &flashAtoms)) { //set flashing to defults
 		framesMax = 15; // ~0.5 seconds
 		framesLeft = 0;
@@ -1097,16 +1120,14 @@ void createAtomSearchBar() {
 	ImGui::End();
 }
 
-
-
 #pragma endregion
-
 
 int main(int, char**)
 {
 
     initialize();
-    // char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
+#pragma region Hard coded atom loading
+	// char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
     // init_struct();
     // call_structure(file, (int) strlen(file), 1);
     // loadAtoms();
@@ -1117,6 +1138,7 @@ int main(int, char**)
     // call_structure(file, (int) strlen(file), 1);
     // loadAtoms();
     // loadBonds();
+#pragma endregion
 
     // Setup window
     glfwSetErrorCallback(error_callback);
@@ -1155,7 +1177,6 @@ int main(int, char**)
     ShaderVarLocations.vColorLocation = glGetUniformLocation(lightshader, "vColor");
     ShaderVarLocations.lColorLocation = glGetUniformLocation(lightshader, "lColor");
     ShaderVarLocations.lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
-
 
 
 	//glEnables
@@ -1243,7 +1264,7 @@ int main(int, char**)
 			Sleep(frameTime - difftime(lastTime, curTime));
 #endif // WIN32
 #if defined(LINUX) || defined(__APPLE__)
-			usleep(frameTime * 3 - difftime(lastTime, curTime));
+			usleep(frameTime - difftime(lastTime, curTime));
 #endif // LINUX || __APPLE__
 
 
@@ -1255,7 +1276,7 @@ int main(int, char**)
 		glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
-#pragma region camera and keypress control
+#pragma region camra and keypress control
         // Process input
         ImGuiIO& io = ImGui::GetIO();
         lLMB = cLMB;
@@ -1358,7 +1379,6 @@ int main(int, char**)
 
     return 0;
 }
-
 
 #pragma region Top Menu Bar
 
