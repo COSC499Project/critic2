@@ -598,53 +598,49 @@ void atomLegend_displayColorBoxAndName(int colorNumber, string * colorNames) {
 
 void atomColorLegend() {
 	bool p_open = false;
-	ImGui::SetNextWindowPos(ImVec2(0, 500), ImGuiSetCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
-	ImGui::Begin("Atom color legend", &p_open);
-	string * colorNames = new string[101];
-	colorNames[1] = "Hydrogen";
-	colorNames[2] = "Noble Gas";
-	colorNames[3] = "Alkali Metals";
-	colorNames[4] = "Akaline Earth";
+	if (ImGui::CollapsingHeader("atom color legend")) {
+		string * colorNames = new string[101];
+		colorNames[1] = "Hydrogen";
+		colorNames[2] = "Noble Gas";
+		colorNames[3] = "Alkali Metals";
+		colorNames[4] = "Akaline Earth";
 
-	colorNames[6] = "Carbon";
-	colorNames[7] = "Nitrogen";
-	colorNames[8] = "Oxygen";
-	colorNames[9] = "Flourine & Chlorine";
+		colorNames[6] = "Carbon";
+		colorNames[7] = "Nitrogen";
+		colorNames[8] = "Oxygen";
+		colorNames[9] = "Flourine & Chlorine";
 
-	colorNames[15] = "Potassium";
-	colorNames[16] = "Sulfur";
+		colorNames[15] = "Potassium";
+		colorNames[16] = "Sulfur";
 
-	colorNames[21] = "transition Metal";
+		colorNames[21] = "transition Metal";
 
-	colorNames[26] = "iron";
+		colorNames[26] = "iron";
 
-	colorNames[35] = "Bromine";
+		colorNames[35] = "Bromine";
 
-	colorNames[53] = "Iodine";
+		colorNames[53] = "Iodine";
 
-	colorNames[81] = "titaniam";
+		colorNames[81] = "titaniam";
 
-	colorNames[100] = "other";
+		colorNames[100] = "other";
 
-	for (size_t i = 1; i < 5; i++) {
-		atomLegend_displayColorBoxAndName(i, colorNames);
+		for (size_t i = 1; i < 5; i++) {
+			atomLegend_displayColorBoxAndName(i, colorNames);
+		}
+		for (size_t i = 6; i < 10; i++) {
+			atomLegend_displayColorBoxAndName(i, colorNames);
+		}
+
+		atomLegend_displayColorBoxAndName(15, colorNames);
+		atomLegend_displayColorBoxAndName(16, colorNames);
+		atomLegend_displayColorBoxAndName(21, colorNames);
+		atomLegend_displayColorBoxAndName(26, colorNames);
+		atomLegend_displayColorBoxAndName(35, colorNames);
+		atomLegend_displayColorBoxAndName(53, colorNames);
+		atomLegend_displayColorBoxAndName(81, colorNames);
+		atomLegend_displayColorBoxAndName(100, colorNames);
 	}
-	for (size_t i = 6; i < 10; i++) {
-		atomLegend_displayColorBoxAndName(i, colorNames);
-	}
-
-	atomLegend_displayColorBoxAndName(15, colorNames);
-	atomLegend_displayColorBoxAndName(16, colorNames);
-	atomLegend_displayColorBoxAndName(21, colorNames);
-	atomLegend_displayColorBoxAndName(26, colorNames);
-	atomLegend_displayColorBoxAndName(35, colorNames);
-	atomLegend_displayColorBoxAndName(53, colorNames);
-	atomLegend_displayColorBoxAndName(81, colorNames);
-	atomLegend_displayColorBoxAndName(100, colorNames);
-
-
-	ImGui::End();
 }
 
 #pragma endregion
@@ -743,7 +739,7 @@ bool otherAtomsVisable = true;
 
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-	if (flashAtoms) { //flash mode
+	if (flashAtoms && loadedAtomsAmount > 0) { //flash mode
 		if (framesLeft <= 0) {
 			otherAtomsVisable = !otherAtomsVisable;
 			framesLeft = framesMax;
@@ -806,7 +802,7 @@ void selectAtom(int atomIndex) {
 #pragma region display stats methods
 void displayCol(string * displayStats, int numberOfCol) {
 	for (size_t i = 0; i < numberOfCol; i++) {
-		ImGui::Text(displayStats[i].c_str());
+		ImGui::TextWrapped(displayStats[i].c_str());
 		ImGui::NextColumn();
 	}
 }
@@ -832,33 +828,40 @@ void criticalPointTypeInfo(string * displayVars, int criticalPointIndex) {
 #pragma endregion
 
 
+/**
+	display any information about the currently selected atom
+	this is A menu bar item and must be called in a window
+*/
 void drawSelectedAtomStats() {
 	if (loadedAtomsAmount == 0) {
 		return;
 	}
-	bool p_open = false;
-	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
-	ImGui::Begin("Selected Information", &p_open);
-	const int numberOfColums = 3;
+	if (ImGui::CollapsingHeader("Selected atom information")) {
+		const int numberOfColumns = 3; 
 
+		ImGui::Columns(numberOfColumns, "mycolumns");
+		ImGui::Separator();
 
-	ImGui::Columns(numberOfColums, "mycolumns");
-	ImGui::Separator();
-	ImGui::Text("Info Type"); ImGui::NextColumn();
-	ImGui::Text("Value1"); ImGui::NextColumn();
-	ImGui::Text("Value2"); ImGui::NextColumn();
-	ImGui::Separator();
+		//----column names
+		ImGui::Text("Info Type"); ImGui::NextColumn();
+		ImGui::Text("Value1"); ImGui::NextColumn();
+		ImGui::Text("Value2"); ImGui::NextColumn();
+		//-----
+		
+		ImGui::Separator();
 
-	string displayStats[numberOfColums];
+		string displayStats[numberOfColumns];
 
+		//loading stats into string array and displaying them
+		atomBondAmountInfo(displayStats, selectedAtom);
+		displayCol(displayStats, numberOfColumns);
 
-	atomBondAmountInfo(displayStats, selectedAtom);
-	displayCol(displayStats, numberOfColums);
-
-	atomAtomicNumberInfo(displayStats, selectedAtom);
-	displayCol(displayStats, numberOfColums);
-
-	ImGui::End();
+		atomAtomicNumberInfo(displayStats, selectedAtom);
+		displayCol(displayStats, numberOfColumns);
+	
+		ImGui::Columns(1);
+	}
+	
 }
 
 
@@ -873,26 +876,25 @@ void drawSelectedCPStats() {
 
 	bool p_open = false;
 
-	ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiSetCond_Appearing);
-	ImGui::Begin("Selected Critical Point Information", &p_open);
-	const int numberOfColums = 3;
+	if (ImGui::CollapsingHeader("critical point information")) {
+		const int numberOfColums = 3;
 
-	ImGui::Columns(numberOfColums, "mycolumns");
-	ImGui::Separator();
-	ImGui::Text("Info Type"); ImGui::NextColumn();
-	ImGui::Text("Value1"); ImGui::NextColumn();
-	ImGui::Text("Value2"); ImGui::NextColumn();
-	ImGui::Separator();
+		ImGui::Columns(numberOfColums, "mycolumns");
+		ImGui::Separator();
+		ImGui::Text("Info Type"); ImGui::NextColumn();
+		ImGui::Text("Value1"); ImGui::NextColumn();
+		ImGui::Text("Value2"); ImGui::NextColumn();
+		ImGui::Separator();
 
-	string displayStats[numberOfColums];
+		string displayStats[numberOfColums];
 
-	criticalPointTypeInfo(displayStats, selectedCP);
-	displayCol(displayStats, numberOfColums);
-
-	//CP stat 2
-	//displayCol(displayStats, numberOfColums);
-
-	ImGui::End();
+		criticalPointTypeInfo(displayStats, selectedCP);
+		displayCol(displayStats, numberOfColums);
+		
+		//CP stat 2
+		//displayCol(displayStats, numberOfColums);
+		ImGui::Columns(1);
+	}
 }
 
 
@@ -979,7 +981,7 @@ void drawToolBar(int screen_w, int screen_h,
   ImGui::Checkbox("Crit Pts", show_cps);
   ImGui::Checkbox("Atoms", show_atoms);
 
-  if (ImGui::Checkbox("Selc.find", &flashAtoms)) { //set flashing to defults
+  if (ImGui::Checkbox("`elc.find", &flashAtoms)) { //set flashing to defults
 	  framesMax = 15; // ~0.5 seconds
 	  framesLeft = 0;
 	  otherAtomsVisable = true;
@@ -989,7 +991,7 @@ void drawToolBar(int screen_w, int screen_h,
 }
 
 //draw a tree of atoms and critical points
-void drawTreeView(int screen_w, int screen_h) {
+void drawMainMenuTree(int screen_w, int screen_h) {
 	ImGui::SetNextWindowSize(ImVec2(300, screen_h),ImGuiSetCond_Always);
 	ImGui::SetNextWindowPos(ImVec2(screen_w-300, 0),ImGuiSetCond_Always);
   ImGuiWindowFlags flags = 0;
@@ -999,93 +1001,91 @@ void drawTreeView(int screen_w, int screen_h) {
 
 	bool p_open = false;
 	ImGui::Begin("Tree View",&p_open, flags);
+	if (ImGui::CollapsingHeader("atoms and bonds")) {
+		int closeOthers = -1;
+		for (size_t x = 0; x < loadedAtomsAmount; x++) {
+			if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {
+				if (loadedAtoms[x].selected == false) {
+					closeOthers = x;
+					selectAtom(x);
+				}
 
-	int closeOthers = -1;
-	for (size_t x = 0; x < loadedAtomsAmount; x++){
-		if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {
-			if (loadedAtoms[x].selected == false) {
-				closeOthers = x;
-				selectAtom(x);
-			}
-
-			//selection based on atoms bonds
-			for (size_t i = 0; i < bondsAmount; i++) {
-				if ( bonds[i].a1->atomTreePosition == loadedAtoms[x].atomTreePosition) {
-					string bondName = "bondedTo" + charConverter(bonds[i].a2->atomTreePosition);
-					if (ImGui::TreeNode(bondName.c_str())) {
-						//select a2
-						closeOthers = bonds[i].a2->atomTreePosition;
-						cout << "going to atom" + charConverter(closeOthers) << endl;
-						ImGui::TreePop();
+				//selection based on atoms bonds
+				for (size_t i = 0; i < bondsAmount; i++) {
+					if (bonds[i].a1->atomTreePosition == loadedAtoms[x].atomTreePosition) {
+						string bondName = "bondedTo" + charConverter(bonds[i].a2->atomTreePosition);
+						if (ImGui::TreeNode(bondName.c_str())) {
+							//select a2
+							closeOthers = bonds[i].a2->atomTreePosition;
+							cout << "going to atom" + charConverter(closeOthers) << endl;
+							ImGui::TreePop();
+						}
 					}
-				} else if (bonds[i].a2->atomTreePosition == loadedAtoms[x].atomTreePosition) {
-					string bondName = "bondedTo" + charConverter(bonds[i].a1->atomTreePosition);
-					if (ImGui::TreeNode(bondName.c_str())) {
-						//select a1
-						closeOthers = bonds[i].a1->atomTreePosition;
-						cout << "going to atom" + charConverter(closeOthers) << endl;
-						ImGui::TreePop();
+					else if (bonds[i].a2->atomTreePosition == loadedAtoms[x].atomTreePosition) {
+						string bondName = "bondedTo" + charConverter(bonds[i].a1->atomTreePosition);
+						if (ImGui::TreeNode(bondName.c_str())) {
+							//select a1
+							closeOthers = bonds[i].a1->atomTreePosition;
+							cout << "going to atom" + charConverter(closeOthers) << endl;
+							ImGui::TreePop();
+						}
 					}
 				}
-			}
 
-			ImGui::TreePop();
-		}else {
-			loadedAtoms[x].selected = false;
-		}
-	}
-
-	if (closeOthers != -1) {
-		ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
-		ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[selectedAtom].atomTreeName.c_str()), 1);
-		closeOthers = -1;
-	}
-
-
-	ImGui::End();
-
-	if (loadedCPAmount != 0) {
-		ImGui::SetNextWindowSize(ImVec2(300, screen_h*.5), ImGuiSetCond_Appearing);
-		ImGui::SetNextWindowPos(ImVec2(screen_w - 600, 0), ImGuiSetCond_Appearing);
-		ImGuiWindowFlags flags = 0;
-		bool p_open = false;
-		// flags |= ImGuiWindowFlags_AlwaysAutoResize;
-		// flags |= ImGuiWindowFlags_NoResize;
-		ImGui::Begin("Cp type and ID", &p_open, flags);
-
-		closeOthers = -1;
-
-		for (size_t i = 0; i < loadedCPAmount; i++) {
-			if (ImGui::TreeNode((loadedCriticalPoints[i].typeName + ":" + charConverter(i)).c_str())) { //critical point tree node
-				if (loadedCriticalPoints[i].selected == false) {
-					loadedCriticalPoints[i].selected = true;
-					lookAtCritPoint(i);
-					closeOthers = i;
-					selectedCP = i;
-				}
 				ImGui::TreePop();
-			} else {
-				loadedCriticalPoints[i].selected = false;
+			}
+			else {
+				loadedAtoms[x].selected = false;
 			}
 		}
 
-		if (closeOthers != -1) { //only one cp tab should be open at a time
+		if (closeOthers != -1) {
 			ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
-			ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + charConverter(closeOthers)).c_str()), 1); // leave selected tab open
+			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[selectedAtom].atomTreeName.c_str()), 1);
 			closeOthers = -1;
 		}
 
-		ImGui::End();
+	}
+	if (loadedCPAmount != 0) {
+		if (ImGui::CollapsingHeader("Critical Points")) {
+			int closeOthers = -1;
 
+			for (size_t i = 0; i < loadedCPAmount; i++) {
+				if (ImGui::TreeNode((loadedCriticalPoints[i].typeName + ":" + charConverter(i)).c_str())) { //critical point tree node
+					if (loadedCriticalPoints[i].selected == false) {
+						loadedCriticalPoints[i].selected = true;
+						lookAtCritPoint(i);
+						closeOthers = i;
+						selectedCP = i;
+					}
+					ImGui::TreePop();
+				}
+				else {
+					loadedCriticalPoints[i].selected = false;
+				}
+			}
+
+			if (closeOthers != -1) { //only one cp tab should be open at a time
+				ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
+				ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + charConverter(closeOthers)).c_str()), 1); // leave selected tab open
+				closeOthers = -1;
+			}
+		}
+	
 		// start of cp info window
 		drawSelectedCPStats();
 
 	}
+	drawSelectedAtomStats();
+	atomColorLegend();
+	
+	
+	ImGui::End();
 }
 
 //search bar to find atoms by atomic number
 void createAtomSearchBar() {
-	ImGui::SetNextWindowSize(ImVec2(200, 50), ImGuiSetCond_Appearing);
+	ImGui::SetNextWindowSize(ImVec2(200, 70), ImGuiSetCond_Appearing);
 	ImGui::Begin("Atom Search by atomic #");
 	ImGuiWindowFlags Flags;
 	int atomAtomicNumber = 0;
@@ -1093,6 +1093,12 @@ void createAtomSearchBar() {
 		if (atomAtomicNumber > 0 && atomAtomicNumber < loadedAtomsAmount) {
 			selectAtom(atomAtomicNumber);
 		}
+	}
+
+	if (ImGui::Checkbox("Selc.find", &flashAtoms)) { //set flashing to defults
+		framesMax = 15; // ~0.5 seconds
+		framesLeft = 0;
+		otherAtomsVisable = true;
 	}
 
 	ImGui::End();
@@ -1298,7 +1304,7 @@ int main(int, char**)
           }
         }
 #pragma endregion
-
+		//TAG: demoWindow
 		//set this to true to see all posible imgui configurations
         // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
         if (!show_test_window)
@@ -1335,13 +1341,11 @@ int main(int, char**)
           drawAllCPs(&p, SphereVB, SphereIB);
         }
 		//color legend
-		atomColorLegend();
-
         // imgui overlays
 //    		printCamStats();
 //        ShowAppMainMenuBar();
-		    drawSelectedAtomStats();
-		    drawTreeView(display_w, display_h);
+		
+		drawMainMenuTree(display_w, display_h-5);
         //drawToolBar(display_w, display_h, &show_bonds, &show_cps, &show_atoms);
 		createAtomSearchBar();
 		ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms);
