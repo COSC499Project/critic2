@@ -399,7 +399,6 @@ void loadAtoms() {
   //fill loadedAtoms array
   int n;
   get_num_atoms(&n);
-  printf("num of atoms %d\n", n);
 
   loadedAtomsAmount = n;
 	loadedAtoms = new atom[loadedAtomsAmount];
@@ -410,7 +409,6 @@ void loadAtoms() {
     double z;
 
     get_atom_position(i+1, &atomicN, &x, &y, &z);
-    printf("Atoms: %d %d %.10f %.10f %.10f\n",i+1,atomicN, x, y, z);
 
     loadedAtoms[i].atomicNumber = atomicN;
     loadedAtoms[i].atomPosition[0] = x;
@@ -454,7 +452,6 @@ void loadBonds() {
         get_atom_bond(i+1, j+1, &connected_atom, &neighCrystal);
         loadedAtoms[i].bonds[j] = connected_atom-1;
 				loadedAtoms[i].neighCrystalBonds[j] = neighCrystal;
-        printf("%d atom has %d bonds and one is %d\n",i, nstarN, connected_atom-1);
     }
   }
 
@@ -484,8 +481,6 @@ void loadCriticalPoints() {
     double z;
 
     get_cp_pos_type(i, &cpType, &x, &y, &z);
-
-    printf("Critical Points: %d %d %.10f %.10f %.10f\n",i,cpType, x, y, z);
 
     loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[0] = x;
     loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[1] = y;
@@ -837,7 +832,7 @@ void drawSelectedAtomStats() {
 		return;
 	}
 	if (ImGui::CollapsingHeader("Selected atom information")) {
-		const int numberOfColumns = 3; 
+		const int numberOfColumns = 3;
 
 		ImGui::Columns(numberOfColumns, "mycolumns");
 		ImGui::Separator();
@@ -847,7 +842,7 @@ void drawSelectedAtomStats() {
 		ImGui::Text("Value1"); ImGui::NextColumn();
 		ImGui::Text("Value2"); ImGui::NextColumn();
 		//-----
-		
+
 		ImGui::Separator();
 
 		string displayStats[numberOfColumns];
@@ -858,10 +853,10 @@ void drawSelectedAtomStats() {
 
 		atomAtomicNumberInfo(displayStats, selectedAtom);
 		displayCol(displayStats, numberOfColumns);
-	
+
 		ImGui::Columns(1);
 	}
-	
+
 }
 
 
@@ -890,7 +885,7 @@ void drawSelectedCPStats() {
 
 		criticalPointTypeInfo(displayStats, selectedCP);
 		displayCol(displayStats, numberOfColums);
-		
+
 		//CP stat 2
 		//displayCol(displayStats, numberOfColums);
 		ImGui::Columns(1);
@@ -1071,15 +1066,15 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 				closeOthers = -1;
 			}
 		}
-	
+
 		// start of cp info window
 		drawSelectedCPStats();
 
 	}
 	drawSelectedAtomStats();
 	atomColorLegend();
-	
-	
+
+
 	ImGui::End();
 }
 
@@ -1344,7 +1339,7 @@ int main(int, char**)
         // imgui overlays
 //    		printCamStats();
 //        ShowAppMainMenuBar();
-		
+
 		drawMainMenuTree(display_w, display_h-5);
         //drawToolBar(display_w, display_h, &show_bonds, &show_cps, &show_atoms);
 		createAtomSearchBar();
