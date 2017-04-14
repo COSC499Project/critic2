@@ -104,6 +104,7 @@ struct bond{
     Vector3f center;
     Matrix4f rotation;
     float length;
+		bool neighCrystalBond;
 };
 
 struct criticalPoint {
@@ -727,7 +728,7 @@ void drawCritPointInstance(int identifier, float * posVector, const GLfloat colo
 bool flashAtoms = false; // toggle with selection toggles (in gui)
 //selctedAtom from tree selection
 //the number of frames the deselected atoms stay invisable
-int framesMax = 15; // ~0.5 seconds
+int framesMax = 60; // ~0.5 seconds
 int framesLeft = 0;
 bool otherAtomsVisable = true;
 
@@ -1236,7 +1237,7 @@ int main(int, char**)
 			Sleep(frameTime - difftime(lastTime, curTime));
 #endif // WIN32
 #if defined(LINUX) || defined(__APPLE__)
-			usleep(frameTime - difftime(lastTime, curTime));
+			usleep(frameTime * 3 - difftime(lastTime, curTime));
 #endif // LINUX || __APPLE__
 
 
@@ -1248,7 +1249,7 @@ int main(int, char**)
 		glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
-#pragma region camra and keypress control
+#pragma region camera and keypress control
         // Process input
         ImGuiIO& io = ImGui::GetIO();
         lLMB = cLMB;

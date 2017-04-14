@@ -9,6 +9,8 @@ module interface
   public :: get_positions
   public :: get_atom_position
   public :: get_num_atoms
+  public :: num_of_bonds
+  public :: get_atom_bond
   public :: auto_cp
   public :: num_of_crit_points
   public :: get_cp_pos_type
@@ -215,13 +217,26 @@ contains
 
   end subroutine num_of_bonds
 
-  subroutine get_atom_bond(n_atom, nstarIdx, connected_atom) bind (c, name="get_atom_bond")
+  subroutine get_atom_bond(n_atom, nstarIdx, connected_atom, neighCrystal) bind (c, name="get_atom_bond")
     use struct_basic, only: cr
     integer (kind=c_int), value :: n_atom
     integer (kind=c_int), value :: nstarIdx
     integer(c_int), intent(out) :: connected_atom
+    logical (kind=c_bool), intent(out) :: neighCrystal
+
+    integer :: lconTrans(3)
 
     connected_atom = cr%nstar(n_atom)%idcon(nstarIdx)
+
+    if (.NOT. cr%ismolecule) then
+      lconTrans = cr%nstar(n_atom)%lcon(:, nstarIdx)
+
+      if (lconTrans(1) /= 0 .OR. lconTrans(2) /= 0 .OR. lconTrans(3) /= 0) then
+        neighCrystal = .true.
+      end if
+    end if
+
+    print *, neighCrystal
 
   end subroutine get_atom_bond
 
