@@ -76,6 +76,11 @@ struct {
   bool AltKey = 0;
 } input;
 
+struct {
+  Vector3f center;
+  Vector3f dimensions;
+} boundingCube;
+
 static CameraInfo cam;
 
 struct {
@@ -91,7 +96,7 @@ struct atom{
 	string name = "";
 	bool selected = false;
 	int atomicNumber;
-	float atomPosition[3];
+	Vector3f atomPosition;
 	string atomTreeName; //must be saved to preserve imgui tree Id's
   int numberOfBonds;
   int * bonds;
@@ -227,53 +232,34 @@ void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
 
 void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
 {
-  cam.Pos[2] += yoffset * 0.5f;
+  float camZoomFactor = boundingCube.dimensions.Length() * 0.2f;
+  cam.Pos[2] += yoffset * camZoomFactor;
 }
 
 void GenerateBondInfo(bond * b, atom * a1, atom * a2)
 {
   b->a1 = a1;
   b->a2 = a2;
-  float p1[3] = {a1->atomPosition[0], a1->atomPosition[1], a1->atomPosition[2]};
-  float p2[3] = {a2->atomPosition[0], a2->atomPosition[1], a2->atomPosition[2]};
-  float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
-  float q[3] = {(p1[0]-mid[0]), (p1[1]-mid[1]), (p1[2]-mid[2])};
-  float d = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2]);
+
+  Vector3f mid = (a1->atomPosition + a2->atomPosition)/2;
+  Vector3f q = a1->atomPosition - a2->atomPosition;
+  float d = q.Length()/2;
+
   b->length = d;
+  b->center = mid;
+
   Vector3f n_q = Vector3f(q);
   n_q.Normalize();
 
   Vector3f z_axis = Vector3f(0, 0, 1);
   z_axis.Normalize();
-  Vector3f v = z_axis.Cross(n_q);
-  v.Normalize();
-  float c = (1.0f - z_axis.Dot(n_q))/1.0f;
-
-  //v2 = v; n_q2 = n_q; z_ax = z_axis; c2 = c;
-
-  Matrix4f v_x;
-  v_x.m[0][0] = 0;     v_x.m[0][1] = -v.z;  v_x.m[0][2] = v.y;  v_x.m[0][3] = 0;
-  v_x.m[1][0] =  v.z;  v_x.m[1][1] = 0;     v_x.m[1][2] = -v.x; v_x.m[1][3] = 0;
-  v_x.m[2][0] = -v.y;  v_x.m[2][1] = v.x;   v_x.m[2][2] = 0;    v_x.m[2][3] = 0;
-  v_x.m[3][0] = 0;     v_x.m[3][1] = 0   ;  v_x.m[3][2] = 0;    v_x.m[3][3] = 1;
+  Vector3f axis = z_axis.Cross(n_q);
+  axis.Normalize();
+  float angle = acosf(z_axis.Dot(n_q));
 
   Matrix4f Rot;
-  Rot.InitIdentity();
-  Rot = Rot + v_x;
-  Matrix4f v_x2 = v_x * v_x;
-  v_x2 = v_x2 * c;
-  Rot = Rot + v_x2;
+  Rot.InitRotateAxisTransform(axis, angle);
 
-  Rot.m[3][3] = 1;
-  Rot.m[0][3] = 0;
-  Rot.m[1][3] = 0;
-  Rot.m[2][3] = 0;
-
-  Rot.m[3][0] = 0;
-  Rot.m[3][1] = 0;
-  Rot.m[3][2] = 0;
-
-  b->center = Vector3f(mid[0], mid[1], mid[2]);
   b->rotation = Rot;
 }
 
@@ -283,7 +269,9 @@ void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
   float white[3] = {1, 1, 1};
 
   p->Scale(0.05f, 0.05f, b->length);
-  p->Translate(b->center.x, b->center.y, b->center.z);
+
+  Vector3f pos = b->center - boundingCube.center;
+  p->Translate(pos.x, pos.y, pos.z);
   p->SetRotationMatrix(b->rotation);
 
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
@@ -300,58 +288,9 @@ void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
-}
-
-void DrawRotationAxes(Pipeline * p, GLuint CylVB, GLuint CylIB)
-{
-  float white[3] = {1, 1, 1};
-  float red[3] = {1, 0, 0};
-  float green[3] = {0, 1, 0};
-  float blue[3] = {0, 0, 1};
-
-  float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
-  glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
-  glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
-  glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
-  glBindBuffer(GL_ARRAY_BUFFER, CylVB);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-
-  // X axis - red
-  p->Scale(1, 1, 0.05);
-  p->Translate(0, 0, 0);
-  p->Rotate(0, 90, 0);
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&red);
-  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
-
-  // Y axis - green
-  p->Scale(1, 1, 0.05);
-  p->Translate(0, 0, 0);
-  p->Rotate(90, 0, 0);
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&green);
-  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
-
-  // Z axis - blue
-  p->Scale(1, 1, 0.05);
-  p->Translate(0, 0, 0);
-  p->Rotate(0, 0, 0);
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&blue);
-  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
-
 
 }
+
 
 #pragma region atom loading and drawing
 //global vars for an atom's mesh
@@ -402,6 +341,14 @@ void loadAtoms() {
 
   loadedAtomsAmount = n;
 	loadedAtoms = new atom[loadedAtomsAmount];
+
+  float minX = FLT_MAX;
+  float maxX = -FLT_MAX;
+  float minY = FLT_MAX;
+  float maxY = -FLT_MAX;
+  float minZ = FLT_MAX;
+  float maxZ = -FLT_MAX;
+
   for (int i=0; i < n; i++) {
     int atomicN;
     double x;
@@ -411,10 +358,30 @@ void loadAtoms() {
     get_atom_position(i+1, &atomicN, &x, &y, &z);
 
     loadedAtoms[i].atomicNumber = atomicN;
-    loadedAtoms[i].atomPosition[0] = x;
-  	loadedAtoms[i].atomPosition[1] = y;
-  	loadedAtoms[i].atomPosition[2] = z;
+    loadedAtoms[i].atomPosition = Vector3f(x, y, z);
+
+
+// calculate boundary and of molecule
+    if (x < minX){
+      minX = x;
+    } else if (x > maxX){
+      maxX = x;
+    }
+    if (y < minY){
+      minY = y;
+    } else if (y > maxY){
+      maxY = y;
+    }
+    if (z < minZ){
+      minZ = z;
+    } else if (z > maxZ){
+      maxZ = z;
+    }
   }
+
+  //calculate center point of and size of molecule
+  boundingCube.center = Vector3f((minX + maxX)/2, (minY + maxY)/2, (minZ + maxZ)/2);
+  boundingCube.dimensions = Vector3f((maxX - minX), (maxY - minY), (maxZ - minZ));
 
   //tree names must be constant
 	for (size_t x = 0; x < loadedAtomsAmount; x++) {
@@ -646,22 +613,25 @@ float* getScreenPositionOfVertex(float *vertexLocation) {
 	return NULL;
 }
 
-void drawAtomInstance(int id, float * posVector, Vector3f color,
+void drawAtomInstance(int id, Vector3f posVector, Vector3f color,
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
-  // if atom is selected, brighten it
+   //if atom is selected, brighten it
   if (loadedAtoms[id].selected) {
     color = color * 1.5;
 	}
 
 	float scaleAmount = (float)loadedAtoms[id].atomicNumber;
+ // float scaleAmount = 3;
 	if (scaleAmount < 4.0f) {
 		scaleAmount = 0.2f;
 	} else {
 		scaleAmount = 0.4f;
 	}
 	p->Scale(scaleAmount, scaleAmount, scaleAmount);
-	p->Translate(posVector[0], posVector[1], posVector[2]);
+  
+  Vector3f pos = posVector - boundingCube.center;
+	p->Translate(pos.x, pos.y, pos.z);
 	p->Rotate(0.f, 0.f, 0.f);
 
 	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
@@ -766,8 +736,8 @@ void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
 /// moves cam over atom (alligned to z axis)
 void lookAtAtom(int atomNumber) {
-	cam.Pos[0] = loadedAtoms[atomNumber].atomPosition[0];
-	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition[1];
+	cam.Pos[0] = loadedAtoms[atomNumber].atomPosition.x;
+	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition.y;
 }
 
 /// moves cam over crit point (alligned to z axis)
@@ -1108,17 +1078,6 @@ int main(int, char**)
 {
 
     initialize();
-    // char const * file = "/home/isaac/c2/critic2/examples/data/benzene.wfx";
-    // init_struct();
-    // call_structure(file, (int) strlen(file), 1);
-    // loadAtoms();
-    // loadBonds();
-    // destructLoadedMolecule();
-    // file = "/home/isaac/c2/critic2/examples/data/pyridine.wfx";
-    // init_struct();
-    // call_structure(file, (int) strlen(file), 1);
-    // loadAtoms();
-    // loadBonds();
 
     // Setup window
     glfwSetErrorCallback(error_callback);
@@ -1187,6 +1146,7 @@ int main(int, char**)
     static unsigned int * CylI = (unsigned int *) malloc(sizeof(unsigned int)*CylNumI);
     ReadMesh(CylV, CylI, "./cylinder.v", "./cylinder.i");
     CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
+
 
     // Imgui static variables
     static bool show_bonds = true;
@@ -1268,17 +1228,15 @@ int main(int, char**)
         lMPosY = cMPosY;
         glfwGetCursorPos(window, &cMPosX, &cMPosY);
 
-        float camPanFactor = 0.008f;
-        float camZoomFactor = 1.f;
-        float camRotateVectorFactor = 0.05f;
-        float camRotateAngleFactor = 0.05f;
+        float camPanFactor = fabs(0.00115f * cam.Pos[2]);
+        float camRotateFactor = 0.015f;
         if (!io.WantCaptureMouse) {
-          if (cRMB == GLFW_PRESS){
+          if (cLMB == GLFW_PRESS){
             cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
             cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
           }
-          if (cLMB == GLFW_PRESS){
-            if (lLMB != GLFW_PRESS){
+          if (cRMB == GLFW_PRESS){
+            if (lRMB != GLFW_PRESS){
               pMPosX = cMPosX;
               pMPosY = cMPosY;
 
@@ -1290,7 +1248,7 @@ int main(int, char**)
 
             curRotAxis = Vector3f(diffX, -diffY, 0);
             curRotAxis = curRotAxis.Cross(Vector3f(0, 0, 1));
-            curRotAng = curRotAxis.Length() * camRotateAngleFactor;
+            curRotAng = curRotAxis.Length() * camRotateFactor;
             curRotAxis.Normalize();
 
             curRot.InitRotateAxisTransform(curRotAxis, curRotAng);
@@ -1325,12 +1283,12 @@ int main(int, char**)
         glEnableVertexAttribArray(0);
 
 #pragma region Creating and Updating Imgui Windows
-		// molecule drawing
-        if (show_atoms){
-      		drawAllAtoms(&p, SphereVB, SphereIB);
-        }
+        // molecule drawing
         if (show_bonds){
           drawAllBonds(&p, CylVB, CylIB);
+        }
+        if (show_atoms){
+      		drawAllAtoms(&p, SphereVB, SphereIB);
         }
         if (show_cps){
           drawAllCPs(&p, SphereVB, SphereIB);
