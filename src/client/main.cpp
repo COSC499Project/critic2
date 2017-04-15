@@ -114,7 +114,7 @@ struct bond{
 };
 
 struct criticalPoint {
-    float cpPosition[3];
+    Vector3f cpPosition;
     int type;
     string typeName = "";
     bool selected = false;
@@ -449,9 +449,7 @@ void loadCriticalPoints() {
 
     get_cp_pos_type(i, &cpType, &x, &y, &z);
 
-    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[0] = x;
-    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[1] = y;
-    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition[2] = z;
+    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition = Vector3f(x, y, z);
 
     loadedCriticalPoints[(i-(loadedAtomsAmount+1))].type = cpType;
 
@@ -656,7 +654,7 @@ void drawAtomInstance(int id, Vector3f posVector, Vector3f color,
   */
 }
 
-void drawCritPointInstance(int identifier, float * posVector, const GLfloat color[4],
+void drawCritPointInstance(int identifier, Vector3f posVector, const GLfloat color[4],
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	//selection start
 	float inc = 1.f;
@@ -667,10 +665,11 @@ void drawCritPointInstance(int identifier, float * posVector, const GLfloat colo
 	GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc, color[3]};
 	//selection end
 
-	float scaleAmount = 0.05f;
-
+	float scaleAmount = 0.1f;
 	p->Scale(scaleAmount, scaleAmount, scaleAmount);
-	p->Translate(posVector[0], posVector[1], posVector[2]);
+  Vector3f pos = posVector - boundingCube.center;
+	p->Translate(pos.x, pos.y, pos.z);
+	
 	p->Rotate(0.f, 0.f, 0.f); //no rotation required
 	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
 	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
@@ -742,8 +741,8 @@ void lookAtAtom(int atomNumber) {
 
 /// moves cam over crit point (alligned to z axis)
 void lookAtCritPoint(int critPointNum) {
-	cam.Pos[0] = loadedCriticalPoints[critPointNum].cpPosition[0];
-	cam.Pos[1] = loadedCriticalPoints[critPointNum].cpPosition[1];
+	cam.Pos[0] = loadedCriticalPoints[critPointNum].cpPosition.x;
+	cam.Pos[1] = loadedCriticalPoints[critPointNum].cpPosition.y;
 }
 
 #pragma endregion
@@ -1150,7 +1149,7 @@ int main(int, char**)
 
     // Imgui static variables
     static bool show_bonds = true;
-    static bool show_cps = false;
+    static bool show_cps = true;
     static bool show_atoms = true;
 
     // input variables;
