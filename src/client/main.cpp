@@ -60,7 +60,7 @@ struct atom{
 	string name = "";
 	bool selected = false;
 	int atomicNumber;
-	float atomPosition[3];
+	Vector3f atomPosition;
 	string atomTreeName; //must be saved to preserve imgui tree Id's
   int numberOfBonds;
   int * bonds;
@@ -192,51 +192,40 @@ void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
   cam.Pos[2] += yoffset * 0.5f;
 }
 
+Vector3f aq, an_q, az_axis, aaxis;
+float aangle;
+
 void GenerateBondInfo(bond * b, atom * a1, atom * a2)
 {
   b->a1 = a1;
   b->a2 = a2;
-  float p1[3] = {a1->atomPosition[0], a1->atomPosition[1], a1->atomPosition[2]};
-  float p2[3] = {a2->atomPosition[0], a2->atomPosition[1], a2->atomPosition[2]};
-  float mid[3] = {(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2};
-  float q[3] = {(p1[0]-mid[0]), (p1[1]-mid[1]), (p1[2]-mid[2])};
-  float d = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2]);
+
+  Vector3f mid = (a1->atomPosition + a2->atomPosition)/2;
+  Vector3f q = a1->atomPosition - a2->atomPosition;
+  float d = q.Length()/2;
+
   b->length = d;
+  b->center = mid;
+
   Vector3f n_q = Vector3f(q);
   n_q.Normalize();
 
   Vector3f z_axis = Vector3f(0, 0, 1);
   z_axis.Normalize();
-  Vector3f v = z_axis.Cross(n_q);
-  v.Normalize();
-  float c = (1.0f - z_axis.Dot(n_q))/1.0f;
-
-  //v2 = v; n_q2 = n_q; z_ax = z_axis; c2 = c;
-
-  Matrix4f v_x;
-  v_x.m[0][0] = 0;     v_x.m[0][1] = -v.z;  v_x.m[0][2] = v.y;  v_x.m[0][3] = 0;
-  v_x.m[1][0] =  v.z;  v_x.m[1][1] = 0;     v_x.m[1][2] = -v.x; v_x.m[1][3] = 0;
-  v_x.m[2][0] = -v.y;  v_x.m[2][1] = v.x;   v_x.m[2][2] = 0;    v_x.m[2][3] = 0;
-  v_x.m[3][0] = 0;     v_x.m[3][1] = 0   ;  v_x.m[3][2] = 0;    v_x.m[3][3] = 1;
+  Vector3f axis = z_axis.Cross(n_q);
+  axis.Normalize();
+  float angle = acosf(z_axis.Dot(n_q));
 
   Matrix4f Rot;
-  Rot.InitIdentity();
-  Rot = Rot + v_x;
-  Matrix4f v_x2 = v_x * v_x;
-  v_x2 = v_x2 * c;
-  Rot = Rot + v_x2;
+  Rot.InitRotateAxisTransform(axis, angle);
 
-  Rot.m[3][3] = 1;
-  Rot.m[0][3] = 0;
-  Rot.m[1][3] = 0;
-  Rot.m[2][3] = 0;
-
-  Rot.m[3][0] = 0;
-  Rot.m[3][1] = 0;
-  Rot.m[3][2] = 0;
-
-  b->center = Vector3f(mid[0], mid[1], mid[2]);
   b->rotation = Rot;
+
+  aq = Vector3f(q);
+  an_q = Vector3f(n_q);
+  az_axis = Vector3f(z_axis);
+  aaxis = Vector3f(axis);
+  aangle = angle;
 }
 
 void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
@@ -262,7 +251,9 @@ void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
   glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
+
 }
+
 
 void DrawRotationAxes(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
@@ -385,9 +376,7 @@ void loadAtoms() {
     printf("Atoms: %d %d %.10f %.10f %.10f\n",i+1,atomicN, x, y, z);
 
     loadedAtoms[i].atomicNumber = atomicN;
-    loadedAtoms[i].atomPosition[0] = x;
-  	loadedAtoms[i].atomPosition[1] = y;
-  	loadedAtoms[i].atomPosition[2] = z;
+    loadedAtoms[i].atomPosition = Vector3f(x, y, z);
   }
 
   //tree names must be constant
@@ -553,22 +542,23 @@ float* getScreenPositionOfVertex(float *vertexLocation) {
 	return NULL;
 }
 
-void drawAtomInstance(int id, float * posVector, Vector3f color,
+void drawAtomInstance(int id, Vector3f posVector, Vector3f color,
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
   // if atom is selected, brighten it
-  if (loadedAtoms[id].selected) {
-    color = color * 1.5;
-	}
+//  if (loadedAtoms[id].selected) {
+//    color = color * 1.5;
+//	}
 
-	float scaleAmount = (float)loadedAtoms[id].atomicNumber;
+//	float scaleAmount = (float)loadedAtoms[id].atomicNumber;
+  float scaleAmount = 3;
 	if (scaleAmount < 4.0f) {
 		scaleAmount = 0.2f;
 	} else {
 		scaleAmount = 0.4f;
 	}
 	p->Scale(scaleAmount, scaleAmount, scaleAmount);
-	p->Translate(posVector[0], posVector[1], posVector[2]);
+	p->Translate(posVector.x, posVector.y, posVector.z);
 	p->Rotate(0.f, 0.f, 0.f);
 
 	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
@@ -645,8 +635,8 @@ void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
 /// moves cam over atom (alligned to z axis)
 void lookAtAtom(int atomNumber) {
-	cam.Pos[0] = loadedAtoms[atomNumber].atomPosition[0];
-	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition[1];
+	cam.Pos[0] = loadedAtoms[atomNumber].atomPosition.x;
+	cam.Pos[1] = loadedAtoms[atomNumber].atomPosition.y;
 }
 
 /// moves cam over crit point (alligned to z axis)
@@ -895,6 +885,7 @@ int main(int, char**)
     ReadMesh(CylV, CylI, "./cylinder.v", "./cylinder.i");
     CreateAndFillBuffers(&CylVB, &CylIB, CylV, CylI, CylNumV, CylNumI);
 
+
     // Imgui static variables
     static bool show_bonds = true;
     static bool show_cps = false;
@@ -1017,6 +1008,59 @@ int main(int, char**)
         if (show_cps){
           drawAllCPs(&p, SphereVB, SphereIB);
         }
+
+        static float x1 = -1;
+        static float y1 = 0;
+        static float z1 = 0;
+
+        static float x2 = 1;
+        static float y2 = 0;
+        static float z2 = 0;
+
+//	ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); 
+
+
+
+/*   
+// code for testing bonds
+//
+	ImGui::Begin("gfgf", false);
+  ImGui::DragFloat("x1: ", &x1, 0.05f);
+  ImGui::DragFloat("y1: ", &y1, 0.05f);
+  ImGui::DragFloat("z1: ", &z1, 0.05f);
+  ImGui::DragFloat("x2: ", &x2, 0.05f);
+  ImGui::DragFloat("y2: ", &y2, 0.05f);
+  ImGui::DragFloat("z2: ", &z2, 0.05f);
+  ImGui::Text("    q: %.03f, %.03f, %.03f", aq.x, aq.y, aq.z);
+  ImGui::Text("  n_q: %.03f, %.03f, %.03f", an_q.x, an_q.y, an_q.z);
+  ImGui::Text("    z: %.03f, %.03f, %.03f", az_axis.x, az_axis.y, az_axis.z);
+  ImGui::Text(" axis: %.03f, %.03f, %.03f", aaxis.x, aaxis.y, aaxis.z);
+  ImGui::Text("angle: %.05g", aangle);
+	ImGui::End();
+  
+
+          
+
+        atom a1;
+        atom a2;
+
+        a1.atomPosition = Vector3f(x1, y1, z1);
+        a2.atomPosition = Vector3f(x2, y2, z2);
+
+        bond b;
+        b.a1 = &a1;
+        b.a2 = &a2;
+
+
+        GenerateBondInfo(&b, &a1, &a2);
+        DrawBond(&p, CylVB, CylIB, &b);
+
+        drawAtomInstance(4, a1.atomPosition, Vector3f(1, 0, 0), &p, SphereVB, SphereIB);
+        drawAtomInstance(4, a2.atomPosition, Vector3f(1, 0, 0), &p, SphereVB, SphereIB);
+        drawAtomInstance(4, b.center, Vector3f(1, 1, 0), &p, SphereVB, SphereIB);
+        drawAtomInstance(4, b.center - aaxis, Vector3f(1, 1, 0), &p, SphereVB, SphereIB);
+
+*/
 
         // imgui overlays
 //    		printCamStats();

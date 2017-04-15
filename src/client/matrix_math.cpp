@@ -72,6 +72,17 @@ struct Vector3f
     return Ret;
   }
 
+  inline Vector3f operator-(const Vector3f& Right) const
+  {
+    Vector3f Ret;
+    Ret.x = x - Right.x;
+    Ret.y = y - Right.y;
+    Ret.z = z - Right.z;
+    return Ret;
+  }
+
+
+
   inline Vector3f operator*(float Right) const
   {
     Vector3f Ret;
@@ -81,7 +92,14 @@ struct Vector3f
     return Ret;
   }
 
-
+ inline Vector3f operator/(float Right) const
+  {
+    Vector3f Ret;
+    Ret.x = x / Right;
+    Ret.y = y / Right;
+    Ret.z = z / Right;
+    return Ret;
+  }
 
   Vector3f& operator += (const Vector3f& r){
     x += r.x;
@@ -370,17 +388,17 @@ void Matrix4f::InitRotateTransform(const Quaternion& quat)
   float wy2 = 2.0f * quat.w * quat.y;
   float wx2 = 2.0f * quat.w * quat.x;
   float xx2 = 2.0f * quat.x * quat.x;
-  m[0][0] = -yy2 - zz2 + 1.0f;
-  m[0][1] = xy2 + wz2;
-  m[0][2] = xz2 - wy2;
+  m[0][0] = 1 - yy2 - zz2;
+  m[0][1] = xy2 - wz2;
+  m[0][2] = xz2 + wy2;
   m[0][3] = 0;
-  m[1][0] = xy2 - wz2;
-  m[1][1] = -xx2 - zz2 + 1.0f;
+  m[1][0] = xy2 + wz2;
+  m[1][1] = 1 - xx2 - zz2;
   m[1][2] = yz2 + wx2;
   m[1][3] = 0;
-  m[2][0] = xz2 + wy2;
+  m[2][0] = xz2 - wy2;
   m[2][1] = yz2 - wx2;
-  m[2][2] = -xx2 - yy2 + 1.0f;
+  m[2][2] = 1 - xx2 - yy2;
   m[2][3] = 0.0f;
   m[3][0] = m[3][1] = m[3][2] = 0;
   m[3][3] = 1.0f;
