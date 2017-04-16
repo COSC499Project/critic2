@@ -900,7 +900,6 @@ void printCamStats() {
 }
 
 /// draw menu items in a toolbar, currently replaced with dropdowns
-[[deprecated]]
 void drawToolBar(int screen_w, int screen_h,
                  bool * show_bonds, bool * show_cps, bool * show_atoms) {
 	ImGui::SetNextWindowSize(ImVec2(50, screen_h),ImGuiSetCond_Once);
