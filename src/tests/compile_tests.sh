@@ -1,0 +1,1 @@
+g++ ../interface.o interface_spec.cpp -o interface_spec ../criticlib.a -lgfortran ../qhull/libqhull_critic.a ../cubpack/libcubpack.a ../ciftbx/libciftbx.a ../spglib/libspglib.a ../oldlibs/libmisc.a -lgomp

@@ -96,7 +96,7 @@ contains
 
     filename = str_c_to_f(filename0, nc)
 
-    call struct_crystal_input(cr, filename, isMolecule == 1, .true., .true.)
+    call struct_crystal_input(cr, filename, isMolecule == 1, .true., .false.)
     if (cr%isinit) then
        ! initialize the radial densities
        call grda_init(.true.,.true.,.true.)
