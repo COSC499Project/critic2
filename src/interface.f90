@@ -236,8 +236,6 @@ contains
       end if
     end if
 
-    print *, neighCrystal
-
   end subroutine get_atom_bond
 
   subroutine auto_cp() bind (c, name="auto_cp")
