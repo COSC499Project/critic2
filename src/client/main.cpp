@@ -481,7 +481,7 @@ void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
    for (int i=0; i< bondsAmount; i++){
 		 if (!bonds[i].neighCrystalBond) {
-     	 DrawBond(p, CylVB, CylIB, &bonds[i]);
+     		DrawBond(p, CylVB, CylIB, &bonds[i]);
 		 }
    }
 }
@@ -1026,7 +1026,9 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 		}
 
 		if (closeOthers != -1) {
-			ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
+			for (int i = 0; i < loadedAtomsAmount; i++){
+				ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[i].atomTreeName.c_str()), 0); // close all tabs
+			}
 			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[selectedAtom].atomTreeName.c_str()), 1);
 			closeOthers = -1;
 		}
