@@ -482,7 +482,7 @@ void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
    for (int i=0; i< bondsAmount; i++){
 		 if (!bonds[i].neighCrystalBond) {
-     	 DrawBond(p, CylVB, CylIB, &bonds[i]);
+     		DrawBond(p, CylVB, CylIB, &bonds[i]);
 		 }
    }
 }
@@ -900,7 +900,6 @@ void printCamStats() {
 }
 
 /// draw menu items in a toolbar, currently replaced with dropdowns
-[[deprecated]]
 void drawToolBar(int screen_w, int screen_h,
                  bool * show_bonds, bool * show_cps, bool * show_atoms) {
 	ImGui::SetNextWindowSize(ImVec2(50, screen_h),ImGuiSetCond_Once);
@@ -1027,7 +1026,9 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 		}
 
 		if (closeOthers != -1) {
-			ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
+			for (int i = 0; i < loadedAtomsAmount; i++){
+				ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[i].atomTreeName.c_str()), 0); // close all tabs
+			}
 			ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[selectedAtom].atomTreeName.c_str()), 1);
 			closeOthers = -1;
 		}
@@ -1053,7 +1054,9 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 			}
 
 			if (closeOthers != -1) { //only one cp tab should be open at a time
-				ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
+				for (int i = 0; i < loadedAtomsAmount; i++) {
+					ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[i].typeName + ":" + charConverter(i)).c_str()), 0); // close all tabs
+				}
 				ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + charConverter(closeOthers)).c_str()), 1); // leave selected tab open
 				closeOthers = -1;
 			}
