@@ -1054,7 +1054,9 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 			}
 
 			if (closeOthers != -1) { //only one cp tab should be open at a time
-				ImGui::GetStateStorage()->SetAllInt(0); // close all tabs
+				for (int i = 0; i < loadedAtomsAmount; i++) {
+					ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[i].typeName + ":" + charConverter(i)).c_str()), 0); // close all tabs
+				}
 				ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + charConverter(closeOthers)).c_str()), 1); // leave selected tab open
 				closeOthers = -1;
 			}
