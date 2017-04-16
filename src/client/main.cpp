@@ -116,6 +116,7 @@ struct bond{
     Vector3f center;
     Matrix4f rotation;
     float length;
+		bool neighCrystalBond;
 };
 
 /// information about a critical point
@@ -144,7 +145,7 @@ static void error_callback(int error, const char* description)
 }
 
 #pragma region shaders
-/// add a shader to the gl program 
+/// add a shader to the gl program
 static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
 {
 	GLuint ShaderObj = glCreateShader(ShaderType);
@@ -274,7 +275,7 @@ void GenerateBondInfo(bond * b, atom * a1, atom * a2)
   b->rotation = Rot;
 }
 
-/// draw a bond between 2 atoms defined in the bond struct  
+/// draw a bond between 2 atoms defined in the bond struct
 void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
 {
   float grey[3] = {.5, .5, .5};
@@ -644,7 +645,7 @@ void drawAtomInstance(int id, Vector3f posVector, Vector3f color,
 		scaleAmount = 0.4f;
 	}
 	p->Scale(scaleAmount, scaleAmount, scaleAmount);
-  
+
   Vector3f pos = posVector - boundingCube.center;
 	p->Translate(pos.x, pos.y, pos.z);
 	p->Rotate(0.f, 0.f, 0.f);
@@ -687,7 +688,7 @@ void drawCritPointInstance(int identifier, Vector3f posVector, const GLfloat col
 	p->Scale(scaleAmount, scaleAmount, scaleAmount);
   Vector3f pos = posVector - boundingCube.center;
 	p->Translate(pos.x, pos.y, pos.z);
-	
+
 	p->Rotate(0.f, 0.f, 0.f); //no rotation required
 	glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
 	glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
@@ -744,7 +745,7 @@ void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	}
 }
 
-///draws all loaded critical points 
+///draws all loaded critical points
 void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	for (int x = 0; x < loadedCPAmount; x++){
     Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
@@ -786,7 +787,7 @@ void selectAtom(int atomIndex) {
 void displayCol(string * displayStats, int numberOfCol) {
 	for (size_t i = 0; i < numberOfCol; i++) {
 		//text is wraped if too large
-		ImGui::TextWrapped(displayStats[i].c_str()); 
+		ImGui::TextWrapped(displayStats[i].c_str());
 		ImGui::NextColumn();
 	}
 }
