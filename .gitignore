@@ -13,6 +13,12 @@ src/client/critic2.exe
 tools/basin2off/basin2off
 tools/off2off/off2off
 
+#important libs
+!libglfw3.a
+!libglfw3dll.a
+!libopengl32.a
+
+
 # files that depend on some other files
 Makefile
 Makefile.in
