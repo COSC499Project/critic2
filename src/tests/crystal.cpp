@@ -20,7 +20,7 @@ extern "C" void get_cp_pos_type(int cpIdx, int *type, double *x, double *y, doub
 
 int main(int argc, char ** argv)
 {
-  char const *filename = "../../examples/data/icecake.CHGCAR";
+  char const *filename = "../../examples/data/benzene.wfx";
 
   int n; // number of atoms
 
@@ -28,7 +28,7 @@ int main(int argc, char ** argv)
 
   initialize();
   init_struct();
-  call_structure(filename, (int) strlen(filename), 0);
+  call_structure(filename, (int) strlen(filename), 1);
   get_num_atoms(&n);
   printf("num of atoms %d\n", n);
 
@@ -43,35 +43,35 @@ int main(int argc, char ** argv)
 
   }
 
-  for (int i = 0; i < n; i++) {
-    //share_bond(i+1, connected_atom);
-    int nstarN;
-
-    num_of_bonds(i+1, &nstarN);
-
-    for (int j = 0; j < nstarN; j++) {
-      int connected_atom;
-      bool neighCrystal = false;
-
-      get_atom_bond(i+1, j+1, &connected_atom, &neighCrystal);
-      printf("%d atom has %d bonds and one is %d and %d\n",i, nstarN, connected_atom-1, neighCrystal);
-    }
-  }
-
-  // auto_cp();
+  // for (int i = 0; i < n; i++) {
+  //   //share_bond(i+1, connected_atom);
+  //   int nstarN;
   //
-  // int numCP;
-  // num_of_crit_points(&numCP);
+  //   num_of_bonds(i+1, &nstarN);
   //
-  // for (int i = n+1; i <= numCP; i++) {
-  //   int cpType;
-  //   double x;
-  //   double y;
-  //   double z;
+  //   for (int j = 0; j < nstarN; j++) {
+  //     int connected_atom;
+  //     bool neighCrystal = false;
   //
-  //   get_cp_pos_type(i, &cpType, &x, &y, &z);
-  //
-  //   printf("Critical Points: %d %d %.10f %.10f %.10f\n",i,cpType, x, y, z);
+  //     get_atom_bond(i+1, j+1, &connected_atom, &neighCrystal);
+  //     printf("%d atom has %d bonds and one is %d and %d\n",i, nstarN, connected_atom-1, neighCrystal);
+  //   }
   // }
+
+  auto_cp();
+
+  int numCP;
+  num_of_crit_points(&numCP);
+
+  for (int i = n+1; i <= numCP; i++) {
+    int cpType;
+    double x;
+    double y;
+    double z;
+
+    get_cp_pos_type(i, &cpType, &x, &y, &z);
+
+    printf("Critical Points: %d %d %.10f %.10f %.10f\n",i,cpType, x, y, z);
+  }
 
 }

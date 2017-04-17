@@ -99,7 +99,7 @@ contains
     call struct_crystal_input(cr, filename, isMolecule == 1, .true., .false.)
     if (cr%isinit) then
        ! initialize the radial densities
-       call grda_init(.true.,.true.,.true.)
+       call grda_init(.true.,.true.,.false.)
        ! header and change refden
        write (uout,'("* Field number ",A," is now REFERENCE."/)') string(0)
        refden = 0
