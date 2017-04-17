@@ -720,6 +720,14 @@ bool otherAtomsVisable = true;
 
 #pragma endregion
 
+#pragma region critical point flashing
+bool flashCP = false;
+int framesMaxCP = 15;
+int framesLeftCP = 0;
+bool otherCriticalPointsVisable = true;
+#pragma endregion
+
+
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 	if (flashAtoms && loadedAtomsAmount > 0) { //flash mode
@@ -747,9 +755,28 @@ void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
 ///draws all loaded critical points
 void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-	for (int x = 0; x < loadedCPAmount; x++){
-    Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
-		drawCritPointInstance(x, loadedCriticalPoints[x].cpPosition, color, p, SphereVB, SphereIB);
+	//cp flashing
+	if (flashCP) {
+		if (framesLeftCP <= 0) {
+			otherCriticalPointsVisable = !otherCriticalPointsVisable;
+			framesLeftCP = framesMaxCP;
+		}
+		if(otherCriticalPointsVisable)
+			for (int x = 0; x < loadedCPAmount; x++) {
+				Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
+				drawCritPointInstance(x, loadedCriticalPoints[x].cpPosition, color, p, SphereVB, SphereIB);
+			}
+		else {
+			Vector3f color = getCritPointColor(loadedCriticalPoints[selectedCP].type);
+			drawCritPointInstance(selectedCP, loadedCriticalPoints[selectedCP].cpPosition, color, p, SphereVB, SphereIB);
+		}
+		framesLeftCP--;
+	}
+	else {
+		for (int x = 0; x < loadedCPAmount; x++) {
+			Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
+			drawCritPointInstance(x, loadedCriticalPoints[x].cpPosition, color, p, SphereVB, SphereIB);
+		}
 	}
 }
 
@@ -776,6 +803,12 @@ void selectAtom(int atomIndex) {
 	loadedAtoms[atomIndex].selected = true;
 	lookAtAtom(atomIndex);
 	selectedAtom = atomIndex;
+}
+
+void selectCriticalPoint(int cpIndex) {
+	loadedCriticalPoints[cpIndex].selected = true;
+	lookAtCritPoint(cpIndex);
+	selectedCP = cpIndex;
 }
 
 #pragma endregion
@@ -1095,6 +1128,27 @@ void createAtomSearchBar() {
 	ImGui::End();
 }
 
+void createCriticalPointSearchBar() {
+	ImGui::SetNextWindowSize(ImVec2(200, 70), ImGuiSetCond_Appearing);
+	ImGui::Begin("Critical Search by ID #");
+	ImGuiWindowFlags Flags;
+	int criticalpointID = 0;
+	if (ImGui::InputInt("CP_ID#", &criticalpointID, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) { //search on enter
+		if (criticalpointID > 0 && criticalpointID < loadedCPAmount) {
+			selectCriticalPoint(criticalpointID);
+		}
+	}
+
+	//checkbox to flash atoms
+	if (ImGui::Checkbox("Selc.findCP", &flashCP)) { //set flashing to defults
+		framesMaxCP = 15; // ~0.5 seconds
+		framesLeftCP = 0;
+		otherCriticalPointsVisable = true;
+	}
+
+	ImGui::End();
+}
+
 #pragma endregion
 
 int main(int, char**)
@@ -1322,6 +1376,7 @@ int main(int, char**)
 		drawMainMenuTree(display_w, display_h-5);
         //drawToolBar(display_w, display_h, &show_bonds, &show_cps, &show_atoms);
 		createAtomSearchBar();
+		createCriticalPointSearchBar();
 		ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms);
 #pragma endregion
 
