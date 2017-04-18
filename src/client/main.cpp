@@ -1,5 +1,3 @@
-// ImGui - standalone example application for Glfw + OpenGL 3, using programmable pipeline
-// If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 #include <imgui.h>
 #include "imgui_impl_glfw_gl3.h"
 #include <stdio.h>
@@ -18,6 +16,10 @@
 #include <GLFW/glfw3.h>
 #include "matrix_math.cpp"
 #include "tinyfiledialogs.h"
+
+
+// Toggle this to enable imgui demo window
+bool ShowDemoWindow = false;
 
 extern "C" void initialize();
 extern "C" void init_struct();
@@ -1332,13 +1334,10 @@ int main(int, char**)
           }
         }
 #pragma endregion
-		//TAG: demoWindow
-		//set this to true to see all posible imgui configurations
-        // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow
-        if (!show_test_window)
+        if (ShowDemoWindow)
         {
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-            ImGui::ShowTestWindow(&show_test_window);
+            ImGui::ShowTestWindow(&ShowDemoWindow);
         }
 
 
