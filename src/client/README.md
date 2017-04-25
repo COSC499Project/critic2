@@ -123,9 +123,7 @@ To create a new window, just call, ImGui::Begin to create it and ImGui::End to e
 ImGui::Begin("Title", &open);
 ImGui::End();
 ```
-open is a pointer to a boolean, which indicates whether the window is closed or open. Generally you want to declare this as a static variable, outside the main loop. This results in a window like this:
-
-
+open is a pointer to a boolean, which indicates whether the window is closed or open. Generally you want to declare this as a static variable, outside the main loop.
 
 Any UI elements we wish to add to this window just goes between the ImGui::Begin call and the ImGui::End call. ImGui has a vast amount of built-in widgets, so a good way to find what you want is to browse the demo window provided by the developers of ImGui.  You can do this by toggling the boolean value in critic2/src/client/main.cpp at line 22, from false to true.
 ```
@@ -147,28 +145,16 @@ if (ImGui::Button(“Do Something”)) {
 	ImGui::DragFloat(“drag float”, &fl, 0.05f);
 ImGui::End();
 ```
-This will result in something like this:
-
-
-
 Some comments about this. Both Checkbox and Button return a boolean value, so they can be put in if statements, which is one of the ways ImGui avoids having to use callbacks.
 ### Fortran / C Interface and Loading Molecular Info
 The interface between Fortran and C++ consists of the file critic2/src/interface.f90
-Subroutines are written here and bound to a C function name.
-
-
-
-Which are then matched with a C function in critic2/src/client/main.cpp:
-
-
-
+Subroutines are written here and bound to a C function name. Which are then matched with a C function in critic2/src/client/main.cpp, called by:
+```
+extern "C" void function name();
+```
 As you can see, the interface consists of functions which are called when the user loads a molecule/crystal file, or when they call the generate/load critical point functions, from the top menu bar.
 
-When molecules/crystals are loaded, or their critical points generated, the information goes into arrays of structs, as seen below:
-
-
-
-It is from these arrays (ie: bonds, loadedCriticalPoints, and loadedAtoms) that information is accessed by the 3D modelling code.
+When molecules/crystals are loaded, or their critical points generated, the information goes into arrays of structs. It is from these arrays (ie: bonds, loadedCriticalPoints, and loadedAtoms) that information is accessed by the 3D modelling code.
 
 
 
